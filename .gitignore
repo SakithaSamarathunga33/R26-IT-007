@@ -1,0 +1,23 @@
+# Environment
+.env
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+
+# Node / React Native
+node_modules/
+mobile/.expo/
+mobile/android/build/
+mobile/ios/build/
+mobile/.gradle/
+*.keystore
+
+# Logs
+*.log
