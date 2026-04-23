@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "LexiScan",
+    "slug": "lexiscan",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "splash": {
+      "image": "./src/assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2563EB"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.lexiscan.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/icon.png",
+        "backgroundColor": "#2563EB"
+      },
+      "package": "com.lexiscan.app"
+    },
+    "description": "AI-powered dyslexia early screening app for children",
+    "web": {
+      "favicon": "./src/assets/icon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-audio"
+    ]
+  }
+}
