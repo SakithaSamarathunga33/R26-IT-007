@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /speech_attempts/{docId} {
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+    match /speech_predictions/{docId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+      allow delete: if request.auth != null && resource.data.child_id == request.auth.uid;
+    }
+
+    // Which speech levels a child has unlocked. Doc id is the child's uid.
+    match /speech_level_progress/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /behavior_attempts/{docId} {
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+    match /behavior_predictions/{docId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+      allow delete: if request.auth != null && resource.data.child_id == request.auth.uid;
+    }
+
+    match /handwriting_attempts/{docId} {
+      allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
+      allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
+    }
+    match /handwriting_predictions/{docId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+      allow delete: if request.auth != null && resource.data.child_id == request.auth.uid;
+    }
+
+    // Which handwriting levels a child has unlocked. Doc id is the child's uid.
+    match /handwriting_level_progress/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Which behaviour levels a child has unlocked. Doc id is the child's uid.
+    match /behavior_level_progress/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /fusion_predictions/{docId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && resource.data.child_id == request.auth.uid;
+    }
+
+    // How far a child has got through their current therapy plan.
+    // Doc id is the child's uid.
+    match /therapy_sessions/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /therapy_recommendations/{docId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && resource.data.child_id == request.auth.uid;
+    }
+
+    match /assessment_sessions/{sessionId} {
+      allow read, write: if request.auth != null
+        && sessionId == ("session_" + request.auth.uid);
+    }
+
+    match /assessment_history/{docId} {
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
+  }
+}
