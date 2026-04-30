@@ -1,0 +1,38 @@
+name: lexiscan
+
+services:
+  speech_api:
+    image: lexiscan/speech-api
+    container_name: lexiscan-speech-api
+    build: ./backend/speech_phonological/api
+    ports:
+      - "8011:8000"
+    volumes:
+      - ./backend/speech_phonological/ml_models:/app/ml_models
+
+  behavioral_api:
+    image: lexiscan/behavioral-api
+    container_name: lexiscan-behavioral-api
+    build: ./backend/behavioral_attention/api
+    ports:
+      - "8012:8000"
+    volumes:
+      - ./backend/behavioral_attention/ml_models:/app/ml_models
+
+  handwriting_api:
+    image: lexiscan/handwriting-api
+    container_name: lexiscan-handwriting-api
+    build: ./backend/handwriting_analysis/api
+    ports:
+      - "8013:8000"
+    volumes:
+      - ./backend/handwriting_analysis/ml_models:/app/ml_models
+
+  multimodal_api:
+    image: lexiscan/multimodal-api
+    container_name: lexiscan-multimodal-api
+    build: ./backend/multi_modal_risk/api
+    ports:
+      - "8014:8000"
+    volumes:
+      - ./backend/multi_modal_risk/ml_models:/app/ml_models
