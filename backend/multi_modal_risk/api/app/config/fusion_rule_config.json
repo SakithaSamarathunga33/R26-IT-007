@@ -1,0 +1,9 @@
+{
+  "model_name": "weighted_rule_based_fusion",
+  "model_version": "weighted_rule_v1",
+  "speech_weight": 0.40,
+  "handwriting_weight": 0.35,
+  "behavior_weight": 0.25,
+  "threshold": 0.35,
+  "formula": "0.40*speech_score + 0.35*handwriting_score + 0.25*behavior_score"
+}
