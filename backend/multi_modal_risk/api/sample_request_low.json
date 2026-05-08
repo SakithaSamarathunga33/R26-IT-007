@@ -1,0 +1,47 @@
+{
+  "child_id": "CHILD_001",
+  "session_id": "SESSION_001",
+  "metadata": {
+    "age": 5.5,
+    "native_language": "Sinhala",
+    "assessment_language": "English",
+    "school_type": "urban_public",
+    "support_level": "none",
+    "device_type": "tablet",
+    "environment_noise_level": 0.12,
+    "time_of_day": "morning"
+  },
+  "speech": {
+    "risk_probability": 0.12,
+    "risk_level": "low",
+    "features": {
+      "phoneme_error_rate": 0.15,
+      "hesitation_score": 0.18,
+      "pronunciation_score": 0.82,
+      "rhyme_accuracy": 0.78
+    },
+    "quality": { "prediction_reliability": "high" }
+  },
+  "handwriting": {
+    "risk_probability": 0.18,
+    "risk_level": "low",
+    "features": {
+      "reversal_risk": 0.10,
+      "spacing_variance": 0.20,
+      "alignment_score": 0.84,
+      "writing_quality_score": 0.80
+    },
+    "quality": { "prediction_reliability": "high" }
+  },
+  "behavior": {
+    "risk_probability": 0.20,
+    "risk_level": "low",
+    "features": {
+      "attention_score": 0.76,
+      "engagement_score": 0.82,
+      "response_latency": 1.4,
+      "retry_count": 0
+    },
+    "quality": { "prediction_reliability": "high" }
+  }
+}
