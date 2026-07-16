@@ -1,0 +1,14 @@
+{
+  "task_type": "word_repetition",
+  "target_word": "cat",
+  "target_phoneme_seq": "K AE T",
+  "difficulty_level": "easy",
+  "linguistic_focus": "phoneme_accuracy",
+  "age": 5.5,
+  "gender": "F",
+  "native_language": "Sinhala",
+  "assessment_language": "English",
+  "recording_device_type": "mobile_mic",
+  "environment_noise_level": 0.12,
+  "time_of_day": "morning"
+}
