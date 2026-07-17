@@ -1,0 +1,18 @@
+{
+  "task_type": "letter_copy",
+  "target_text": "b",
+  "difficulty_level": "easy",
+  "age": 5.5,
+  "native_language": "Sinhala",
+  "assessment_language": "English",
+  "school_type": "urban_public",
+  "support_level": "none",
+  "device_type": "tablet_stylus",
+  "environment_noise_level": 0.12,
+  "time_of_day": "morning",
+  "writing_duration_sec": 7.2,
+  "retry_count": 0,
+  "task_completion_status": 1,
+  "self_correction_flag": 0,
+  "strict_target_match": false
+}

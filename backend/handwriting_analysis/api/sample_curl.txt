@@ -1,0 +1,18 @@
+curl -X POST "http://127.0.0.1:8000/predict/handwriting" \
+  -F "image=@sample_b.png" \
+  -F "task_type=letter_copy" \
+  -F "target_text=b" \
+  -F "difficulty_level=easy" \
+  -F "age=5.5" \
+  -F "native_language=Sinhala" \
+  -F "assessment_language=English" \
+  -F "school_type=urban_public" \
+  -F "support_level=none" \
+  -F "device_type=tablet_stylus" \
+  -F "environment_noise_level=0.12" \
+  -F "time_of_day=morning" \
+  -F "writing_duration_sec=7.2" \
+  -F "retry_count=0" \
+  -F "task_completion_status=1" \
+  -F "self_correction_flag=0" \
+  -F "strict_target_match=false"
