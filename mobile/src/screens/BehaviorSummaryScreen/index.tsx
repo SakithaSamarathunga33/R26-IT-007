@@ -1,0 +1,405 @@
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../../navigation/AppNavigator";
+import { theme } from "../../theme";
+import {
+  BEHAVIOR_TASKS, BEHAVIOR_TASK_TYPE_LABELS, BEHAVIOR_TASK_COLORS,
+  BEHAVIOR_LEVELS, BehaviorLevel, BehaviorLevelId,
+  BehaviorTaskType, behaviorLevelTaskCount,
+} from "../../config/behaviorTasks";
+import { auth } from "../../config/firebase";
+import { markModuleDone } from "../../services/sessionService";
+import { fetchModuleSummary, ModuleSummary, RiskLevel, SummaryRow } from "../../services/summaryService";
+import { BehaviorLevelProgress, fetchBehaviorLevelProgress } from "../../services/behaviorLevelService";
+
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorSummary">;
+};
+
+const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444", requires_review: "#64748B" };
+const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", requires_review: "#F8FAFC" };
+const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", requires_review: "#E2E8F0" };
+
+const num = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+const OVERALL_CONFIG = {
+  low:             { label: "Low Risk Indicators",   sublabel: "Attention & engagement within typical range.",         icon: "checkmark-circle" as const, gradColors: ["#059669", "#047857"] as [string, string] },
+  medium:          { label: "Moderate Indicators",   sublabel: "Some patterns noted. A specialist review may help.",   icon: "alert-circle" as const,    gradColors: ["#F59E0B", "#D97706"] as [string, string] },
+  high:            { label: "Elevated Indicators",   sublabel: "Multiple patterns noted. Evaluation recommended.",     icon: "warning" as const,          gradColors: ["#EF4444", "#DC2626"] as [string, string] },
+  requires_review: { label: "Review Required",       sublabel: "Some activities had incomplete data.",                 icon: "refresh-circle" as const,   gradColors: ["#94A3B8", "#64748B"] as [string, string] },
+};
+
+type BreakdownItem = {
+  row: SummaryRow;
+  typeLabel: string;
+  detail: string;
+  taskType: BehaviorTaskType | null;
+  key: string;
+};
+type LevelGroup = { level: BehaviorLevel; items: BreakdownItem[] };
+
+/**
+ * Buckets prediction rows into their levels. Rows written by the current app
+ * carry `level`/`task_id` directly; older rows only have their arrival order, so
+ * those fall back to positional mapping onto BEHAVIOR_TASKS.
+ */
+function groupRowsByLevel(rows: SummaryRow[]): LevelGroup[] {
+  const buckets = new Map<BehaviorLevelId, BreakdownItem[]>();
+
+  rows.forEach((row, i) => {
+    const f = row.features ?? {};
+    const byId = f.task_id ? BEHAVIOR_TASKS.find((t) => t.id === f.task_id) : undefined;
+    const task = byId ?? BEHAVIOR_TASKS[i];
+    const levelId = (BEHAVIOR_LEVELS.some((l) => l.id === f.level)
+      ? f.level
+      : task?.level ?? 1) as BehaviorLevelId;
+    const taskType = (f.task_type ?? task?.task_type ?? null) as BehaviorTaskType | null;
+
+    const item: BreakdownItem = {
+      row,
+      typeLabel: taskType ? BEHAVIOR_TASK_TYPE_LABELS[taskType] ?? "Activity" : `Activity ${i + 1}`,
+      // Missing-letter rows read better as the word than as the generic prompt.
+      detail: task?.word
+        ? `“${task.word}” — missing letter`
+        : task
+          ? `${task.instruction.replace(/\n/g, " ").slice(0, 30)}…`
+          : "Behaviour activity",
+      taskType,
+      key: `${f.task_id ?? i}-${i}`,
+    };
+
+    buckets.set(levelId, [...(buckets.get(levelId) ?? []), item]);
+  });
+
+  return BEHAVIOR_LEVELS.filter((l) => buckets.has(l.id)).map((level) => ({
+    level,
+    items: buckets.get(level.id)!,
+  }));
+}
+
+function MiniBar({ value, color }: { value: number; color: string }) {
+  return (
+    <View style={{ flex: 1, height: 4, backgroundColor: "#E2E8F0", borderRadius: 2, overflow: "hidden" }}>
+      <View style={{ width: `${Math.round(value * 100)}%`, height: 4, backgroundColor: color, borderRadius: 2 }} />
+    </View>
+  );
+}
+
+export default function BehaviorSummaryScreen({ navigation }: Props) {
+  const markedRef = useRef(false);
+  const [summary, setSummary] = useState<ModuleSummary | null>(null);
+  const [levelProgress, setLevelProgress] = useState<BehaviorLevelProgress>({ completed: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setLoading(false); return; }
+
+    Promise.all([
+      // behaviour stores attention/engagement at the top level of the doc
+      fetchModuleSummary("behavior_predictions", uid, `session_${uid}`, "features"),
+      fetchBehaviorLevelProgress(uid),
+    ])
+      .then(([sum, prog]) => {
+        setSummary(sum);
+        setLevelProgress(prog);
+        // The module only counts as done for the dashboard/fusion gate once
+        // every level has been played — this screen is also reachable mid-run
+        // via "see results so far".
+        const allLevelsDone = BEHAVIOR_LEVELS.every((l) => prog.completed.includes(l.id));
+        if (allLevelsDone && !markedRef.current) {
+          markedRef.current = true;
+          markModuleDone(uid, "behaviourDone").catch(() => {});
+        }
+      })
+      .catch(() => setSummary(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || !summary) {
+    return (
+      <View style={[styles.container, { alignItems: "center", justifyContent: "center" }]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
+        {loading ? (
+          <ActivityIndicator size="large" color="#0891B2" />
+        ) : (
+          <Text style={{ fontFamily: theme.fonts.regular, color: "#64748B" }}>No results found for this session.</Text>
+        )}
+      </View>
+    );
+  }
+
+  const { rows, count, avgProb } = summary;
+  const overallLevel: RiskLevel = summary.overallLevel;
+  const groups = groupRowsByLevel(rows);
+  const remainingLevels = BEHAVIOR_LEVELS.filter((l) => !levelProgress.completed.includes(l.id));
+  const nextLevel = remainingLevels[0];
+  const avgAttention  = count ? rows.reduce((s, r) => s + num(r.features.attention_score), 0) / count : 0;
+  const avgEngagement = count ? rows.reduce((s, r) => s + num(r.features.engagement_score), 0) / count : 0;
+  const config = OVERALL_CONFIG[overallLevel];
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
+
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={20} color="#1E293B" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Behaviour Summary</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* Overall card */}
+        <LinearGradient colors={config.gradColors} style={styles.overallCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={styles.decoCircle} />
+          <View style={styles.overallIconWrap}>
+            <Ionicons name={config.icon} size={44} color="#fff" />
+          </View>
+          <Text style={styles.overallLabel}>{config.label}</Text>
+          <Text style={styles.overallSub}>{config.sublabel}</Text>
+          <View style={styles.overallStatsRow}>
+            {[
+              { label: "Attention",   value: `${Math.round(avgAttention * 100)}%` },
+              { label: "Engagement",  value: `${Math.round(avgEngagement * 100)}%` },
+              { label: "Activities",  value: `${count}` },
+            ].map((s, i) => (
+              <View key={i} style={[styles.overallStat, i < 2 && styles.overallStatBorder]}>
+                <Text style={styles.overallStatVal}>{s.value}</Text>
+                <Text style={styles.overallStatLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
+
+        {/* Partial-run notice — the module isn't finished until every level is */}
+        {nextLevel && (
+          <View style={styles.partialCard}>
+            <View style={styles.partialIconWrap}>
+              <Ionicons name="hourglass-outline" size={18} color="#D97706" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.partialTitle}>
+                {remainingLevels.length} level{remainingLevels.length > 1 ? "s" : ""} still to go
+              </Text>
+              <Text style={styles.partialSub}>
+                These results cover the levels played so far. Finish Level {nextLevel.id} to complete the behaviour module.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Risk probability bar */}
+        <View style={styles.probCard}>
+          <View style={styles.probHeader}>
+            <Text style={styles.probTitle}>Overall Risk Score</Text>
+            <Text style={[styles.probValue, { color: RISK_COLORS[overallLevel] }]}>
+              {Math.round(avgProb * 100)}%
+            </Text>
+          </View>
+          <View style={styles.probTrack}>
+            <LinearGradient
+              colors={[RISK_COLORS[overallLevel], RISK_COLORS[overallLevel]]}
+              style={[styles.probFill, { width: `${Math.round(avgProb * 100)}%` }]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            />
+          </View>
+          <Text style={styles.probNote}>Based on {count} completed activities</Text>
+        </View>
+
+        {/* Activity breakdown, grouped by level */}
+        <Text style={styles.sectionLabel}>Activity Breakdown</Text>
+        {groups.map((group) => (
+          <View key={group.level.id} style={styles.levelGroup}>
+            <View style={styles.levelGroupHeader}>
+              <LinearGradient
+                colors={group.level.gradColors}
+                style={styles.levelGroupBadge}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.levelGroupBadgeText}>{group.level.id}</Text>
+              </LinearGradient>
+              <Text style={styles.levelGroupTitle}>{group.level.title}</Text>
+              <View style={[styles.levelGroupChip, { backgroundColor: group.level.bg }]}>
+                <Text style={[styles.levelGroupChipText, { color: group.level.color }]}>
+                  {group.items.length}/{behaviorLevelTaskCount(group.level.id)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.breakdownCard}>
+              {group.items.map(({ row, typeLabel, detail, taskType, key }, i) => {
+                const tc = taskType
+                  ? BEHAVIOR_TASK_COLORS[taskType]
+                  : { bg: "#F1F5F9", color: "#64748B", border: "#E2E8F0" };
+                const rc = RISK_COLORS[row.risk_level];
+                const attention = num(row.features.attention_score);
+                return (
+                  <View key={key} style={[styles.breakdownRow, i < group.items.length - 1 && styles.breakdownBorder]}>
+                    <View style={[styles.breakdownIcon, { backgroundColor: tc.bg }]}>
+                      <Ionicons name={row.risk_level === "low" ? "checkmark" : "alert"} size={13} color={rc} />
+                    </View>
+                    <View style={styles.breakdownInfo}>
+                      <Text style={styles.breakdownTask}>{typeLabel}</Text>
+                      <Text style={styles.breakdownWord} numberOfLines={1}>{detail}</Text>
+                      <MiniBar value={attention} color={tc.color} />
+                    </View>
+                    <View style={[styles.riskPill, { backgroundColor: RISK_BG[row.risk_level], borderColor: RISK_BORDER[row.risk_level] }]}>
+                      <Text style={[styles.riskPillText, { color: rc }]}>
+                        {row.risk_level === "requires_review" ? "review" : row.risk_level}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ))}
+
+        {/* Disclaimer */}
+        <View style={styles.disclaimerCard}>
+          <Ionicons name="shield-checkmark-outline" size={16} color="#0891B2" />
+          <Text style={styles.disclaimerText}>
+            These results are screening indicators only. They are not a diagnosis. Please consult a qualified professional for a full evaluation.
+          </Text>
+        </View>
+
+        <View style={{ height: 20 }} />
+
+        {/* Mid-run: send the child back to finish the remaining levels */}
+        {nextLevel && (
+          <LinearGradient colors={nextLevel.gradColors} style={[styles.doneBtn, { marginBottom: 12 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <TouchableOpacity
+              style={styles.doneBtnInner}
+              activeOpacity={0.88}
+              onPress={() => navigation.navigate("BehaviorLevels")}
+            >
+              <Ionicons name="layers-outline" size={20} color="#fff" />
+              <Text style={styles.doneBtnText}>Continue to Level {nextLevel.id}</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        )}
+
+        <LinearGradient
+          colors={nextLevel ? ["#94A3B8", "#64748B"] : ["#0891B2", "#0E7490"]}
+          style={styles.doneBtn}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        >
+          <TouchableOpacity
+            style={styles.doneBtnInner}
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate("MainTabs")}
+          >
+            <Ionicons name="home-outline" size={20} color="#fff" />
+            <Text style={styles.doneBtnText}>Back to Dashboard</Text>
+          </TouchableOpacity>
+        </LinearGradient>
+
+        <View style={{ height: 50 }} />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F5F7FF" },
+  header: {
+    paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#94A3B8", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 3,
+  },
+  headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
+  content: { paddingHorizontal: 20 },
+
+  overallCard: {
+    borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
+    overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.15, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
+  },
+  decoCircle: { position: "absolute", width: 160, height: 160, borderRadius: 80, backgroundColor: "rgba(255,255,255,0.08)", top: -50, right: -40 },
+  overallIconWrap: {
+    width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(255,255,255,0.2)",
+    borderWidth: 3, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center", marginBottom: 12,
+  },
+  overallLabel: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 4 },
+  overallSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 20 },
+  overallStatsRow: {
+    flexDirection: "row", backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", width: "100%",
+  },
+  overallStat: { flex: 1, alignItems: "center", paddingVertical: 12 },
+  overallStatBorder: { borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.2)" },
+  overallStatVal: { fontSize: 20, fontFamily: theme.fonts.extraBold, color: "#fff" },
+  overallStatLabel: { fontSize: 10, fontFamily: theme.fonts.medium, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: 0.5 },
+
+  probCard: {
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
+    borderRadius: 20, padding: 16, marginBottom: 20,
+    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
+  },
+  probHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  probTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
+  probValue: { fontSize: 18, fontFamily: theme.fonts.extraBold },
+  probTrack: { height: 8, backgroundColor: "#E2E8F0", borderRadius: 4, overflow: "hidden", marginBottom: 8 },
+  probFill: { height: 8, borderRadius: 4 },
+  probNote: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
+
+  sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 },
+
+  partialCard: {
+    flexDirection: "row", alignItems: "flex-start", gap: 12,
+    backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
+    borderRadius: 16, padding: 14, marginBottom: 14,
+  },
+  partialIconWrap: {
+    width: 34, height: 34, borderRadius: 11, backgroundColor: "#FEF3C7",
+    alignItems: "center", justifyContent: "center",
+  },
+  partialTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#92400E", marginBottom: 2 },
+  partialSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#B45309", lineHeight: 17 },
+
+  levelGroup: { marginBottom: 14 },
+  levelGroupHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  levelGroupBadge: { width: 26, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  levelGroupBadgeText: { fontSize: 13, fontFamily: theme.fonts.extraBold, color: "#fff" },
+  levelGroupTitle: { flex: 1, fontSize: 13, fontFamily: theme.fonts.bold, color: "#1E293B" },
+  levelGroupChip: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  levelGroupChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold },
+
+  breakdownCard: {
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
+    borderRadius: 20, marginBottom: 16, overflow: "hidden",
+    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
+  },
+  breakdownRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
+  breakdownBorder: { borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+  breakdownIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  breakdownInfo: { flex: 1, gap: 4 },
+  breakdownTask: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
+  breakdownWord: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
+  riskPill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  riskPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
+
+  disclaimerCard: {
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    backgroundColor: "#ECFEFF", borderWidth: 1, borderColor: "#CFFAFE",
+    borderRadius: 16, padding: 14, marginBottom: 20,
+  },
+  disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#0E7490", lineHeight: 18 },
+
+  doneBtn: {
+    borderRadius: 50,
+    shadowColor: "#0891B2", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
+  },
+  doneBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
+  doneBtnText: { fontSize: 15, fontFamily: theme.fonts.bold, color: "#fff" },
+});
