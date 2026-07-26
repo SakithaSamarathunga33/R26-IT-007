@@ -28,20 +28,20 @@ type Props = {
 
 const MODULES = [
   {
-    key: "handwriting",
-    icon: "pencil-outline" as const,
-    label: "Writing",
-    sublabel: "Handwriting",
-    duration: "~6 min",
+    key: "behaviour",
+    icon: "happy-outline" as const,
+    label: "Behaviour",
+    sublabel: "Attention",
+    duration: "~4 min",
     color: "#fff",
     textColor: "#fff",
     subColor: "rgba(255,255,255,0.75)",
-    gradColors: ["#7C3AED", "#6D28D9"] as [string, string],
+    gradColors: ["#0891B2", "#0E7490"] as [string, string],
     iconBg: "rgba(255,255,255,0.2)",
     badgeBg: "rgba(255,255,255,0.2)",
     badgeColor: "#fff",
     status: "active" as const,
-    route: "HandwritingIntro" as const,
+    route: "BehaviorIntro" as const,
   },
 ];
 

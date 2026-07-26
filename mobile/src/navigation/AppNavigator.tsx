@@ -15,15 +15,13 @@ import SignupScreen from "../screens/SignupScreen";
 import HomeScreen from "../screens/HomeScreen";
 import HistoryScreen from "../screens/HistoryScreen";
 import ProfileScreen from "../screens/ProfileScreen";
-import HandwritingIntroScreen from "../screens/HandwritingIntroScreen";
-import HandwritingLevelsScreen from "../screens/HandwritingLevelsScreen";
-import HandwritingTaskScreen from "../screens/HandwritingTaskScreen";
-import HandwritingLevelCompleteScreen from "../screens/HandwritingLevelCompleteScreen";
-import HandwritingCanvasScreen from "../screens/HandwritingCanvasScreen";
-import HandwritingReviewScreen from "../screens/HandwritingReviewScreen";
-import HandwritingResultScreen from "../screens/HandwritingResultScreen";
-import HandwritingSummaryScreen from "../screens/HandwritingSummaryScreen";
-import { HandwritingLevelId } from "../config/handwritingTasks";
+import BehaviorIntroScreen from "../screens/BehaviorIntroScreen";
+import BehaviorLevelsScreen from "../screens/BehaviorLevelsScreen";
+import BehaviorActivityScreen from "../screens/BehaviorActivityScreen";
+import BehaviorLevelCompleteScreen from "../screens/BehaviorLevelCompleteScreen";
+import BehaviorResultScreen from "../screens/BehaviorResultScreen";
+import BehaviorSummaryScreen from "../screens/BehaviorSummaryScreen";
+import { BehaviorLevelId } from "../config/behaviorTasks";
 import FusionProgressScreen from "../screens/FusionProgressScreen";
 import FusionLoadingScreen from "../screens/FusionLoadingScreen";
 import FusionRiskSummaryScreen from "../screens/FusionRiskSummaryScreen";
@@ -51,33 +49,23 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   MainTabs: undefined;
-  HandwritingIntro: undefined;
-  HandwritingLevels: undefined;
-  HandwritingTask: { taskIndex: number; practice?: PracticeParams };
-  HandwritingLevelComplete: { level: HandwritingLevelId };
-  HandwritingCanvas: {
-    taskIndex: number; inputMode: "canvas" | "photo"; taskStartTs: number;
-    practice?: PracticeParams;
-  };
-  HandwritingReview: {
+  BehaviorIntro: undefined;
+  BehaviorLevels: undefined;
+  BehaviorActivity: { taskIndex: number; practice?: PracticeParams };
+  BehaviorLevelComplete: { level: BehaviorLevelId };
+  BehaviorResult: {
     taskIndex: number;
-    inputMode: "canvas" | "photo";
-    capturedUri: string | null;
-    strokesJson: string | null;
-    retryCount: number;
-    durationSec: number;
-    taskStartTs: number;
-    practice?: PracticeParams;
-  };
-  HandwritingResult: {
-    taskIndex: number;
-    retryCount: number;
-    durationSec: number;
+    isCorrect: boolean;
+    selectedOption: string | null;
+    elapsed: number;
+    attemptCount: number;
+    hintCount: number;
+    features: any | null;
     result: any | null;
     error?: string;
     practice?: PracticeParams;
   };
-  HandwritingSummary: undefined;
+  BehaviorSummary: undefined;
   FusionProgress: undefined;
   FusionLoading: undefined;
   FusionRiskSummary: { response: any };
@@ -181,14 +169,12 @@ export default function AppNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name="HandwritingIntro" component={HandwritingIntroScreen} />
-        <Stack.Screen name="HandwritingLevels" component={HandwritingLevelsScreen} />
-        <Stack.Screen name="HandwritingTask" component={HandwritingTaskScreen} />
-        <Stack.Screen name="HandwritingLevelComplete" component={HandwritingLevelCompleteScreen} />
-        <Stack.Screen name="HandwritingCanvas" component={HandwritingCanvasScreen} />
-        <Stack.Screen name="HandwritingReview" component={HandwritingReviewScreen} />
-        <Stack.Screen name="HandwritingResult" component={HandwritingResultScreen} />
-        <Stack.Screen name="HandwritingSummary" component={HandwritingSummaryScreen} />
+        <Stack.Screen name="BehaviorIntro" component={BehaviorIntroScreen} />
+        <Stack.Screen name="BehaviorLevels" component={BehaviorLevelsScreen} />
+        <Stack.Screen name="BehaviorActivity" component={BehaviorActivityScreen} />
+        <Stack.Screen name="BehaviorLevelComplete" component={BehaviorLevelCompleteScreen} />
+        <Stack.Screen name="BehaviorResult" component={BehaviorResultScreen} />
+        <Stack.Screen name="BehaviorSummary" component={BehaviorSummaryScreen} />
         <Stack.Screen name="FusionProgress" component={FusionProgressScreen} />
         <Stack.Screen name="FusionLoading" component={FusionLoadingScreen} />
         <Stack.Screen name="FusionRiskSummary" component={FusionRiskSummaryScreen} />
