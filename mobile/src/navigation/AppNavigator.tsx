@@ -15,6 +15,16 @@ import SignupScreen from "../screens/SignupScreen";
 import HomeScreen from "../screens/HomeScreen";
 import HistoryScreen from "../screens/HistoryScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import SpeechIntroScreen from "../screens/SpeechIntroScreen";
+import SpeechLevelsScreen from "../screens/SpeechLevelsScreen";
+import SpeechActivityScreen from "../screens/SpeechActivityScreen";
+import SpeechListenScreen from "../screens/SpeechListenScreen";
+import SpeechRecordingScreen from "../screens/SpeechRecordingScreen";
+import SpeechLevelCompleteScreen from "../screens/SpeechLevelCompleteScreen";
+import SpeechReviewScreen from "../screens/SpeechReviewScreen";
+import SpeechResultScreen from "../screens/SpeechResultScreen";
+import SpeechSummaryScreen from "../screens/SpeechSummaryScreen";
+import { LevelId } from "../config/speechTasks";
 import FusionProgressScreen from "../screens/FusionProgressScreen";
 import FusionLoadingScreen from "../screens/FusionLoadingScreen";
 import FusionRiskSummaryScreen from "../screens/FusionRiskSummaryScreen";
@@ -42,6 +52,24 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   MainTabs: undefined;
+  SpeechIntro: undefined;
+  SpeechLevels: undefined;
+  SpeechActivity: { taskIndex: number; practice?: PracticeParams };
+  SpeechListen: { taskIndex: number; practice?: PracticeParams };
+  SpeechRecording: { taskIndex: number; practice?: PracticeParams };
+  SpeechLevelComplete: { level: LevelId };
+  SpeechReview: {
+    taskIndex: number; elapsed: number; retryCount: number; audioUri: string;
+    practice?: PracticeParams;
+  };
+  SpeechResult: {
+    taskIndex: number;
+    retryCount: number;
+    result: any | null;
+    error?: string;
+    practice?: PracticeParams;
+  };
+  SpeechSummary: undefined;
   FusionProgress: undefined;
   FusionLoading: undefined;
   FusionRiskSummary: { response: any };
@@ -145,6 +173,15 @@ export default function AppNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
+        <Stack.Screen name="SpeechIntro" component={SpeechIntroScreen} />
+        <Stack.Screen name="SpeechLevels" component={SpeechLevelsScreen} />
+        <Stack.Screen name="SpeechActivity" component={SpeechActivityScreen} />
+        <Stack.Screen name="SpeechListen" component={SpeechListenScreen} />
+        <Stack.Screen name="SpeechRecording" component={SpeechRecordingScreen} />
+        <Stack.Screen name="SpeechReview" component={SpeechReviewScreen} />
+        <Stack.Screen name="SpeechResult" component={SpeechResultScreen} />
+        <Stack.Screen name="SpeechLevelComplete" component={SpeechLevelCompleteScreen} />
+        <Stack.Screen name="SpeechSummary" component={SpeechSummaryScreen} />
         <Stack.Screen name="FusionProgress" component={FusionProgressScreen} />
         <Stack.Screen name="FusionLoading" component={FusionLoadingScreen} />
         <Stack.Screen name="FusionRiskSummary" component={FusionRiskSummaryScreen} />

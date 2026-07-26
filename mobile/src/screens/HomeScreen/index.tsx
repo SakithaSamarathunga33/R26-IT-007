@@ -27,7 +27,22 @@ type Props = {
 };
 
 const MODULES = [
-
+  {
+    key: "speech",
+    icon: "ear-outline" as const,
+    label: "Speech",
+    sublabel: "Phonological",
+    duration: "~5 min",
+    color: "#fff",
+    textColor: "#fff",
+    subColor: "rgba(255,255,255,0.75)",
+    gradColors: ["#2563EB", "#1D4ED8"] as [string, string],
+    iconBg: "rgba(255,255,255,0.2)",
+    badgeBg: "rgba(255,255,255,0.2)",
+    badgeColor: "#fff",
+    status: "active" as const,
+    route: "SpeechIntro" as const,
+  },
 ];
 
 export default function HomeScreen({ navigation }: Props) {
