@@ -28,20 +28,20 @@ type Props = {
 
 const MODULES = [
   {
-    key: "speech",
-    icon: "ear-outline" as const,
-    label: "Speech",
-    sublabel: "Phonological",
-    duration: "~5 min",
+    key: "handwriting",
+    icon: "pencil-outline" as const,
+    label: "Writing",
+    sublabel: "Handwriting",
+    duration: "~6 min",
     color: "#fff",
     textColor: "#fff",
     subColor: "rgba(255,255,255,0.75)",
-    gradColors: ["#2563EB", "#1D4ED8"] as [string, string],
+    gradColors: ["#7C3AED", "#6D28D9"] as [string, string],
     iconBg: "rgba(255,255,255,0.2)",
     badgeBg: "rgba(255,255,255,0.2)",
     badgeColor: "#fff",
     status: "active" as const,
-    route: "SpeechIntro" as const,
+    route: "HandwritingIntro" as const,
   },
 ];
 
