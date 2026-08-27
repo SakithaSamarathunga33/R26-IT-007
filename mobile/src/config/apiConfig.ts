@@ -1,8 +1,8 @@
-// ── Deployed Azure Container Apps endpoints ───────────────────────────────────
-const SPEECH_HOST      = "https://phonological-api.orangefield-ad52cd60.centralindia.azurecontainerapps.io";
-const BEHAVIOR_HOST    = "https://behavioral-api.icyground-a0d60609.centralindia.azurecontainerapps.io";
-const HANDWRITING_HOST = "https://handwriting-api.thankfulriver-bc30f9df.centralindia.azurecontainerapps.io";
-const FUSION_HOST      = "https://fusion-api.braveocean-c6acc81b.eastasia.azurecontainerapps.io";
+// ── Deployed VPS endpoints (Traefik, sakitha.com) ─────────────────────────────
+const SPEECH_HOST      = "https://lexiscan-speech.sakitha.com";
+const BEHAVIOR_HOST    = "https://lexiscan-behavior.sakitha.com";
+const HANDWRITING_HOST = "https://lexiscan-handwriting.sakitha.com";
+const FUSION_HOST      = "https://lexiscan-fusion.sakitha.com";
 
 export const API_URLS = {
   speech:      `${SPEECH_HOST}/predict/speech`,

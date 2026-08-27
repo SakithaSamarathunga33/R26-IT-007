@@ -1,0 +1,88 @@
+# Production deployment on the shared VPS.
+# Public traffic enters only through the shared Traefik instance (project
+# vps-monitor, network vps-monitor_proxy) — no service here publishes a host
+# port, unlike docker-compose.yml which is for local LAN development.
+# Usage: docker compose -f docker-compose.vps.yml up -d --build
+
+name: lexiscan-vps
+
+services:
+  speech_api:
+    image: lexiscan/speech-api
+    container_name: lexiscan-speech-api
+    build: ./backend/speech_phonological/api
+    restart: unless-stopped
+    volumes:
+      - ./backend/speech_phonological/ml_models:/app/ml_models
+    networks:
+      - vps-monitor_proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.lexiscan-speech.rule: "Host(`lexiscan-speech.sakitha.com`)"
+      traefik.http.routers.lexiscan-speech.entrypoints: "websecure"
+      traefik.http.routers.lexiscan-speech.tls.certresolver: "letsencrypt"
+      traefik.http.services.lexiscan-speech.loadbalancer.server.port: "8000"
+      traefik.docker.network: "vps-monitor_proxy"
+    security_opt:
+      - no-new-privileges:true
+
+  behavioral_api:
+    image: lexiscan/behavioral-api
+    container_name: lexiscan-behavioral-api
+    build: ./backend/behavioral_attention/api
+    restart: unless-stopped
+    volumes:
+      - ./backend/behavioral_attention/ml_models:/app/ml_models
+    networks:
+      - vps-monitor_proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.lexiscan-behavior.rule: "Host(`lexiscan-behavior.sakitha.com`)"
+      traefik.http.routers.lexiscan-behavior.entrypoints: "websecure"
+      traefik.http.routers.lexiscan-behavior.tls.certresolver: "letsencrypt"
+      traefik.http.services.lexiscan-behavior.loadbalancer.server.port: "8000"
+      traefik.docker.network: "vps-monitor_proxy"
+    security_opt:
+      - no-new-privileges:true
+
+  handwriting_api:
+    image: lexiscan/handwriting-api
+    container_name: lexiscan-handwriting-api
+    build: ./backend/handwriting_analysis/api
+    restart: unless-stopped
+    volumes:
+      - ./backend/handwriting_analysis/ml_models:/app/ml_models
+    networks:
+      - vps-monitor_proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.lexiscan-handwriting.rule: "Host(`lexiscan-handwriting.sakitha.com`)"
+      traefik.http.routers.lexiscan-handwriting.entrypoints: "websecure"
+      traefik.http.routers.lexiscan-handwriting.tls.certresolver: "letsencrypt"
+      traefik.http.services.lexiscan-handwriting.loadbalancer.server.port: "8000"
+      traefik.docker.network: "vps-monitor_proxy"
+    security_opt:
+      - no-new-privileges:true
+
+  multimodal_api:
+    image: lexiscan/multimodal-api
+    container_name: lexiscan-multimodal-api
+    build: ./backend/multi_modal_risk/api
+    restart: unless-stopped
+    volumes:
+      - ./backend/multi_modal_risk/ml_models:/app/ml_models
+    networks:
+      - vps-monitor_proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.lexiscan-fusion.rule: "Host(`lexiscan-fusion.sakitha.com`)"
+      traefik.http.routers.lexiscan-fusion.entrypoints: "websecure"
+      traefik.http.routers.lexiscan-fusion.tls.certresolver: "letsencrypt"
+      traefik.http.services.lexiscan-fusion.loadbalancer.server.port: "8000"
+      traefik.docker.network: "vps-monitor_proxy"
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  vps-monitor_proxy:
+    external: true
