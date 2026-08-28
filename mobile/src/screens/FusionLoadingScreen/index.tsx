@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
 import { auth } from "../../config/firebase";
 import {
   buildSpeechSummary,
@@ -113,6 +114,7 @@ export default function FusionLoadingScreen({ navigation }: Props) {
   if (error) {
     return (
       <View style={styles.container}>
+        <KidBackground variant="therapy" />
         <StatusBar barStyle="light-content" />
         <LinearGradient colors={["#1E293B", "#0F172A"]} style={styles.fill}>
           <View style={styles.errorWrap}>
@@ -129,6 +131,7 @@ export default function FusionLoadingScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="therapy" />
       <StatusBar barStyle="light-content" />
       <LinearGradient colors={["#1D4ED8", "#1E293B"]} style={styles.fill} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}>
 
