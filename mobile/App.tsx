@@ -1,36 +1,37 @@
 import React from "react";
-import { View, ActivityIndicator } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
+  Nunito_400Regular,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+  Nunito_800ExtraBold,
+  Nunito_900Black,
   useFonts,
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-  Outfit_800ExtraBold,
-} from "@expo-google-fonts/outfit";
-import AppNavigator from "./src/navigation/AppNavigator";
+} from "@expo-google-fonts/nunito";
+import RootNavigator from "./src/navigation/RootNavigator";
+import { colors } from "./src/theme/colors";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    Outfit_400Regular,
-    Outfit_500Medium,
-    Outfit_600SemiBold,
-    Outfit_700Bold,
-    Outfit_800ExtraBold,
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+    Nunito_900Black,
   });
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#020B18" }}>
-        <ActivityIndicator color="#2D8EFF" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.bg }}>
+        <ActivityIndicator color={colors.brand} />
       </View>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <AppNavigator />
+      <RootNavigator />
     </SafeAreaProvider>
   );
 }

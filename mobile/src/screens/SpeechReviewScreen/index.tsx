@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { AudioPlayer, createAudioPlayer } from "expo-audio";
@@ -7,16 +7,23 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
-import { theme } from "../../theme";
-import { SPEECH_TASKS, TASK_TYPE_LABELS } from "../../config/speechTasks";
+import { SPEECH_TASKS } from "../../config/speechTasks";
 import { auth, db } from "../../config/firebase";
+import { API_URLS } from "../../config/apiConfig";
+import ScreenContainer from "../../components/common/ScreenContainer";
+import ClayCard from "../../components/common/ClayCard";
+import MascotGuide from "../../components/common/MascotGuide";
+import PrimaryButton from "../../components/common/PrimaryButton";
+import SecondaryButton from "../../components/common/SecondaryButton";
+import { colors } from "../../theme/colors";
+import { fonts } from "../../theme/typography";
+import { clayBrand } from "../../theme/shadows";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechReview">;
   route: RouteProp<RootStackParamList, "SpeechReview">;
 };
 
-import { API_URLS } from "../../config/apiConfig";
 const SPEECH_API = API_URLS.speech;
 type SubmitStep = "idle" | "saving" | "analysing" | "done";
 
@@ -27,28 +34,27 @@ function getTimeOfDay(): "morning" | "afternoon" | "evening" {
   return "evening";
 }
 
-const STEP_LABELS: Record<SubmitStep, string> = {
-  idle: "Submit for Analysis", saving: "Saving to database…", analysing: "Analysing with AI…", done: "Done!",
-};
+function formatClock(seconds: number) {
+  return `0:${String(Math.max(0, Math.round(seconds))).padStart(2, "0")}`;
+}
 
 export default function SpeechReviewScreen({ navigation, route }: Props) {
   const { taskIndex, elapsed, retryCount, audioUri, practice } = route.params;
   const task = SPEECH_TASKS[taskIndex];
-  // Practice runs come from a therapy plan — they must never write predictions,
-  // or rehearsing would move the risk score the plan was based on.
   const isPractice = !!practice;
   const [submitStep, setSubmitStep] = useState<SubmitStep>("idle");
   const [playing, setPlaying] = useState(false);
   const playerRef = useRef<AudioPlayer | null>(null);
   const mountedRef = useRef(true);
 
-  useEffect(() => { return () => { mountedRef.current = false; _destroyPlayer(); }; }, []);
+  useEffect(() => () => { mountedRef.current = false; _destroyPlayer(); }, []);
 
   const _destroyPlayer = () => {
     const p = playerRef.current;
     if (!p) return;
     playerRef.current = null;
-    try { p.pause(); } catch {} try { p.remove(); } catch {}
+    try { p.pause(); } catch {}
+    try { p.remove(); } catch {}
   };
 
   const handlePlay = async () => {
@@ -63,7 +69,10 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
       });
       player.play();
       if (mountedRef.current) setPlaying(true);
-    } catch (err: any) { setPlaying(false); Alert.alert("Playback Error", err.message); }
+    } catch (err: any) {
+      setPlaying(false);
+      Alert.alert("Playback Error", err.message);
+    }
   };
 
   const handleStopPlayback = () => { _destroyPlayer(); setPlaying(false); };
@@ -91,10 +100,8 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     formData.append("gender", "M"); formData.append("native_language", "Sinhala");
     formData.append("assessment_language", "English"); formData.append("recording_device_type", "mobile_mic");
     formData.append("environment_noise_level", "0.12"); formData.append("time_of_day", getTimeOfDay());
-
     const response = await fetch(SPEECH_API, { method: "POST", body: formData });
     const responseText = await response.text();
-
     if (!response.ok) throw new Error(`Server error: ${response.status} — ${responseText}`);
     return JSON.parse(responseText);
   };
@@ -102,16 +109,9 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
   const savePredictionToFirestore = async (attemptId: string, result: any) => {
     const uid = auth.currentUser?.uid ?? "anonymous";
     await addDoc(collection(db, "speech_predictions"), {
-      attempt_id: attemptId,
-      child_id: uid,
-      session_id: `session_${uid}`,
-      // Task identity is denormalised onto the prediction so summaries can label
-      // rows without assuming the child played every task in array order.
-      task_index: taskIndex,
-      task_id: task.id,
-      level: task.level,
-      target_word: task.target_word,
-      task_type: task.task_type,
+      attempt_id: attemptId, child_id: uid, session_id: `session_${uid}`,
+      task_index: taskIndex, task_id: task.id, level: task.level,
+      target_word: task.target_word, task_type: task.task_type,
       validation: result.validation ?? null, quality: result.quality ?? null,
       features: result.features ?? null, risk_probability: result.prediction?.risk_probability ?? null,
       risk_level: result.prediction?.risk_level ?? null, risk_label_binary: result.prediction?.risk_label_binary ?? null,
@@ -124,10 +124,9 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     if (elapsed < 0.5) { Alert.alert("Too short", "Please record for at least 0.5 seconds."); return; }
     try {
       setSubmitStep("analysing");
-      let result: any = null; let apiError: string | undefined;
-
+      let result: any = null;
+      let apiError: string | undefined;
       if (isPractice) {
-        // Score the audio so the child still gets feedback, but persist nothing.
         try { result = await callApi(); } catch (apiErr: any) { apiError = apiErr.message; }
       } else {
         setSubmitStep("saving");
@@ -135,210 +134,98 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
         setSubmitStep("analysing");
         try { result = await callApi(); await savePredictionToFirestore(attemptId, result); } catch (apiErr: any) { apiError = apiErr.message; }
       }
-
       setSubmitStep("done");
       _destroyPlayer();
       navigation.replace("SpeechResult", { taskIndex, retryCount, result, error: apiError, practice });
-    } catch (err: any) { setSubmitStep("idle"); Alert.alert("Submit Failed", err.message); }
+    } catch (err: any) {
+      setSubmitStep("idle");
+      Alert.alert("Submit Failed", err.message);
+    }
   };
 
   const isSubmitting = submitStep !== "idle" && submitStep !== "done";
+  const bars = [30, 55, 82, 96, 64, 40, 72, 88, 52, 26, 44, 18];
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
+    <ScreenContainer>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+      <View style={styles.body}>
+        <MascotGuide state="happy" size={120} label="mascot · happy" />
+        <Text style={styles.title}>Nice try! Listen back?</Text>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} disabled={isSubmitting}>
-          <Ionicons name="arrow-back" size={20} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review Recording</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Success hero */}
-        <LinearGradient colors={["#059669", "#047857"]} style={styles.successCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <View style={styles.decoCircle1} />
-          <View style={styles.successIconWrap}>
-            <Ionicons name="checkmark" size={44} color="#fff" />
+        <ClayCard style={styles.playCard} radius={28}>
+          <View style={styles.playRow}>
+            <TouchableOpacity
+              onPress={playing ? handleStopPlayback : handlePlay}
+              disabled={isSubmitting}
+              style={[styles.playBtn, clayBrand()]}
+              accessibilityRole="button"
+              accessibilityLabel={playing ? "Stop playback" : "Play recording"}
+            >
+              <LinearGradient colors={["#5AA6FF", colors.brand]} style={styles.playGrad}>
+                {playing ? <Ionicons name="stop" size={22} color="#fff" /> : <View style={styles.playTriangle} />}
+              </LinearGradient>
+            </TouchableOpacity>
+            <View style={styles.waveRow}>
+              {bars.map((h, i) => (
+                <View key={i} style={[styles.waveBar, { height: `${h}%`, backgroundColor: i >= 2 && i <= 4 ? colors.brand : "#B4CEEA" }]} />
+              ))}
+            </View>
           </View>
-          <Text style={styles.successTitle}>Recording Saved</Text>
-          <Text style={styles.successSub}>Listen back before submitting. You can still retry.</Text>
-        </LinearGradient>
+          <View style={styles.times}>
+            <Text style={styles.time}>0:01</Text>
+            <Text style={styles.time}>{formatClock(elapsed)}</Text>
+          </View>
+        </ClayCard>
 
-        {/* Summary card */}
-        <View style={styles.summaryCard}>
-          <SummaryRow icon="text-outline" iconColor="#2563EB" iconBg="#EFF6FF" label="Word" value={task.target_word} />
-          <SummaryRow icon="layers-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label="Task Type" value={TASK_TYPE_LABELS[task.task_type]} />
-          <SummaryRow icon="time-outline" iconColor="#D97706" iconBg="#FFFBEB" label="Duration" value={`${elapsed}s`} />
-          <SummaryRow icon="refresh-outline" iconColor="#0891B2" iconBg="#ECFEFF" label="Retries" value={`${retryCount}`} last />
+        {isSubmitting ? (
+          <View style={styles.step}>
+            <ActivityIndicator color={colors.brand} />
+            <Text style={styles.stepText}>{submitStep === "saving" ? "Saving…" : "Sending to Lexi…"}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.actions}>
+          <PrimaryButton
+            label="Send to Lexi"
+            onPress={handleSubmit}
+            loading={isSubmitting}
+            disabled={isSubmitting}
+          />
+          <SecondaryButton
+            label="Record again"
+            onPress={() => navigation.replace("SpeechRecording", { taskIndex, practice, retryCount: retryCount + 1 })}
+            disabled={isSubmitting}
+          />
         </View>
-
-        {/* Playback card */}
-        <TouchableOpacity
-          style={[styles.playCard, playing && styles.playCardActive]}
-          onPress={playing ? handleStopPlayback : handlePlay}
-          activeOpacity={0.8} disabled={isSubmitting}
-        >
-          <LinearGradient
-            colors={playing ? ["#EF4444", "#DC2626"] : ["#3B72F6", "#2563EB"]}
-            style={styles.playIconGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name={playing ? "stop" : "play"} size={24} color="#fff" />
-          </LinearGradient>
-          <View style={styles.playInfo}>
-            <Text style={styles.playLabel}>{playing ? "Playing…" : "Play Recording"}</Text>
-            <Text style={styles.playDuration}>{elapsed}s · WAV</Text>
-          </View>
-          <View style={styles.playBars}>
-            {[0.6, 1, 0.4, 0.8, 0.5, 0.9, 0.3].map((h, i) => (
-              <View key={i} style={[styles.playBar, { height: 4 + h * 20, backgroundColor: playing ? "#2563EB" : "#CBD5E1" }]} />
-            ))}
-          </View>
-        </TouchableOpacity>
-
-        {/* Step indicator */}
-        {(submitStep === "saving" || submitStep === "analysing") && (
-          <View style={styles.stepCard}>
-            <ActivityIndicator color="#2563EB" size="small" />
-            <Text style={styles.stepLabel}>{STEP_LABELS[submitStep]}</Text>
-          </View>
-        )}
-
-        {submitStep === "idle" && (
-          <View style={styles.qualityNotice}>
-            <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
-            <Text style={styles.qualityText}>
-              Recording will be saved to the database and sent directly for AI analysis.
-            </Text>
-          </View>
-        )}
-
-        <View style={{ height: 20 }} />
-
-        {/* Re-record */}
-        <TouchableOpacity style={[styles.retryBtn, isSubmitting && styles.disabled]} onPress={() => navigation.goBack()} disabled={isSubmitting} activeOpacity={0.8}>
-          <Ionicons name="refresh" size={18} color="#64748B" />
-          <Text style={styles.retryBtnText}>Re-record</Text>
-        </TouchableOpacity>
-
-        {/* Submit */}
-        <LinearGradient
-          colors={isSubmitting ? ["#94A3B8", "#94A3B8"] : ["#3B72F6", "#2563EB"]}
-          style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        >
-          <TouchableOpacity style={styles.submitBtnInner} onPress={handleSubmit} disabled={isSubmitting} activeOpacity={0.88}>
-            {isSubmitting ? (
-              <><ActivityIndicator color="#fff" size="small" /><Text style={styles.submitBtnText}>{STEP_LABELS[submitStep]}</Text></>
-            ) : (
-              <><Text style={styles.submitBtnText}>Submit for Analysis</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></>
-            )}
-          </TouchableOpacity>
-        </LinearGradient>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </View>
-  );
-}
-
-function SummaryRow({ icon, iconColor, iconBg, label, value, last }: { icon: any; iconColor: string; iconBg: string; label: string; value: string; last?: boolean }) {
-  return (
-    <View style={[styles.summaryRow, last && styles.summaryRowLast]}>
-      <View style={[styles.summaryIconWrap, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={16} color={iconColor} />
       </View>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FF" },
-  header: {
-    paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  body: { flex: 1, alignItems: "center", paddingTop: 34 },
+  title: { fontFamily: fonts.extraBold, fontSize: 27, color: colors.text, marginTop: 24, letterSpacing: -0.4, textAlign: "center" },
+  playCard: { width: "100%", padding: 22, marginTop: 26 },
+  playRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  playBtn: { width: 58, height: 58, borderRadius: 29, overflow: "hidden" },
+  playGrad: { flex: 1, alignItems: "center", justifyContent: "center" },
+  playTriangle: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 16,
+    borderTopWidth: 10,
+    borderBottomWidth: 10,
+    borderLeftColor: "#fff",
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    marginLeft: 4,
   },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#94A3B8", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 3,
-  },
-  headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-  content: { paddingHorizontal: 20, paddingTop: 8 },
-
-  successCard: {
-    borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 20,
-    overflow: "hidden", shadowColor: "#059669", shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
-  },
-  decoCircle1: { position: "absolute", width: 140, height: 140, borderRadius: 70, backgroundColor: "rgba(255,255,255,0.07)", top: -40, right: -30 },
-  successIconWrap: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 3, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center", marginBottom: 12,
-  },
-  successTitle: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 6 },
-  successSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 19 },
-
-  summaryCard: {
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
-    borderRadius: 20, marginBottom: 14, overflow: "hidden",
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
-  },
-  summaryRow: {
-    flexDirection: "row", alignItems: "center", paddingVertical: 13, paddingHorizontal: 16,
-    borderBottomWidth: 1, borderBottomColor: "#F1F5F9", gap: 12,
-  },
-  summaryRowLast: { borderBottomWidth: 0 },
-  summaryIconWrap: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  summaryLabel: { flex: 1, fontSize: 14, fontFamily: theme.fonts.medium, color: "#1E293B" },
-  summaryValue: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#64748B" },
-
-  playCard: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
-    borderRadius: 20, padding: 16, gap: 14, marginBottom: 14,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
-  },
-  playCardActive: { borderColor: "#DBEAFE", backgroundColor: "#FAFCFF" },
-  playIconGrad: { width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center" },
-  playInfo: { flex: 1 },
-  playLabel: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#1E293B", marginBottom: 2 },
-  playDuration: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#94A3B8" },
-  playBars: { flexDirection: "row", alignItems: "center", gap: 3 },
-  playBar: { width: 4, borderRadius: 2 },
-
-  stepCard: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
-    borderRadius: 16, padding: 14, marginBottom: 12,
-  },
-  stepLabel: { fontSize: 14, fontFamily: theme.fonts.medium, color: "#2563EB" },
-
-  qualityNotice: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
-    borderRadius: 16, padding: 14, marginBottom: 4,
-  },
-  qualityText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
-
-  retryBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    paddingVertical: 16, borderRadius: 50,
-    backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#E2E8F0", marginBottom: 12,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 2,
-  },
-  retryBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#64748B" },
-
-  submitBtn: {
-    borderRadius: 50,
-    shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
-  },
-  submitBtnDisabled: { opacity: 0.65 },
-  submitBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
-  submitBtnText: { fontSize: 15, fontFamily: theme.fonts.bold, color: "#fff" },
-  disabled: { opacity: 0.4 },
+  waveRow: { flex: 1, flexDirection: "row", alignItems: "center", height: 52, gap: 3 },
+  waveBar: { flex: 1, borderRadius: 2 },
+  times: { flexDirection: "row", justifyContent: "space-between", marginTop: 14 },
+  time: { fontFamily: fonts.bold, fontSize: 12, color: colors.textMuted },
+  step: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 18 },
+  stepText: { fontFamily: fonts.bold, fontSize: 14, color: colors.brand },
+  actions: { width: "100%", gap: 12, marginTop: "auto", marginBottom: 10 },
 });

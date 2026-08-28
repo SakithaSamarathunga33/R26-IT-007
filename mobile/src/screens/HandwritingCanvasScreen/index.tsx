@@ -3,7 +3,6 @@ import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
   PanResponder, GestureResponderEvent, Alert, ActivityIndicator,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import ViewShot, { captureRef } from "react-native-view-shot";
@@ -11,12 +10,18 @@ import Svg, { Path } from "react-native-svg";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
-import { theme } from "../../theme";
 import { speak, stopSpeaking } from "../../services/ttsService";
 import {
-  HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
-  HANDWRITING_TASK_TYPE_ICONS, HANDWRITING_TASK_COLORS,
+  HANDWRITING_TASKS,
+  handwritingLevelTaskCount,
+  handwritingPositionInLevel,
 } from "../../config/handwritingTasks";
+import ScreenContainer from "../../components/common/ScreenContainer";
+import ActivityProgressHeader from "../../components/common/ActivityProgressHeader";
+import PrimaryButton from "../../components/common/PrimaryButton";
+import { colors } from "../../theme/colors";
+import { fonts } from "../../theme/typography";
+import { clayRaised } from "../../theme/shadows";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingCanvas">;
@@ -26,10 +31,13 @@ type Props = {
 type Point = { x: number; y: number };
 type Stroke = Point[];
 
+const HW_ACCENT: [string, string] = ["#FF9A8D", "#FF7A6B"];
+
 export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   const { taskIndex, inputMode, taskStartTs, practice } = route.params;
   const task = HANDWRITING_TASKS[taskIndex];
-  const taskColors = HANDWRITING_TASK_COLORS[task.task_type];
+  const total = handwritingLevelTaskCount(task.level);
+  const position = handwritingPositionInLevel(taskIndex);
 
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<Stroke>([]);
@@ -205,7 +213,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
           <Path
             key={si}
             d={strokeToPath(stroke)}
-            stroke="#1E293B"
+            stroke="#FF6B57"
             strokeWidth={4}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -216,32 +224,48 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
     </Svg>
   );
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
+  const promptTitle = task.task_type === "letter_trace"
+    ? "Trace the "
+    : isDictation
+      ? "Write what you heard"
+      : isMemory
+        ? "Write from memory"
+        : "Write ";
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#1E293B" />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Ionicons name={HANDWRITING_TASK_TYPE_ICONS[task.task_type] as any} size={14} color={taskColors.color} />
-          <Text style={styles.headerTitle}>{HANDWRITING_TASK_TYPE_LABELS[task.task_type]}</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
+  return (
+    <ScreenContainer>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+      <ActivityProgressHeader
+        current={position}
+        total={total}
+        onBack={() => navigation.goBack()}
+        accent={HW_ACCENT}
+      />
 
       <View style={styles.body}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>
+            {showTarget ? (
+              <>
+                {promptTitle}
+                <Text style={styles.titleAccent}>{task.target_text}</Text>
+              </>
+            ) : (
+              promptTitle
+            )}
+          </Text>
+          {inputMode === "canvas" && (
+            <View style={styles.strokeBadge}>
+              <Text style={styles.strokeBadgeText}>
+                {strokes.length} stroke{strokes.length !== 1 ? "s" : ""}
+              </Text>
+            </View>
+          )}
+        </View>
 
-        {showTarget && (
-          <View style={[styles.targetReminder, { borderColor: taskColors.border, backgroundColor: taskColors.bg }]}>
-            <Text style={styles.targetReminderLabel}>Write:</Text>
-            <Text style={[styles.targetReminderText, { color: taskColors.color }]}>{task.target_text}</Text>
-          </View>
-        )}
         {(isMemory || isDictation) && (
-          <View style={[styles.targetReminder, { borderColor: "#E8EDF5", backgroundColor: "#F8FAFC" }]}>
-            <Ionicons name="bulb-outline" size={14} color="#94A3B8" />
+          <View style={styles.hiddenRow}>
+            <Ionicons name="bulb-outline" size={14} color={colors.textMuted} />
             <Text style={styles.hiddenHint}>
               {isMemory ? "Target hidden — write from memory" : "Write what you heard"}
             </Text>
@@ -258,8 +282,10 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
                     onError: () => setSpeaking(false),
                   })
                 }
+                accessibilityRole="button"
+                accessibilityLabel="Hear again"
               >
-                <Ionicons name={speaking ? "volume-high" : "volume-medium-outline"} size={14} color="#2563EB" />
+                <Ionicons name={speaking ? "volume-high" : "volume-medium-outline"} size={14} color="#FF6B57" />
                 <Text style={styles.replayBtnText}>Hear again</Text>
               </TouchableOpacity>
             )}
@@ -296,21 +322,10 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
                 {renderStrokes(strokes, currentStroke)}
               </View>
             </ViewShot>
-
-            <View style={styles.canvasTools}>
-              <TouchableOpacity style={styles.toolBtn} onPress={handleUndo} disabled={strokes.length === 0}>
-                <Ionicons name="arrow-undo-outline" size={18} color={strokes.length > 0 ? "#64748B" : "#CBD5E1"} />
-                <Text style={[styles.toolLabel, strokes.length === 0 && { color: "#CBD5E1" }]}>Undo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.toolBtn} onPress={handleClear} disabled={strokes.length === 0}>
-                <Ionicons name="trash-outline" size={18} color={strokes.length > 0 ? "#EF4444" : "#CBD5E1"} />
-                <Text style={[styles.toolLabel, { color: strokes.length > 0 ? "#EF4444" : "#CBD5E1" }]}>Clear</Text>
-              </TouchableOpacity>
-              {retryCount > 0 && (
-                <View style={styles.retryBadge}>
-                  <Text style={styles.retryText}>Rewrite #{retryCount}</Text>
-                </View>
-              )}
+            <View pointerEvents="none" style={styles.lineOverlay}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <View key={i} style={[styles.guideLine, { top: 62 * (i + 1) }]} />
+              ))}
             </View>
           </View>
         )}
@@ -319,11 +334,18 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
         {inputMode === "photo" && (
           <View style={styles.photoWrapper}>
             {!photoUri ? (
-              <TouchableOpacity style={styles.photoPlaceholder} onPress={handlePickPhoto} activeOpacity={0.8} disabled={pickingImage}>
-                {pickingImage ? <ActivityIndicator color="#2563EB" /> : (
+              <TouchableOpacity
+                style={[styles.photoPlaceholder, clayRaised("md")]}
+                onPress={handlePickPhoto}
+                activeOpacity={0.8}
+                disabled={pickingImage}
+                accessibilityRole="button"
+                accessibilityLabel="Capture handwriting"
+              >
+                {pickingImage ? <ActivityIndicator color="#FF6B57" /> : (
                   <>
                     <View style={styles.photoIconWrap}>
-                      <Ionicons name="camera-outline" size={36} color="#2563EB" />
+                      <Ionicons name="camera-outline" size={36} color="#FF6B57" />
                     </View>
                     <Text style={styles.photoPromptTitle}>Capture handwriting</Text>
                     <Text style={styles.photoPromptSub}>Write on paper first, then take a photo or choose from gallery</Text>
@@ -332,13 +354,13 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             ) : (
               <View style={styles.photoPreviewWrap}>
-                <View style={styles.photoPreviewBox}>
-                  <Ionicons name="image-outline" size={48} color="#2563EB" />
+                <View style={[styles.photoPreviewBox, clayRaised("md")]}>
+                  <Ionicons name="image-outline" size={48} color="#FF6B57" />
                   <Text style={styles.photoCapturedLabel}>Photo captured</Text>
                   <Text style={styles.photoUriText} numberOfLines={1}>{photoUri.split("/").pop()}</Text>
                 </View>
-                <TouchableOpacity style={styles.retakeBtn} onPress={handleRetakePhoto}>
-                  <Ionicons name="refresh-outline" size={16} color="#64748B" />
+                <TouchableOpacity style={[styles.retakeBtn, clayRaised("sm")]} onPress={handleRetakePhoto}>
+                  <Ionicons name="refresh-outline" size={16} color={colors.textSecondary} />
                   <Text style={styles.retakeBtnText}>Retake</Text>
                 </TouchableOpacity>
               </View>
@@ -346,134 +368,196 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Action */}
-        <View style={styles.actionArea}>
+        {retryCount > 0 && (
+          <Text style={styles.retryText}>Rewrite #{retryCount}</Text>
+        )}
+
+        <View style={styles.tools}>
+          {inputMode === "canvas" && (
+            <>
+              <TouchableOpacity
+                style={[styles.toolSq, clayRaised("sm")]}
+                onPress={handleUndo}
+                disabled={strokes.length === 0}
+                accessibilityRole="button"
+                accessibilityLabel="Undo"
+              >
+                <Text style={[styles.toolLabel, strokes.length === 0 && styles.toolDisabled]}>Undo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toolSq, clayRaised("sm")]}
+                onPress={handleClear}
+                disabled={strokes.length === 0}
+                accessibilityRole="button"
+                accessibilityLabel="Clear"
+              >
+                <Text style={[styles.toolLabel, strokes.length === 0 && styles.toolDisabled]}>Clear</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
           {!hasContent ? (
             inputMode === "photo" ? (
-              <LinearGradient colors={["#2563EB", "#1D4ED8"]} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                <TouchableOpacity style={styles.submitBtnInner} onPress={handlePickPhoto} activeOpacity={0.88} disabled={pickingImage}>
-                  <Ionicons name="camera-outline" size={20} color="#fff" />
-                  <Text style={styles.submitBtnText}>Open Camera</Text>
-                </TouchableOpacity>
-              </LinearGradient>
+              <PrimaryButton
+                label="Open Camera"
+                onPress={handlePickPhoto}
+                disabled={pickingImage}
+                loading={pickingImage}
+                colors={HW_ACCENT}
+                style={styles.doneBtn}
+              />
             ) : (
-              <View style={styles.emptyHint}>
-                <Text style={styles.emptyHintText}>Start writing above to continue</Text>
-              </View>
+              <PrimaryButton
+                label="Done"
+                onPress={handleSubmit}
+                disabled
+                colors={HW_ACCENT}
+                style={styles.doneBtn}
+              />
             )
           ) : (
-            <LinearGradient colors={[taskColors.color, taskColors.color]} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <TouchableOpacity style={styles.submitBtnInner} onPress={handleSubmit} activeOpacity={0.88} disabled={capturing}>
-                {capturing ? (
-                  <><ActivityIndicator color="#fff" size="small" /><Text style={styles.submitBtnText}>Preparing…</Text></>
-                ) : (
-                  <><Ionicons name="eye-outline" size={20} color="#fff" /><Text style={styles.submitBtnText}>Review & Submit</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></>
-                )}
-              </TouchableOpacity>
-            </LinearGradient>
+            <PrimaryButton
+              label="Done"
+              onPress={handleSubmit}
+              loading={capturing}
+              disabled={capturing}
+              colors={HW_ACCENT}
+              style={styles.doneBtn}
+            />
           )}
         </View>
       </View>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FF" },
-  header: {
-    paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  body: { flex: 1, paddingTop: 14 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingBottom: 12,
+    gap: 10,
   },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#94A3B8", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 3,
+  title: { fontFamily: fonts.extraBold, fontSize: 17, color: colors.text, flex: 1 },
+  titleAccent: { color: "#FF6B57" },
+  strokeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 11,
+    backgroundColor: "#FDE3DF",
   },
-  headerCenter: { flexDirection: "row", alignItems: "center", gap: 6 },
-  headerTitle: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-
-  body: { flex: 1, paddingHorizontal: 20, gap: 14 },
-
-  targetReminder: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, alignSelf: "center",
+  strokeBadgeText: { fontFamily: fonts.extraBold, fontSize: 11.5, color: "#C6493A" },
+  hiddenRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+    flexWrap: "wrap",
   },
-  targetReminderLabel: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#64748B" },
-  targetReminderText: { fontSize: 28, fontFamily: theme.fonts.extraBold, letterSpacing: 3 },
+  hiddenHint: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, flexShrink: 1 },
   replayBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
-    borderRadius: 50, paddingHorizontal: 10, paddingVertical: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.coralTint,
+    borderRadius: 50,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minHeight: 32,
   },
-  replayBtnText: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
-  hiddenHint: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#94A3B8" },
+  replayBtnText: { fontFamily: fonts.semiBold, fontSize: 11, color: "#FF6B57" },
 
-  canvasWrapper: { flex: 1, gap: 10 },
-  canvas: {
-    flex: 1, backgroundColor: "#fff",
-    borderRadius: 20, borderWidth: 1.5, borderColor: "#E2E8F0",
+  canvasWrapper: {
+    flex: 1,
+    borderRadius: 30,
+    backgroundColor: "#FBFCFE",
     overflow: "hidden",
-    shadowColor: "#94A3B8", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 4,
+  },
+  canvas: {
+    flex: 1,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+  },
+  lineOverlay: { ...StyleSheet.absoluteFillObject },
+  guideLine: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: "rgba(45,142,255,0.1)",
   },
   placeholderWrap: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     alignItems: "center", justifyContent: "center", gap: 8,
   },
-  placeholderText: { fontSize: 13, fontFamily: theme.fonts.regular, color: "#CBD5E1", textAlign: "center" },
+  placeholderText: { fontSize: 13, fontFamily: fonts.regular, color: "#CBD5E1", textAlign: "center" },
 
   traceLetterWrap: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     alignItems: "center", justifyContent: "center", gap: 4,
   },
   traceLetter: {
-    fontSize: 180, fontFamily: theme.fonts.extraBold,
-    color: "rgba(124, 58, 237, 0.12)",
+    fontSize: 180, fontFamily: fonts.extraBold,
+    color: "rgba(226, 233, 243, 0.95)",
     includeFontPadding: false, lineHeight: 180,
   },
   traceHint: {
-    fontSize: 12, fontFamily: theme.fonts.regular,
-    color: "rgba(124, 58, 237, 0.35)",
+    fontSize: 12, fontFamily: fonts.regular,
+    color: "rgba(255, 107, 87, 0.45)",
     letterSpacing: 0.5,
   },
 
-  canvasTools: { flexDirection: "row", alignItems: "center", gap: 12 },
-  toolBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
-    paddingVertical: 6, paddingHorizontal: 12, backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: "#E8EDF5",
-  },
-  toolLabel: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#64748B" },
-  retryBadge: { marginLeft: "auto" as any, backgroundColor: "#FEF3C7", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  retryText: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#D97706" },
-
   photoWrapper: { flex: 1 },
   photoPlaceholder: {
-    flex: 1, backgroundColor: "#fff", borderRadius: 20, borderWidth: 1.5, borderColor: "#E2E8F0",
-    borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 10,
+    flex: 1,
+    backgroundColor: colors.bgSoft,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    padding: 24,
   },
-  photoIconWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#EFF6FF", alignItems: "center", justifyContent: "center" },
-  photoPromptTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-  photoPromptSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#94A3B8", textAlign: "center", paddingHorizontal: 30 },
+  photoIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: colors.coralTint,
+    alignItems: "center", justifyContent: "center",
+  },
+  photoPromptTitle: { fontSize: 16, fontFamily: fonts.semiBold, color: colors.text },
+  photoPromptSub: {
+    fontSize: 12, fontFamily: fonts.regular, color: colors.textMuted,
+    textAlign: "center", paddingHorizontal: 20,
+  },
   photoPreviewWrap: { flex: 1, gap: 12 },
   photoPreviewBox: {
-    flex: 1, backgroundColor: "#fff", borderRadius: 20, borderWidth: 1.5, borderColor: "#DBEAFE",
+    flex: 1, backgroundColor: colors.bgSoft, borderRadius: 30,
     alignItems: "center", justifyContent: "center", gap: 10,
   },
-  photoUriText: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8", paddingHorizontal: 20 },
-  photoCapturedLabel: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
+  photoUriText: { fontSize: 11, fontFamily: fonts.regular, color: colors.textMuted, paddingHorizontal: 20 },
+  photoCapturedLabel: { fontSize: 14, fontFamily: fonts.semiBold, color: "#FF6B57" },
   retakeBtn: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "center",
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
-    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: colors.bgSoft, borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 10, minHeight: 44,
   },
-  retakeBtnText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#64748B" },
+  retakeBtnText: { fontSize: 13, fontFamily: fonts.medium, color: colors.textSecondary },
 
-  actionArea: { paddingBottom: 30 },
-  submitBtn: {
-    borderRadius: 50,
-    shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
+  retryText: {
+    fontFamily: fonts.medium, fontSize: 11, color: "#B0791A",
+    textAlign: "center", marginTop: 8,
   },
-  submitBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
-  submitBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
-  emptyHint: { alignItems: "center", paddingVertical: 14 },
-  emptyHintText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#CBD5E1" },
+  tools: { flexDirection: "row", alignItems: "center", gap: 11, paddingTop: 16, paddingBottom: 8 },
+  toolSq: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: colors.bgSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toolLabel: { fontFamily: fonts.extraBold, fontSize: 12, color: colors.textSecondary },
+  toolDisabled: { color: "#CBD5E1" },
+  doneBtn: { flex: 1 },
 });

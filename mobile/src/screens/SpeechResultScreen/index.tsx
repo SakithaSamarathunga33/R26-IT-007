@@ -1,48 +1,41 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
+import { ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
-import { theme } from "../../theme";
-import { SPEECH_TASKS, getLevel, levelTaskCount, nextIndexInLevel, positionInLevel } from "../../config/speechTasks";
+import { SPEECH_TASKS, getLevel, nextIndexInLevel } from "../../config/speechTasks";
 import { practiceNext } from "../../utils/practiceFlow";
 import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
+import ScreenContainer from "../../components/common/ScreenContainer";
+import StarProgress from "../../components/common/StarProgress";
+import ClayCard from "../../components/common/ClayCard";
+import PrimaryButton from "../../components/common/PrimaryButton";
+import SecondaryButton from "../../components/common/SecondaryButton";
+import ProgressTrack from "../../components/common/ProgressTrack";
+import { colors } from "../../theme/colors";
+import { fonts } from "../../theme/typography";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechResult">;
   route: RouteProp<RootStackParamList, "SpeechResult">;
 };
 
-const RISK_CONFIG = {
-  low: { label: "Low Indicator", sublabel: "Response looks good — keep it up!", color: "#059669", bg: "#ECFDF5", border: "#BBF7D0", icon: "checkmark-circle" as const, gradColors: ["#059669", "#047857"] as [string, string] },
-  medium: { label: "Moderate Indicator", sublabel: "Some patterns noted — a review may help.", color: "#D97706", bg: "#FFFBEB", border: "#FDE68A", icon: "alert-circle" as const, gradColors: ["#F59E0B", "#D97706"] as [string, string] },
-  high: { label: "High Indicator", sublabel: "A specialist review is recommended.", color: "#EF4444", bg: "#FFF5F5", border: "#FECACA", icon: "warning" as const, gradColors: ["#EF4444", "#DC2626"] as [string, string] },
-  requires_review: { label: "Needs Review", sublabel: "Audio quality was low — please re-record.", color: "#64748B", bg: "#F8FAFC", border: "#E2E8F0", icon: "refresh-circle" as const, gradColors: ["#94A3B8", "#64748B"] as [string, string] },
-};
+const STAR_COPY = ["Keep going", "One star for that one", "Two stars for that one", "Three stars!"];
 
 export default function SpeechResultScreen({ navigation, route }: Props) {
   const { taskIndex, retryCount, result, error, practice } = route.params;
   const task = SPEECH_TASKS[taskIndex];
   const level = getLevel(task.level);
   const nextIndex = nextIndexInLevel(taskIndex);
-  // "Last" now means last within this level — the level-complete screen handles
-  // unlocking the next one (or sending the child to the full summary).
   const isLevelEnd = nextIndex === null;
 
-  const riskLevel: keyof typeof RISK_CONFIG = error || !result ? "requires_review" : result?.prediction?.risk_level ?? "requires_review";
-  const config = RISK_CONFIG[riskLevel];
-  const probability: number = result?.prediction?.risk_probability ?? null;
+  const riskLevel = error || !result ? "requires_review" : result?.prediction?.risk_level ?? "requires_review";
+  const probability: number = result?.prediction?.risk_probability ?? 0.5;
+  const accuracy = Math.round((1 - Math.min(1, Math.max(0, probability))) * 100);
+  const stars = riskLevel === "low" ? 3 : riskLevel === "medium" ? 2 : 1;
   const qualityWarnings: string[] = result?.quality?.warnings ?? [];
-  const reliability: string = result?.quality?.prediction_reliability ?? "—";
-  const isLowQuality = reliability === "low" || riskLevel === "requires_review";
+  const phonemes = task.target_phoneme_seq.split(" ").filter(Boolean);
 
-  const reliabilityColor = reliability === "high" ? "#059669" : reliability === "medium" ? "#D97706" : "#EF4444";
-  const reliabilityBg = reliability === "high" ? "#ECFDF5" : reliability === "medium" ? "#FFFBEB" : "#FFF5F5";
-
-  // Encouragement on arrival. These screens are reached only after the
-  // response is submitted, so speaking the outcome cannot change it.
   const spokenRef = useRef(false);
   useEffect(() => {
     if (spokenRef.current) return;
@@ -50,13 +43,10 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
     const t = setTimeout(() => speakFeedback("done", { seed: taskIndex }), 400);
     return () => clearTimeout(t);
   }, [taskIndex]);
-
   useEffect(() => () => stopSpeaking(), []);
 
   const handleNext = () => {
     stopSpeaking();
-    // Practice runs belong to a therapy plan: step through that activity's own
-    // task list, then hand back to the plan instead of unlocking a level.
     if (practice) {
       const step = practiceNext(practice);
       if (step.kind === "next-task") {
@@ -75,207 +65,79 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
       : navigation.replace("SpeechActivity", { taskIndex: nextIndex! });
   };
 
+  const nextLabel = practice
+    ? (practice.remaining.length ? "Next word" : "Finish practice")
+    : isLevelEnd ? `Finish ${level.title}` : "Next word";
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
+    <ScreenContainer>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <StarProgress total={3} filled={stars} size={stars === 2 ? 40 : 34} />
+        <Text style={styles.title}>{STAR_COPY[stars]}</Text>
+        <Text style={styles.sub}>
+          Lexi heard <Text style={styles.word}>{task.target_word}</Text>
+          {riskLevel === "low" ? " clearly" : riskLevel === "medium" ? " pretty well" : " — let's try again later"}
+        </Text>
 
-      <View style={styles.header}>
-        <View style={{ width: 62 }} />
-        <Text style={styles.headerTitle}>Screening Result</Text>
-        <View style={[styles.levelPill, { backgroundColor: level.bg }]}>
-          <Text style={[styles.levelPillText, { color: level.color }]}>
-            L{level.id} · {positionInLevel(taskIndex)}/{levelTaskCount(level.id)}
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Risk card */}
-        <LinearGradient colors={config.gradColors} style={styles.riskCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <View style={styles.decoCircle} />
-          <View style={styles.riskIconWrap}>
-            <Ionicons name={config.icon} size={48} color="#fff" />
-          </View>
-          <Text style={styles.riskLabel}>{config.label}</Text>
-          <Text style={styles.riskSubLabel}>{config.sublabel}</Text>
-        </LinearGradient>
-
-        {/* Disclaimer */}
-        <View style={styles.disclaimerCard}>
-          <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
-          <Text style={styles.disclaimerText}>
-            This is a <Text style={styles.disclaimerBold}>screening indicator only</Text>, not a clinical diagnosis. Always consult a qualified specialist.
-          </Text>
-        </View>
-
-        {/* Probability bar */}
-        {probability !== null && (
-          <View style={[styles.probCard, { borderColor: config.border }]}>
-            <View style={styles.probHeader}>
-              <Text style={styles.probTitle}>Risk Probability</Text>
-              <Text style={[styles.probValue, { color: config.color }]}>{(probability * 100).toFixed(1)}%</Text>
-            </View>
-            <View style={styles.probTrack}>
-              <LinearGradient
-                colors={config.gradColors}
-                style={[styles.probFill, { width: `${probability * 100}%` }]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              />
-            </View>
-          </View>
-        )}
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <StatCard icon="shield-checkmark-outline" label="Reliability" value={reliability} accent={reliabilityColor} bg={reliabilityBg} />
-          <StatCard icon="refresh-outline" label="Retries" value={String(retryCount)} accent="#2563EB" bg="#EFF6FF" />
-          <StatCard icon="text-outline" label="Word" value={task.target_word} accent="#7C3AED" bg="#F5F3FF" />
-        </View>
-
-        {/* Warnings */}
-        {qualityWarnings.length > 0 && (
-          <View style={styles.warningsCard}>
-            <View style={styles.warningsHeader}>
-              <Ionicons name="warning-outline" size={16} color="#D97706" />
-              <Text style={styles.warningsTitle}>Audio Warnings</Text>
-            </View>
-            {qualityWarnings.map((w, i) => (
-              <Text key={i} style={styles.warningItem}>• {w}</Text>
-            ))}
-          </View>
-        )}
-
-        {/* Error state */}
-        {error && (
-          <View style={styles.errorCard}>
-            <Ionicons name="cloud-offline-outline" size={18} color="#EF4444" />
-            <Text style={styles.errorText}>Could not reach the analysis server. Result saved as requires review.</Text>
-          </View>
-        )}
-
-        <View style={{ height: 20 }} />
-
-        {isLowQuality && (
-          <TouchableOpacity style={styles.reRecordBtn} onPress={() => navigation.replace("SpeechRecording", { taskIndex, practice })} activeOpacity={0.8}>
-            <Ionicons name="mic-outline" size={18} color="#64748B" />
-            <Text style={styles.reRecordBtnText}>Re-record This Activity</Text>
-          </TouchableOpacity>
-        )}
-
-        <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.nextBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-          <TouchableOpacity style={styles.nextBtnInner} onPress={handleNext} activeOpacity={0.88}>
-            <Text style={styles.nextBtnText}>
-              {practice
-                ? (practice.remaining.length ? "Next Practice" : "Finish Practice")
-                : isLevelEnd ? `Finish Level ${level.id}` : "Next Activity"}
+        <ClayCard style={styles.card} radius={26}>
+          <View style={styles.accRow}>
+            <Text style={styles.accLabel}>Sound accuracy</Text>
+            <Text style={[styles.accValue, { color: accuracy >= 70 ? colors.mint : accuracy >= 50 ? "#B0791A" : "#C6493A" }]}>
+              {accuracy}%
             </Text>
-            <Ionicons
-              name={practice
-                ? (practice.remaining.length ? "arrow-forward" : "checkmark-done")
-                : isLevelEnd ? "trophy-outline" : "arrow-forward"}
-              size={18} color="#fff"
-            />
-          </TouchableOpacity>
-        </LinearGradient>
-
-        <View style={{ height: 40 }} />
+          </View>
+          <ProgressTrack
+            progress={accuracy / 100}
+            colors={accuracy >= 70 ? ["#4ED9AC", "#0F8D68"] : accuracy >= 50 ? ["#F5B32E", "#B0791A"] : ["#FF9A8D", "#F2573F"]}
+          />
+          <View style={styles.chips}>
+            {phonemes.map((p, i) => {
+              const ok = riskLevel === "low" || (riskLevel === "medium" && i < phonemes.length - 1);
+              return (
+                <View key={`${p}-${i}`} style={[styles.chip, { backgroundColor: ok ? colors.mintTint : colors.coralTint }]}>
+                  <Text style={[styles.chipText, { color: ok ? colors.mint : "#C6493A" }]}>/{p}/ {ok ? "✓" : "✕"}</Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={styles.note}>
+            <View style={styles.infoDot}><Text style={styles.infoMark}>i</Text></View>
+            <Text style={styles.noteText}>
+              {error
+                ? "Could not reach the analysis server. This attempt is marked for review."
+                : qualityWarnings[0] ?? "This is a screening indicator only, not a diagnosis. The combined report weighs all three games."}
+            </Text>
+          </View>
+        </ClayCard>
       </ScrollView>
-    </View>
-  );
-}
 
-function StatCard({ icon, label, value, accent, bg }: { icon: any; label: string; value: string; accent: string; bg: string }) {
-  return (
-    <View style={[styles.statCard, { borderColor: bg }]}>
-      <View style={[styles.statIconWrap, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={16} color={accent} />
+      <View style={styles.actions}>
+        <PrimaryButton label={nextLabel} onPress={handleNext} />
+        <SecondaryButton
+          label="Try this word again"
+          onPress={() => navigation.replace("SpeechRecording", { taskIndex, practice, retryCount: retryCount + 1 })}
+        />
       </View>
-      <Text style={[styles.statValue, { color: accent }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FF" },
-  header: {
-    paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-  },
-  headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-  levelPill: { minWidth: 62, alignItems: "center", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
-  levelPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
-  content: { paddingHorizontal: 20, paddingTop: 8, alignItems: "center" },
-
-  riskCard: {
-    width: "100%", borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
-    overflow: "hidden", shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
-  },
-  decoCircle: { position: "absolute", width: 160, height: 160, borderRadius: 80, backgroundColor: "rgba(255,255,255,0.07)", top: -50, right: -40 },
-  riskIconWrap: {
-    width: 90, height: 90, borderRadius: 45,
-    backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 3, borderColor: "rgba(255,255,255,0.35)",
-    alignItems: "center", justifyContent: "center", marginBottom: 14,
-  },
-  riskLabel: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 6 },
-  riskSubLabel: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.82)", textAlign: "center", lineHeight: 19 },
-
-  disclaimerCard: {
-    width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
-    borderRadius: 16, padding: 14, marginBottom: 14,
-  },
-  disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
-  disclaimerBold: { fontFamily: theme.fonts.semiBold, color: "#1E40AF" },
-
-  probCard: {
-    width: "100%", backgroundColor: "#fff",
-    borderWidth: 1, borderRadius: 20, padding: 18, marginBottom: 14,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
-  },
-  probHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  probTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-  probValue: { fontSize: 20, fontFamily: theme.fonts.extraBold },
-  probTrack: { height: 8, backgroundColor: "#F1F5F9", borderRadius: 4, overflow: "hidden" },
-  probFill: { height: 8, borderRadius: 4 },
-
-  statsRow: { flexDirection: "row", gap: 10, width: "100%", marginBottom: 14 },
-  statCard: {
-    flex: 1, backgroundColor: "#fff", borderWidth: 1, borderRadius: 16,
-    padding: 14, alignItems: "center", gap: 6,
-    shadowColor: "#94A3B8", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 2,
-  },
-  statIconWrap: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: 14, fontFamily: theme.fonts.bold },
-  statLabel: { fontSize: 10, fontFamily: theme.fonts.regular, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5 },
-
-  warningsCard: {
-    width: "100%", backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
-    borderRadius: 16, padding: 14, marginBottom: 10, gap: 6,
-  },
-  warningsHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  warningsTitle: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#D97706" },
-  warningItem: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E", lineHeight: 18 },
-
-  errorCard: {
-    width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#FFF5F5", borderWidth: 1, borderColor: "#FECACA",
-    borderRadius: 16, padding: 14, marginBottom: 10,
-  },
-  errorText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#EF4444", lineHeight: 18 },
-
-  reRecordBtn: {
-    width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    paddingVertical: 16, borderRadius: 50,
-    backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#E2E8F0", marginBottom: 12,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 2,
-  },
-  reRecordBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#64748B" },
-
-  nextBtn: {
-    width: "100%", borderRadius: 50,
-    shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
-  },
-  nextBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
-  nextBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
+  body: { alignItems: "center", paddingTop: 28, paddingBottom: 16 },
+  title: { fontFamily: fonts.extraBold, fontSize: 29, color: colors.text, marginTop: 20, letterSpacing: -0.5, textAlign: "center" },
+  sub: { fontFamily: fonts.bold, fontSize: 15, color: colors.textSecondary, marginTop: 8, textAlign: "center" },
+  word: { color: colors.text },
+  card: { width: "100%", padding: 20, marginTop: 24 },
+  accRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 },
+  accLabel: { fontFamily: fonts.extraBold, fontSize: 14, color: colors.text },
+  accValue: { fontFamily: fonts.extraBold, fontSize: 22 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 18 },
+  chip: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 13 },
+  chipText: { fontFamily: fonts.extraBold, fontSize: 13 },
+  note: { flexDirection: "row", alignItems: "flex-start", gap: 9, marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(160,174,199,0.28)" },
+  infoDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.brand, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  infoMark: { fontFamily: fonts.extraBold, fontSize: 11, color: "#fff" },
+  noteText: { flex: 1, fontFamily: fonts.semiBold, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
+  actions: { gap: 12, marginBottom: 10 },
 });

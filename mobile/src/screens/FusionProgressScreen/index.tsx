@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
 import {
-  View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator,
+  View, Text, StyleSheet, StatusBar, ScrollView, ActivityIndicator,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
-import { theme } from "../../theme";
 import { auth } from "../../config/firebase";
 import {
   buildSpeechSummary,
@@ -19,6 +17,13 @@ import { BEHAVIOR_LEVELS } from "../../config/behaviorTasks";
 import { fetchLevelProgress } from "../../services/speechLevelService";
 import { fetchHandwritingLevelProgress } from "../../services/handwritingLevelService";
 import { fetchBehaviorLevelProgress } from "../../services/behaviorLevelService";
+import ScreenContainer from "../../components/common/ScreenContainer";
+import ActivityHeader from "../../components/common/ActivityHeader";
+import ClayCard from "../../components/common/ClayCard";
+import ClayIconButton from "../../components/common/ClayIconButton";
+import PrimaryButton from "../../components/common/PrimaryButton";
+import { colors, moduleColors } from "../../theme/colors";
+import { fonts } from "../../theme/typography";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionProgress">;
@@ -36,9 +41,9 @@ interface ModuleState {
 }
 
 const MODULE_CONFIG = [
-  { key: "speech",      label: "Speech",      sublabel: "Phonological",  icon: "ear-outline" as const,    color: "#2563EB", bg: "#EFF6FF", iconBg: "#DBEAFE" },
-  { key: "handwriting", label: "Writing",     sublabel: "Handwriting",   icon: "pencil-outline" as const, color: "#7C3AED", bg: "#F5F3FF", iconBg: "#EDE9FE" },
-  { key: "behaviour",   label: "Behaviour",   sublabel: "Attention",     icon: "happy-outline" as const,  color: "#0891B2", bg: "#ECFEFF", iconBg: "#CFFAFE" },
+  { key: "speech",      label: "Speech",      sublabel: "Phonological",  icon: "ear-outline" as const,    color: colors.brand, tint: moduleColors.speech.tint },
+  { key: "handwriting", label: "Writing",     sublabel: "Handwriting",   icon: "pencil-outline" as const, color: colors.coral, tint: moduleColors.handwriting.tint },
+  { key: "behaviour",   label: "Behaviour",   sublabel: "Attention",     icon: "happy-outline" as const,  color: colors.mint,  tint: moduleColors.behaviour.tint },
 ];
 
 export default function FusionProgressScreen({ navigation }: Props) {
@@ -112,12 +117,34 @@ export default function FusionProgressScreen({ navigation }: Props) {
   const anyMissing = Object.values(modules).some((m) => m.status === "missing");
   const anyPartial = Object.values(modules).some((m) => m.status === "partial");
 
-  function statusIcon(status: ModuleStatus) {
-    if (status === "loading") return <ActivityIndicator size="small" color="#94A3B8" />;
-    if (status === "ready")   return <Ionicons name="checkmark-circle" size={22} color="#059669" />;
-    if (status === "low_quality") return <Ionicons name="alert-circle" size={22} color="#D97706" />;
-    if (status === "partial") return <Ionicons name="time" size={22} color="#D97706" />;
-    return <Ionicons name="close-circle" size={22} color="#EF4444" />;
+  function statusMark(status: ModuleStatus) {
+    if (status === "loading") return <ActivityIndicator size="small" color={colors.textMuted} />;
+    if (status === "ready") {
+      return (
+        <View style={[styles.check, { backgroundColor: colors.mint }]}>
+          <Text style={styles.checkMark}>✓</Text>
+        </View>
+      );
+    }
+    if (status === "low_quality") {
+      return (
+        <View style={[styles.check, { backgroundColor: colors.gold }]}>
+          <Ionicons name="alert" size={14} color="#fff" />
+        </View>
+      );
+    }
+    if (status === "partial") {
+      return (
+        <View style={[styles.check, { backgroundColor: colors.gold }]}>
+          <Ionicons name="time" size={14} color="#fff" />
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.check, { backgroundColor: colors.coral }]}>
+        <Ionicons name="close" size={14} color="#fff" />
+      </View>
+    );
   }
 
   function statusLabel(state: ModuleState) {
@@ -129,56 +156,45 @@ export default function FusionProgressScreen({ navigation }: Props) {
     return "Not started";
   }
 
-  function statusColor(status: ModuleStatus) {
-    if (status === "ready")       return "#059669";
-    if (status === "low_quality") return "#D97706";
-    if (status === "partial")     return "#D97706";
-    if (status === "missing")     return "#EF4444";
-    return "#94A3B8";
-  }
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
-
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Final Assessment</Text>
-        <TouchableOpacity style={styles.refreshBtn} onPress={checkModules}>
-          <Ionicons name="refresh" size={18} color="#2563EB" />
-        </TouchableOpacity>
-      </View>
+    <ScreenContainer>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+      <ActivityHeader
+        title="Combined report"
+        subtitle="Final assessment"
+        onBack={() => navigation.goBack()}
+        right={
+          <ClayIconButton
+            icon="refresh"
+            onPress={checkModules}
+            accessibilityLabel="Refresh module status"
+          />
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-        {/* Hero */}
-        <LinearGradient colors={["#1D4ED8", "#2563EB"]} style={styles.heroCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <View style={styles.decoCircleLg} />
-          <View style={styles.decoCircleSm} />
-          <View style={styles.heroIconWrap}>
-            <Ionicons name="git-merge-outline" size={34} color="#fff" />
-          </View>
-          <Text style={styles.heroTitle}>Multi-Modal Fusion</Text>
-          <Text style={styles.heroSub}>
-            All three modules — and every level inside them — must be completed before the final dyslexia risk analysis can run.
-          </Text>
-        </LinearGradient>
-
-        {/* Module status cards */}
-        <Text style={styles.sectionLabel}>Module Completion Status</Text>
+        <Text style={styles.heroTitle}>
+          {allReady ? "All three games are in" : "Finish every game first"}
+        </Text>
+        <Text style={styles.heroSub}>
+          All three modules — and every level inside them — must be completed before the final dyslexia risk analysis can run. Lexi weighs the three signals together. One weak area alone rarely changes the outcome.
+        </Text>
 
         {MODULE_CONFIG.map((mod) => {
           const state = modules[mod.key];
           return (
-            <View key={mod.key} style={styles.moduleCard}>
-              <View style={[styles.moduleIconWrap, { backgroundColor: mod.iconBg }]}>
-                <Ionicons name={mod.icon} size={20} color={mod.color} />
+            <ClayCard key={mod.key} style={styles.moduleCard} radius={22}>
+              <View style={[styles.moduleIcon, { backgroundColor: mod.tint }]}>
+                <Ionicons name={mod.icon} size={21} color={mod.color} />
               </View>
               <View style={styles.moduleInfo}>
                 <Text style={styles.moduleName}>{mod.label}</Text>
-                <Text style={styles.moduleSub}>{mod.sublabel}</Text>
+                <Text style={styles.moduleSub}>
+                  {mod.sublabel}
+                  {state.levelsDone != null && state.levelsTotal != null
+                    ? ` · ${state.levelsDone}/${state.levelsTotal} levels`
+                    : ""}
+                </Text>
                 {/* Only show a risk figure once the module is complete — a
                     percentage from one level would read as a trustworthy score. */}
                 {state.risk_probability !== undefined && state.status !== "partial" && (
@@ -193,166 +209,79 @@ export default function FusionProgressScreen({ navigation }: Props) {
                     {state.levelsTotal! - state.levelsDone! > 1 ? "s" : ""} to finish
                   </Text>
                 )}
+                <Text style={styles.statusCaption}>{statusLabel(state)}</Text>
               </View>
-              <View style={styles.moduleStatusWrap}>
-                {statusIcon(state.status)}
-                <Text style={[styles.moduleStatusText, { color: statusColor(state.status) }]}>
-                  {statusLabel(state)}
-                </Text>
-              </View>
-            </View>
+              {statusMark(state.status)}
+            </ClayCard>
           );
         })}
 
-        {/* Warning for missing / partially finished modules */}
         {!checking && (anyMissing || anyPartial) && (
-          <View style={styles.warningCard}>
-            <Ionicons name="warning-outline" size={18} color="#D97706" />
-            <Text style={styles.warningText}>
+          <ClayCard inset style={styles.noteCard} radius={20}>
+            <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.noteText}>
               {anyPartial && !anyMissing
                 ? "Some modules have levels still to go. Every level must be completed before the final analysis can run."
                 : "One or more modules are incomplete. Please finish all levels in every module before running the final analysis."}
             </Text>
-          </View>
+          </ClayCard>
         )}
 
-        {/* Low quality warning */}
         {!checking && !anyMissing && !anyPartial && Object.values(modules).some((m) => m.status === "low_quality") && (
-          <View style={styles.cautionCard}>
-            <Ionicons name="alert-circle-outline" size={18} color="#D97706" />
-            <Text style={styles.cautionText}>
+          <ClayCard inset style={styles.noteCard} radius={20}>
+            <Ionicons name="alert-circle-outline" size={18} color={"#B0791A"} />
+            <Text style={styles.noteText}>
               Some modules have low prediction reliability. You may repeat those activities for a more accurate result, or continue with a reliability warning saved.
             </Text>
-          </View>
+          </ClayCard>
         )}
 
-        {/* Disclaimer */}
-        <View style={styles.disclaimerCard}>
-          <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
-          <Text style={styles.disclaimerText}>
+        <ClayCard inset style={styles.noteCard} radius={20}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+          <Text style={styles.noteText}>
             This screening combines speech, handwriting, and behaviour results. It is{" "}
-            <Text style={styles.disclaimerBold}>not a clinical diagnosis</Text>. Always consult a qualified professional.
+            <Text style={styles.noteBold}>not a clinical diagnosis</Text>. Always consult a qualified professional. Reports are behind the parent gate. Your child will not see risk wording or scores.
           </Text>
-        </View>
+        </ClayCard>
 
-        <View style={{ height: 20 }} />
-
-        {/* CTA */}
         {checking ? (
           <View style={styles.checkingRow}>
-            <ActivityIndicator size="small" color="#2563EB" />
+            <ActivityIndicator size="small" color={colors.brand} />
             <Text style={styles.checkingText}>Verifying module outputs…</Text>
           </View>
         ) : (
-          <LinearGradient
-            colors={allReady ? ["#1D4ED8", "#2563EB"] : ["#E2E8F0", "#E2E8F0"]}
-            style={styles.ctaBtn}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <TouchableOpacity
-              style={styles.ctaBtnInner}
-              activeOpacity={allReady ? 0.85 : 1}
-              disabled={!allReady}
-              onPress={() => navigation.navigate("FusionLoading")}
-            >
-              <Ionicons
-                name={allReady ? "analytics" : "lock-closed"}
-                size={20}
-                color={allReady ? "#fff" : "#94A3B8"}
-              />
-              <Text style={[styles.ctaBtnText, !allReady && styles.ctaBtnTextDisabled]}>
-                {allReady ? "Run Final Analysis" : "Complete All Levels First"}
-              </Text>
-            </TouchableOpacity>
-          </LinearGradient>
+          <PrimaryButton
+            label={allReady ? "Run Final Analysis" : "Complete All Levels First"}
+            onPress={() => navigation.navigate("FusionLoading")}
+            disabled={!allReady}
+          />
         )}
-
-        <View style={{ height: 50 }} />
+        <View style={{ height: 28 }} />
       </ScrollView>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FF" },
-  header: {
-    paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#94A3B8", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 3,
-  },
-  refreshBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#EFF6FF",
-    alignItems: "center", justifyContent: "center",
-  },
-  headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-  content: { paddingHorizontal: 20, paddingTop: 8 },
+  content: { paddingTop: 18, paddingBottom: 8, gap: 12 },
+  heroTitle: { fontFamily: fonts.extraBold, fontSize: 24, color: colors.text, letterSpacing: -0.4, lineHeight: 30 },
+  heroSub: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.textSecondary, lineHeight: 21, marginBottom: 4 },
 
-  heroCard: {
-    borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 24,
-    overflow: "hidden",
-    shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
-  },
-  decoCircleLg: { position: "absolute", width: 180, height: 180, borderRadius: 90, backgroundColor: "rgba(255,255,255,0.06)", top: -60, right: -40 },
-  decoCircleSm: { position: "absolute", width: 90, height: 90, borderRadius: 45, backgroundColor: "rgba(255,255,255,0.05)", bottom: -30, left: 10 },
-  heroIconWrap: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 2, borderColor: "rgba(255,255,255,0.3)", alignItems: "center", justifyContent: "center", marginBottom: 14,
-  },
-  heroTitle: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 8 },
-  heroSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 20 },
-
-  sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 },
-
-  moduleCard: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
-    borderRadius: 18, padding: 16, marginBottom: 10, gap: 14,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 3 }, shadowRadius: 10, elevation: 2,
-  },
-  moduleIconWrap: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  moduleCard: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16 },
+  moduleIcon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   moduleInfo: { flex: 1, gap: 2 },
-  moduleName: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-  moduleSub: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
-  moduleProb: { fontSize: 11, fontFamily: theme.fonts.medium, marginTop: 2 },
-  moduleProbPartial: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#D97706", marginTop: 2 },
-  moduleStatusWrap: { alignItems: "center", gap: 4 },
-  moduleStatusText: { fontSize: 10, fontFamily: theme.fonts.semiBold, textTransform: "uppercase", letterSpacing: 0.4 },
+  moduleName: { fontFamily: fonts.extraBold, fontSize: 15, color: colors.text },
+  moduleSub: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.textMuted },
+  moduleProb: { fontFamily: fonts.medium, fontSize: 11, marginTop: 2 },
+  moduleProbPartial: { fontFamily: fonts.medium, fontSize: 11, color: "#B0791A", marginTop: 2 },
+  statusCaption: { fontFamily: fonts.semiBold, fontSize: 10, color: colors.textMuted, textTransform: "uppercase", letterSpacing: 0.4, marginTop: 2 },
+  check: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  checkMark: { fontFamily: fonts.extraBold, fontSize: 13, color: "#fff" },
 
-  warningCard: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
-    borderRadius: 16, padding: 14, marginBottom: 14,
-  },
-  warningText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E", lineHeight: 18 },
-
-  cautionCard: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FEF3C7",
-    borderRadius: 16, padding: 14, marginBottom: 14,
-  },
-  cautionText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E", lineHeight: 18 },
-
-  disclaimerCard: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
-    borderRadius: 16, padding: 14, marginBottom: 20,
-  },
-  disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
-  disclaimerBold: { fontFamily: theme.fonts.semiBold, color: "#1E40AF" },
+  noteCard: { flexDirection: "row", alignItems: "flex-start", gap: 11, padding: 16 },
+  noteText: { flex: 1, fontFamily: fonts.semiBold, fontSize: 12, color: colors.textSecondary, lineHeight: 18 },
+  noteBold: { fontFamily: fonts.bold, color: colors.text },
 
   checkingRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 18 },
-  checkingText: { fontSize: 14, fontFamily: theme.fonts.medium, color: "#64748B" },
-
-  ctaBtn: {
-    borderRadius: 50,
-    shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
-  },
-  ctaBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 18 },
-  ctaBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
-  ctaBtnTextDisabled: { color: "#94A3B8" },
+  checkingText: { fontFamily: fonts.medium, fontSize: 14, color: colors.textSecondary },
 });

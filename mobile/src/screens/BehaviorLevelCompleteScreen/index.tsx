@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated } from "react-native";
+import { Animated, Easing, StatusBar, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
-import { theme } from "../../theme";
 import { auth } from "../../config/firebase";
 import {
   BehaviorLevelId,
@@ -20,6 +18,10 @@ import {
 } from "../../services/behaviorLevelService";
 import { stopSpeaking } from "../../services/ttsService";
 import { speakFeedback } from "../../services/kidFeedback";
+import ScreenContainer from "../../components/common/ScreenContainer";
+import MascotGuide from "../../components/common/MascotGuide";
+import StarProgress from "../../components/common/StarProgress";
+import { fonts } from "../../theme/typography";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorLevelComplete">;
@@ -34,7 +36,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
 
   const [saving, setSaving] = useState(true);
   const [saveFailed, setSaveFailed] = useState(false);
-  const popAnim = useRef(new Animated.Value(0)).current;
+  const float = useRef(new Animated.Value(0)).current;
   const praisedRef = useRef(false);
 
   // Persist the unlock before the child moves on. If this fails the level would
@@ -73,10 +75,13 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
   useEffect(() => () => stopSpeaking(), []);
 
   useEffect(() => {
-    Animated.spring(popAnim, { toValue: 1, useNativeDriver: true, friction: 5, tension: 60 }).start();
-  }, []);
-
-  const scale = popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(float, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(float, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    ).start();
+  }, [float]);
 
   const go = (fn: () => void) => { stopSpeaking(); fn(); };
 
@@ -91,192 +96,82 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
-
-      <View style={styles.header}>
-        <View style={{ width: 40 }} />
-        <Text style={styles.headerTitle}>Level Complete</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <View style={styles.content}>
-        {/* Celebration hero */}
-        <Animated.View style={{ width: "100%", transform: [{ scale }] }}>
-          <LinearGradient
-            colors={config.gradColors}
-            style={styles.heroCard}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.decoCircle1} />
-            <View style={styles.decoCircle2} />
-            <View style={styles.heroIconWrap}>
-              <Ionicons name="trophy" size={52} color="#fff" />
-            </View>
-            <Text style={styles.heroKicker}>Level {level} finished!</Text>
-            <Text style={styles.heroTitle}>{config.title}</Text>
-            <Text style={styles.heroSub}>
-              You completed all {behaviorLevelTaskCount(level)} activities. Great focus!
-            </Text>
-          </LinearGradient>
+    <ScreenContainer backgroundColor="#0C9B70" padded>
+      <StatusBar barStyle="light-content" backgroundColor="#0C9B70" />
+      <LinearGradient colors={["#2ED09B", "#0C9B70"]} style={StyleSheet.absoluteFill} />
+      <View style={styles.body}>
+        <Animated.View style={{ transform: [{ translateY: float.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) }] }}>
+          <MascotGuide state="celebrating" size={172} tint="rgba(255,255,255,0.16)" label="mascot · high five" />
         </Animated.View>
-
-        {/* Unlock notice */}
-        {nextLevel ? (
-          <View style={styles.unlockCard}>
-            <LinearGradient
-              colors={nextLevel.gradColors}
-              style={styles.unlockBadge}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="lock-open" size={20} color="#fff" />
-            </LinearGradient>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.unlockTitle}>Level {nextLevel.id} unlocked — {nextLevel.title}</Text>
-              <Text style={styles.unlockSub}>{nextLevel.description}</Text>
-            </View>
+        <Text style={styles.title}>Level {level} done!</Text>
+        <Text style={styles.sub}>{config.title} · {behaviorLevelTaskCount(level)} of {behaviorLevelTaskCount(level)} played</Text>
+        <View style={styles.stars}>
+          <StarProgress total={3} filled={3} size={40} emptyColor="rgba(255,255,255,0.3)" />
+        </View>
+        <View style={styles.stats}>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{behaviorLevelTaskCount(level)}</Text>
+            <Text style={styles.statLabel}>activities</Text>
           </View>
-        ) : (
-          <View style={styles.unlockCard}>
-            <View style={[styles.unlockBadge, { backgroundColor: "#ECFDF5" }]}>
-              <Ionicons name="checkmark-done" size={20} color="#059669" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.unlockTitle}>All levels complete!</Text>
-              <Text style={styles.unlockSub}>You finished every activity. Time to see the results.</Text>
-            </View>
+          <View style={styles.stat}>
+            <Text style={styles.statValue}>{isFinalLevel ? "All" : `L${level + 1}`}</Text>
+            <Text style={styles.statLabel}>{isFinalLevel ? "levels done" : "unlocked"}</Text>
           </View>
-        )}
-
-        {/* Progress could not be saved — without this the level re-locks on next login */}
-        {saveFailed && (
-          <TouchableOpacity style={styles.saveFailCard} activeOpacity={0.8} onPress={saveProgress}>
-            <Ionicons name="cloud-offline-outline" size={18} color="#EF4444" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.saveFailTitle}>Progress not saved</Text>
-              <Text style={styles.saveFailSub}>
-                This level may be locked again next time you log in. Tap to try again.
-              </Text>
-            </View>
-            <Ionicons name="refresh" size={18} color="#EF4444" />
-          </TouchableOpacity>
-        )}
-
-        <View style={{ flex: 1 }} />
-
-        {/* Primary action */}
-        {isFinalLevel ? (
-          <LinearGradient colors={["#0891B2", "#0E7490"]} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <TouchableOpacity
-              style={styles.primaryBtnInner}
-              activeOpacity={0.88}
-              onPress={() => go(() => navigation.replace("BehaviorSummary"))}
-              disabled={saving}
-            >
-              <Text style={styles.primaryBtnText}>View Full Summary</Text>
-              <Ionicons name="bar-chart-outline" size={18} color="#fff" />
-            </TouchableOpacity>
-          </LinearGradient>
-        ) : (
-          <LinearGradient colors={nextLevel!.gradColors} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-            <TouchableOpacity
-              style={styles.primaryBtnInner}
-              activeOpacity={0.88}
-              onPress={startNextLevel}
-              disabled={saving}
-            >
-              <Text style={styles.primaryBtnText}>Start Level {nextLevel!.id}</Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
-            </TouchableOpacity>
-          </LinearGradient>
-        )}
-
-        {!isFinalLevel && (
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            activeOpacity={0.8}
-            onPress={() => go(() => navigation.replace("BehaviorSummary"))}
-            disabled={saving}
-          >
-            <Ionicons name="stats-chart-outline" size={18} color="#64748B" />
-            <Text style={styles.secondaryBtnText}>See results so far</Text>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={styles.linkBtn}
-          activeOpacity={0.7}
-          onPress={() => go(() => navigation.replace("BehaviorLevels"))}
-          disabled={saving}
-        >
-          <Text style={styles.linkBtnText}>Back to levels</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
+        </View>
+        {saveFailed ? (
+          <Text style={styles.saveFail} onPress={saveProgress}>Progress not saved — tap to retry</Text>
+        ) : null}
       </View>
-    </View>
+      <View style={styles.actions}>
+        <Text
+          style={[styles.continue, saving && { opacity: 0.55 }]}
+          onPress={() => {
+            if (saving) return;
+            if (isFinalLevel) go(() => navigation.replace("BehaviorSummary"));
+            else startNextLevel();
+          }}
+        >
+          {isFinalLevel ? "See what Lexi found" : `Start Level ${nextLevel!.id}`}
+        </Text>
+        {!isFinalLevel ? (
+          <Text
+            style={styles.finish}
+            onPress={() => { if (!saving) go(() => navigation.replace("BehaviorSummary")); }}
+          >
+            See results so far
+          </Text>
+        ) : null}
+        <Text
+          style={styles.finish}
+          onPress={() => { if (!saving) go(() => navigation.replace("BehaviorLevels")); }}
+        >
+          Back to levels
+        </Text>
+      </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FF" },
-
-  header: {
-    paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  body: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  title: { fontFamily: fonts.extraBold, fontSize: 34, color: "#fff", marginTop: 34, letterSpacing: -0.6, textAlign: "center" },
+  sub: { fontFamily: fonts.bold, fontSize: 16, color: "#CBF1E3", marginTop: 10, textAlign: "center" },
+  stars: { marginTop: 30 },
+  stats: { flexDirection: "row", gap: 12, width: "100%", marginTop: 34 },
+  stat: { flex: 1, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: 20, padding: 16, alignItems: "center" },
+  statValue: { fontFamily: fonts.extraBold, fontSize: 22, color: "#fff" },
+  statLabel: { fontFamily: fonts.bold, fontSize: 11, color: "#CBF1E3", marginTop: 2 },
+  saveFail: { fontFamily: fonts.bold, fontSize: 13, color: "#FFE0DC", marginTop: 18 },
+  actions: { gap: 8, marginBottom: 10 },
+  continue: {
+    paddingVertical: 20,
+    borderRadius: 24,
+    backgroundColor: "#fff",
+    color: "#0C9B70",
+    fontFamily: fonts.extraBold,
+    fontSize: 17,
+    textAlign: "center",
+    overflow: "hidden",
   },
-  headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-
-  content: { flex: 1, paddingHorizontal: 20, paddingTop: 8, alignItems: "center" },
-
-  heroCard: {
-    borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 18, overflow: "hidden",
-    shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
-  },
-  decoCircle1: { position: "absolute", width: 170, height: 170, borderRadius: 85, backgroundColor: "rgba(255,255,255,0.08)", top: -55, right: -45 },
-  decoCircle2: { position: "absolute", width: 90, height: 90, borderRadius: 45, backgroundColor: "rgba(255,255,255,0.06)", bottom: -25, left: 8 },
-  heroIconWrap: {
-    width: 96, height: 96, borderRadius: 48, backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 3, borderColor: "rgba(255,255,255,0.35)",
-    alignItems: "center", justifyContent: "center", marginBottom: 14,
-  },
-  heroKicker: { fontSize: 12, fontFamily: theme.fonts.semiBold, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 4 },
-  heroTitle: { fontSize: 24, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 8, textAlign: "center" },
-  heroSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.85)", textAlign: "center", lineHeight: 19 },
-
-  unlockCard: {
-    width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
-    borderRadius: 20, padding: 16,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
-  },
-  unlockBadge: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  unlockTitle: { fontSize: 14, fontFamily: theme.fonts.bold, color: "#1E293B", marginBottom: 3 },
-  unlockSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 17 },
-
-  saveFailCard: {
-    width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: "#FFF5F5", borderWidth: 1, borderColor: "#FECACA",
-    borderRadius: 16, padding: 14, marginTop: 14,
-  },
-  saveFailTitle: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#EF4444", marginBottom: 2 },
-  saveFailSub: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#DC2626", lineHeight: 16 },
-
-  primaryBtn: {
-    width: "100%", borderRadius: 50, marginBottom: 12,
-    shadowColor: "#0891B2", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
-  },
-  primaryBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
-  primaryBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
-
-  secondaryBtn: {
-    width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    paddingVertical: 16, borderRadius: 50,
-    backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#E2E8F0", marginBottom: 8,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 2,
-  },
-  secondaryBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#64748B" },
-
-  linkBtn: { paddingVertical: 10 },
-  linkBtnText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#94A3B8", textDecorationLine: "underline" },
+  finish: { fontFamily: fonts.extraBold, fontSize: 14.5, color: "#CBF1E3", textAlign: "center", paddingVertical: 16 },
 });

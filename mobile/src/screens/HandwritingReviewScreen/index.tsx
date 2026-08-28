@@ -1,21 +1,21 @@
 import React, { useState } from "react";
 import {
-  View, Text, StyleSheet, StatusBar, TouchableOpacity,
-  ScrollView, ActivityIndicator, Image,
+  View, Text, StyleSheet, StatusBar, ScrollView, Image,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
-import { theme } from "../../theme";
 import { auth, db } from "../../config/firebase";
-import {
-  HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
-  HANDWRITING_TASK_TYPE_ICONS, HANDWRITING_TASK_COLORS,
-} from "../../config/handwritingTasks";
+import { HANDWRITING_TASKS } from "../../config/handwritingTasks";
 import { getTimeOfDay } from "../../utils/behaviorFeatures";
+import ScreenContainer from "../../components/common/ScreenContainer";
+import ClayCard from "../../components/common/ClayCard";
+import PrimaryButton from "../../components/common/PrimaryButton";
+import SecondaryButton from "../../components/common/SecondaryButton";
+import { colors } from "../../theme/colors";
+import { fonts } from "../../theme/typography";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingReview">;
@@ -24,6 +24,7 @@ type Props = {
 
 import { API_URLS } from "../../config/apiConfig";
 const HANDWRITING_API = API_URLS.handwriting;
+const HW_ACCENT: [string, string] = ["#FF9A8D", "#FF7A6B"];
 
 export default function HandwritingReviewScreen({ navigation, route }: Props) {
   const { taskIndex, inputMode, capturedUri, strokesJson, retryCount, durationSec, practice } = route.params;
@@ -31,7 +32,6 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
   // or rehearsing would move the risk score the plan was based on.
   const isPractice = !!practice;
   const task = HANDWRITING_TASKS[taskIndex];
-  const taskColors = HANDWRITING_TASK_COLORS[task.task_type];
   const [submitting, setSubmitting] = useState(false);
 
   const strokeCount = strokesJson ? (JSON.parse(strokesJson) as any[][]).length : 0;
@@ -144,183 +144,138 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
+    <ScreenContainer>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>How did that look?</Text>
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={handleRetake} disabled={submitting}>
-          <Ionicons name="arrow-back" size={20} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review Writing</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-        {/* Preview card */}
-        <View style={[styles.previewCard, { borderColor: taskColors.border }]}>
-          <View style={styles.previewHeader}>
-            <Ionicons name={HANDWRITING_TASK_TYPE_ICONS[task.task_type] as any} size={16} color={taskColors.color} />
-            <Text style={[styles.previewHeaderText, { color: taskColors.color }]}>
-              {HANDWRITING_TASK_TYPE_LABELS[task.task_type]}
-            </Text>
-            <View style={[styles.targetPill, { backgroundColor: taskColors.bg }]}>
-              <Text style={[styles.targetPillText, { color: taskColors.color }]}>{task.target_text}</Text>
+        <View style={styles.compare}>
+          <ClayCard style={styles.compareCard} radius={24}>
+            <Text style={styles.compareLabel}>Target</Text>
+            <View style={styles.previewWell}>
+              <Text style={styles.ghost}>{task.target_text}</Text>
             </View>
-          </View>
-
-          <View style={styles.previewCanvas}>
-            {capturedUri ? (
-              <>
-                <Image
-                  source={{ uri: capturedUri }}
-                  style={styles.previewImage}
-                  resizeMode="cover"
-                />
-                {inputMode === "canvas" && (
-                  <View style={styles.strokeBadge}>
-                    <Ionicons name="brush-outline" size={12} color="#7C3AED" />
-                    <Text style={styles.strokeBadgeText}>
-                      {strokeCount} stroke{strokeCount !== 1 ? "s" : ""}
-                    </Text>
-                  </View>
-                )}
-              </>
-            ) : (
-              <View style={styles.canvasPreviewInner}>
-                <Ionicons name="brush-outline" size={32} color="#CBD5E1" />
-                <Text style={styles.canvasPreviewText}>No image captured</Text>
-              </View>
-            )}
-          </View>
+          </ClayCard>
+          <ClayCard style={styles.compareCard} radius={24}>
+            <Text style={[styles.compareLabel, styles.compareYou]}>You</Text>
+            <View style={styles.previewWell}>
+              {capturedUri ? (
+                <Image source={{ uri: capturedUri }} style={styles.previewImage} resizeMode="contain" />
+              ) : (
+                <>
+                  <Ionicons name="brush-outline" size={28} color={colors.textMuted} />
+                  <Text style={styles.emptyText}>No image captured</Text>
+                </>
+              )}
+            </View>
+          </ClayCard>
         </View>
 
-        {/* Stats row */}
-        <View style={styles.statsCard}>
-          {[
-            { icon: "time-outline" as const, iconBg: "#FFFBEB", iconColor: "#D97706", label: "Duration", value: `${durationSec}s` },
-            { icon: "refresh-outline" as const, iconBg: "#F5F3FF", iconColor: "#7C3AED", label: "Rewrites", value: `${retryCount}` },
-            { icon: inputMode === "canvas" ? "brush-outline" as const : "camera-outline" as const, iconBg: "#EFF6FF", iconColor: "#2563EB", label: "Mode", value: inputMode === "canvas" ? "Canvas" : "Photo" },
-          ].map((row, i) => (
-            <View key={i} style={[styles.statItem, i < 2 && styles.statItemBorder]}>
-              <View style={[styles.statIcon, { backgroundColor: row.iconBg }]}>
-                <Ionicons name={row.icon} size={14} color={row.iconColor} />
-              </View>
-              <Text style={styles.statValue}>{row.value}</Text>
-              <Text style={styles.statLabel}>{row.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Warning notice */}
-        <View style={styles.warningCard}>
-          <Ionicons name="information-circle-outline" size={18} color="#D97706" />
-          <Text style={styles.warningText}>
-            Please check that the writing is clear before submitting. Unclear images may affect the result.
+        <ClayCard style={styles.statRow} radius={18}>
+          <View style={styles.checkDot}>
+            <Text style={styles.checkMark}>✓</Text>
+          </View>
+          <Text style={styles.statText}>
+            {inputMode === "canvas"
+              ? `${strokeCount} stroke${strokeCount !== 1 ? "s" : ""} · ${durationSec}s`
+              : `Photo · ${durationSec}s`}
           </Text>
-        </View>
-
-        <View style={{ height: 12 }} />
-
-        {/* Retake button */}
-        <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake} disabled={submitting}>
-          <Ionicons name="refresh-outline" size={18} color="#64748B" />
-          <Text style={styles.retakeBtnText}>Retake / Rewrite</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 14 }} />
-
-        {/* Submit button */}
-        <LinearGradient
-          colors={submitting ? ["#94A3B8", "#94A3B8"] : [taskColors.color, taskColors.color]}
-          style={styles.submitBtn}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        >
-          <TouchableOpacity style={styles.submitBtnInner} onPress={handleSubmit} disabled={submitting} activeOpacity={0.88}>
-            {submitting ? (
-              <><ActivityIndicator color="#fff" size="small" /><Text style={styles.submitBtnText}>Analysing…</Text></>
-            ) : (
-              <><Ionicons name="send-outline" size={20} color="#fff" /><Text style={styles.submitBtnText}>Submit for Analysis</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></>
-            )}
-          </TouchableOpacity>
-        </LinearGradient>
-
-        <View style={{ height: 50 }} />
+        </ClayCard>
+        <ClayCard style={styles.statRow} radius={18}>
+          <View style={[styles.checkDot, { backgroundColor: retryCount > 0 ? colors.gold : colors.mint }]}>
+            <Text style={styles.checkMark}>{retryCount > 0 ? "~" : "✓"}</Text>
+          </View>
+          <Text style={styles.statText}>
+            {retryCount > 0 ? `${retryCount} rewrite${retryCount !== 1 ? "s" : ""}` : "First try"}
+          </Text>
+        </ClayCard>
+        <Text style={styles.warn}>
+          Please check that the writing is clear before sending. Unclear images may affect the result.
+        </Text>
       </ScrollView>
-    </View>
+
+      <View style={styles.actions}>
+        <PrimaryButton
+          label="Send to Lexi"
+          onPress={handleSubmit}
+          loading={submitting}
+          disabled={submitting}
+          colors={HW_ACCENT}
+        />
+        <SecondaryButton
+          label="Try again"
+          onPress={handleRetake}
+          disabled={submitting}
+          textColor="#FF6B57"
+        />
+      </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FF" },
-  header: {
-    paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  body: { alignItems: "center", paddingTop: 18, paddingBottom: 16 },
+  title: {
+    fontFamily: fonts.extraBold,
+    fontSize: 26,
+    color: colors.text,
+    letterSpacing: -0.4,
+    textAlign: "center",
   },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff",
-    alignItems: "center", justifyContent: "center",
-    shadowColor: "#94A3B8", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 3,
+  compare: { flexDirection: "row", gap: 12, width: "100%", marginTop: 24 },
+  compareCard: { flex: 1, padding: 16 },
+  compareLabel: {
+    fontFamily: fonts.extraBold,
+    fontSize: 11,
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 12,
+    textAlign: "center",
   },
-  headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-  content: { paddingHorizontal: 20 },
-
-  previewCard: {
-    backgroundColor: "#fff", borderWidth: 1.5, borderRadius: 24, overflow: "hidden",
-    marginBottom: 16,
-    shadowColor: "#94A3B8", shadowOpacity: 0.08, shadowOffset: { width: 0, height: 4 }, shadowRadius: 16, elevation: 4,
+  compareYou: { color: "#FF6B57" },
+  previewWell: {
+    height: 150,
+    borderRadius: 16,
+    backgroundColor: "#FBFCFE",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
-  previewHeader: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9",
+  previewImage: { width: "100%", height: 150 },
+  ghost: {
+    fontFamily: fonts.regular,
+    fontSize: 72,
+    color: "#C3CDDC",
+    lineHeight: 80,
   },
-  previewHeaderText: { fontSize: 13, fontFamily: theme.fonts.semiBold, flex: 1 },
-  targetPill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  targetPillText: { fontSize: 13, fontFamily: theme.fonts.bold },
-  previewCanvas: { height: 300, alignItems: "center", justifyContent: "center" },
-  previewImage: { width: "100%", height: 300 },
-  strokeBadge: {
-    position: "absolute", bottom: 8, right: 8,
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#F5F3FF", borderWidth: 1, borderColor: "#EDE9FE",
-    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+  emptyText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, marginTop: 6 },
+  statRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 9,
   },
-  strokeBadgeText: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#7C3AED" },
-  canvasPreviewInner: { alignItems: "center", gap: 8 },
-  canvasPreviewText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#94A3B8" },
-  photoPreviewInner: { alignItems: "center", gap: 8 },
-  photoPreviewText: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
-
-  statsCard: {
-    flexDirection: "row", backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
-    borderRadius: 20, marginBottom: 14,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
+  checkDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.mint,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  statItem: { flex: 1, alignItems: "center", paddingVertical: 16, gap: 5 },
-  statItemBorder: { borderRightWidth: 1, borderRightColor: "#F1F5F9" },
-  statIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: 16, fontFamily: theme.fonts.extraBold, color: "#1E293B" },
-  statLabel: { fontSize: 10, fontFamily: theme.fonts.medium, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5 },
-
-  warningCard: {
-    flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FEF3C7",
-    borderRadius: 16, padding: 14,
+  checkMark: { fontFamily: fonts.extraBold, fontSize: 12, color: "#fff" },
+  statText: { flex: 1, fontFamily: fonts.bold, fontSize: 13.5, color: colors.textBody, textAlign: "left" },
+  warn: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: 16,
+    lineHeight: 18,
   },
-  warningText: { flex: 1, fontSize: 13, fontFamily: theme.fonts.regular, color: "#92400E", lineHeight: 19 },
-
-  retakeBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
-    borderRadius: 50, paddingVertical: 14,
-    shadowColor: "#94A3B8", shadowOpacity: 0.06, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 2,
-  },
-  retakeBtnText: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#64748B" },
-
-  submitBtn: {
-    borderRadius: 50,
-    shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
-  },
-  submitBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
-  submitBtnText: { fontSize: 15, fontFamily: theme.fonts.bold, color: "#fff" },
+  actions: { width: "100%", gap: 12, marginBottom: 10 },
 });
