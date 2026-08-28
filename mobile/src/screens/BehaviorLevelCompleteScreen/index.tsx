@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
 import { auth } from "../../config/firebase";
 import {
   BehaviorLevelId,
@@ -20,6 +21,7 @@ import {
 } from "../../services/behaviorLevelService";
 import { stopSpeaking } from "../../services/ttsService";
 import { speakFeedback } from "../../services/kidFeedback";
+import { playNextSound, playSuccessSound } from "../../services/kidSounds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorLevelComplete">;
@@ -60,12 +62,13 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
   useEffect(() => {
     if (praisedRef.current) return;
     praisedRef.current = true;
+    playSuccessSound();
     const t = setTimeout(
       () => speakFeedback("levelDone", {
         seed: level,
         extra: isFinalLevel ? "All levels done!" : `Level ${level + 1} unlocked.`,
       }),
-      500
+      800
     );
     return () => clearTimeout(t);
   }, [level, isFinalLevel]);
@@ -78,11 +81,12 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
 
   const scale = popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
 
-  const go = (fn: () => void) => { stopSpeaking(); fn(); };
+  const go = (fn: () => void) => { stopSpeaking(); playNextSound(); fn(); };
 
   const startNextLevel = async () => {
     if (!nextLevel) return;
     stopSpeaking();
+    playNextSound();
     const uid = auth.currentUser?.uid;
     // Drop any rows this level left behind on an earlier run so a replay doesn't
     // stack duplicates in the summary.
@@ -92,6 +96,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="celebration" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>

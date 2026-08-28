@@ -10,6 +10,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound, playTapSound } from "../../services/kidSounds";
 import { auth, db } from "../../config/firebase";
 import {
   BEHAVIOR_TASKS, BEHAVIOR_TASK_TYPE_LABELS, BEHAVIOR_TASK_TYPE_ICONS, BEHAVIOR_TASK_COLORS,
@@ -110,6 +112,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
   const handleOptionTap = (option: string) => {
     if (activityState !== "active" || submitting) return;
+    playTapSound();
     const now = Date.now();
     if (!firstTapRef.current) firstTapRef.current = now;
     const isCorrect = option === task.correct_answer;
@@ -148,6 +151,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
   const handleSubmit = async () => {
     if (!selectedOption || submitting) return;
+    playNextSound();
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     stopSpeaking();
     setSpeaking(false);
@@ -263,6 +267,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="behavior" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
