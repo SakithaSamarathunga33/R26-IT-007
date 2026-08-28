@@ -16,6 +16,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import { auth } from "../../config/firebase";
 import { useFocusEffect } from "@react-navigation/native";
 import { getOrCreateSession, SessionProgress } from "../../services/sessionService";
@@ -23,7 +25,7 @@ import { ActiveTherapyPlan, fetchActiveTherapyPlan } from "../../services/therap
 
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, "Home">;
+  navigation: NativeStackNavigationProp<RootStackParamList>;
 };
 
 const MODULES = [
@@ -109,6 +111,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="home" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <ScrollView
@@ -206,10 +209,13 @@ export default function HomeScreen({ navigation }: Props) {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.therapyCard}
-            onPress={() => navigation.navigate("FusionTherapy", {
-              response: therapyPlan.response,
-              reportId: therapyPlan.reportId,
-            })}
+            onPress={() => {
+              playNextSound();
+              navigation.navigate("FusionTherapy", {
+                response: therapyPlan.response,
+                reportId: therapyPlan.reportId,
+              });
+            }}
           >
             <LinearGradient
               colors={["#7C3AED", "#6D28D9"]}
@@ -275,7 +281,12 @@ export default function HomeScreen({ navigation }: Props) {
                 activeOpacity={isActive ? 0.82 : 1}
                 disabled={!isActive}
                 style={[styles.moduleCard, isWide && styles.moduleCardWide, modulesLocked && styles.moduleCardLocked]}
-                onPress={() => isActive && mod.route && navigation.navigate(mod.route as any)}
+                onPress={() => {
+                  if (isActive && mod.route) {
+                    playNextSound();
+                    navigation.navigate(mod.route as any);
+                  }
+                }}
               >
                 <LinearGradient
                   colors={modulesLocked ? ["#CBD5E1", "#94A3B8"] : mod.gradColors}
@@ -391,7 +402,12 @@ export default function HomeScreen({ navigation }: Props) {
           <TouchableOpacity
             activeOpacity={completedCount === 3 ? 0.85 : 1}
             disabled={completedCount < 3}
-            onPress={() => completedCount === 3 && navigation.navigate("FusionProgress")}
+            onPress={() => {
+              if (completedCount === 3) {
+                playNextSound();
+                navigation.navigate("FusionProgress");
+              }
+            }}
           >
             <LinearGradient
               colors={completedCount === 3 ? ["#3B72F6", "#2563EB"] : ["#E2E8F0", "#E2E8F0"]}
