@@ -12,6 +12,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound, playTapSound } from "../../services/kidSounds";
 import { speak, stopSpeaking } from "../../services/ttsService";
 import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
@@ -103,6 +105,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   ).current;
 
   const handleClear = () => {
+    playTapSound();
     strokesRef.current = [];
     setStrokes([]);
     setCurrentStroke([]);
@@ -111,6 +114,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
 
   const handleUndo = () => {
     if (strokesRef.current.length === 0) return;
+    playTapSound();
     strokesRef.current = strokesRef.current.slice(0, -1);
     setStrokes([...strokesRef.current]);
   };
@@ -147,6 +151,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   // ── Submit: capture canvas → navigate to Review ───────────────────────────
 
   const handleSubmit = async () => {
+    playNextSound();
     const durationSec = Math.round((Date.now() - taskStartTs) / 1000);
 
     if (inputMode === "photo") {
@@ -218,6 +223,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="handwriting" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>

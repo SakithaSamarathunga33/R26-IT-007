@@ -10,6 +10,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound, playTapSound } from "../../services/kidSounds";
 import { auth, db } from "../../config/firebase";
 import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
@@ -36,9 +38,10 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
 
   const strokeCount = strokesJson ? (JSON.parse(strokesJson) as any[][]).length : 0;
 
-  const handleRetake = () => navigation.goBack();
+  const handleRetake = () => { playTapSound(); navigation.goBack(); };
 
   const handleSubmit = async () => {
+    playNextSound();
     setSubmitting(true);
     let result: any = null;
     let apiError: string | undefined;
@@ -145,6 +148,7 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="handwriting" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>

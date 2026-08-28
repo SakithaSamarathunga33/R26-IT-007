@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import {
   BEHAVIOR_TASKS, BEHAVIOR_LEVELS, behaviorLevelTaskCount,
 } from "../../config/behaviorTasks";
@@ -28,6 +30,7 @@ const CHIPS = [
 export default function BehaviorIntroScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
+      <KidBackground variant="behavior" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
@@ -116,7 +119,7 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.startBtnInner}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate("BehaviorLevels")}
+            onPress={() => { playNextSound(); navigation.navigate("BehaviorLevels"); }}
           >
             <Ionicons name="layers" size={20} color="#fff" />
             <Text style={styles.startBtnText}>Choose a Level</Text>

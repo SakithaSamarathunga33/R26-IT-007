@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import { SPEECH_LEVELS, levelTaskCount } from "../../config/speechTasks";
 
 type Props = {
@@ -26,6 +28,7 @@ const CHIPS = [
 export default function SpeechIntroScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
+      <KidBackground variant="speech" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       {/* Header */}
@@ -122,7 +125,7 @@ export default function SpeechIntroScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.startBtnInner}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate("SpeechLevels")}
+            onPress={() => { playNextSound(); navigation.navigate("SpeechLevels"); }}
           >
             <Ionicons name="layers" size={20} color="#fff" />
             <Text style={styles.startBtnText}>Choose a Level</Text>

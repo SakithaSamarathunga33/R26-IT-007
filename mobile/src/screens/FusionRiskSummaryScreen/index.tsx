@@ -8,6 +8,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionRiskSummary">;
@@ -67,6 +69,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="therapy" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
@@ -188,7 +191,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           <TouchableOpacity
             style={styles.btnInner}
             activeOpacity={0.85}
-            onPress={() => navigation.navigate("FusionDifficulty", { response })}
+            onPress={() => { playNextSound(); navigation.navigate("FusionDifficulty", { response }); }}
           >
             <Ionicons name="layers-outline" size={20} color="#fff" />
             <Text style={styles.primaryBtnText}>View Difficulty Breakdown</Text>
@@ -198,7 +201,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
         <TouchableOpacity
           style={styles.secondaryBtn}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate("FusionTherapy", { response })}
+          onPress={() => { playNextSound(); navigation.navigate("FusionTherapy", { response }); }}
         >
           <Ionicons name="fitness-outline" size={18} color="#2563EB" />
           <Text style={styles.secondaryBtnText}>View Therapy Plan</Text>
