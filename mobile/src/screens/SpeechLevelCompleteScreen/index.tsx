@@ -6,7 +6,9 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
 import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
+import { playNextSound, playSuccessSound } from "../../services/kidSounds";
 import { auth } from "../../config/firebase";
 import { LevelId, SPEECH_LEVELS, getLevel, levelTaskCount, taskIndicesForLevel } from "../../config/speechTasks";
 import { clearLevelPredictions, markLevelComplete } from "../../services/speechLevelService";
@@ -50,12 +52,13 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
   useEffect(() => {
     if (praisedRef.current) return;
     praisedRef.current = true;
+    playSuccessSound();
     const t = setTimeout(
       () => speakFeedback("levelDone", {
         seed: level,
         extra: isFinalLevel ? "All levels done!" : `Level ${level + 1} unlocked.`,
       }),
-      500
+      800
     );
     return () => clearTimeout(t);
   }, [level, isFinalLevel]);
@@ -70,6 +73,8 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
 
   const startNextLevel = async () => {
     if (!nextLevel) return;
+    stopSpeaking();
+    playNextSound();
     const uid = auth.currentUser?.uid;
     // Drop any rows this level left behind on an earlier run so a replay doesn't
     // stack duplicates in the summary.
@@ -79,6 +84,7 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="celebration" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
@@ -157,7 +163,7 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
             <TouchableOpacity
               style={styles.primaryBtnInner}
               activeOpacity={0.88}
-              onPress={() => navigation.replace("SpeechSummary")}
+              onPress={() => { stopSpeaking(); playNextSound(); navigation.replace("SpeechSummary"); }}
               disabled={saving}
             >
               <Text style={styles.primaryBtnText}>View Full Summary</Text>

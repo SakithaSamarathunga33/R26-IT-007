@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import {
   SPEECH_LEVELS,
   SPEECH_TASKS,
@@ -87,6 +89,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="speech" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
@@ -204,7 +207,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
         <View style={{ height: 20 }} />
 
         <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.doneBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-          <TouchableOpacity style={styles.doneBtnInner} activeOpacity={0.88} onPress={() => navigation.navigate("SpeechLevels")}>
+          <TouchableOpacity style={styles.doneBtnInner} activeOpacity={0.88} onPress={() => { playNextSound(); navigation.navigate("SpeechLevels"); }}>
             <Ionicons name="layers-outline" size={18} color="#fff" />
             <Text style={styles.doneBtnText}>Back to Levels</Text>
           </TouchableOpacity>

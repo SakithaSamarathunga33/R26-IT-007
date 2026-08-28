@@ -6,6 +6,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import { auth } from "../../config/firebase";
 import { SPEECH_LEVELS, SpeechLevel, levelTaskCount, taskIndicesForLevel } from "../../config/speechTasks";
 import { clearModulePredictions } from "../../services/sessionService";
@@ -43,6 +45,7 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
   );
 
   const startLevel = async (level: SpeechLevel) => {
+    playNextSound();
     const uid = auth.currentUser?.uid;
     // Clear before the first task so an in-flight delete can't eat the new
     // attempts. Level 1 restarts the whole run and wipes every level; Levels 2
@@ -62,6 +65,7 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="speech" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
