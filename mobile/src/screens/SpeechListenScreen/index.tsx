@@ -6,6 +6,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import { SPEECH_TASKS, getLevel, levelTaskCount, positionInLevel } from "../../config/speechTasks";
 import { speak, stopSpeaking, stretchWord } from "../../services/ttsService";
 
@@ -69,6 +71,7 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
   const goRecord = () => {
     stopSpeaking();
     setSpeaking(false);
+    playNextSound();
     navigation.navigate("SpeechRecording", { taskIndex, practice });
   };
 
@@ -77,6 +80,7 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="speech" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       {/* Header */}

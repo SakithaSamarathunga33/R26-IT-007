@@ -8,6 +8,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import { SPEECH_TASKS, TASK_TYPE_LABELS } from "../../config/speechTasks";
 import { auth, db } from "../../config/firebase";
 
@@ -122,6 +124,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
   const handleSubmit = async () => {
     if (!audioUri) { Alert.alert("No recording", "Please go back and record first."); return; }
     if (elapsed < 0.5) { Alert.alert("Too short", "Please record for at least 0.5 seconds."); return; }
+    playNextSound();
     try {
       setSubmitStep("analysing");
       let result: any = null; let apiError: string | undefined;
@@ -146,6 +149,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="speech" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       {/* Header */}
