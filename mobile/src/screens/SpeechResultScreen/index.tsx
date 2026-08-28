@@ -6,9 +6,11 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
 import { SPEECH_TASKS, getLevel, levelTaskCount, nextIndexInLevel, positionInLevel } from "../../config/speechTasks";
 import { practiceNext } from "../../utils/practiceFlow";
 import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
+import { playNextSound, playSuccessSound } from "../../services/kidSounds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechResult">;
@@ -47,7 +49,8 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (spokenRef.current) return;
     spokenRef.current = true;
-    const t = setTimeout(() => speakFeedback("done", { seed: taskIndex }), 400);
+    playSuccessSound();
+    const t = setTimeout(() => speakFeedback("done", { seed: taskIndex }), 700);
     return () => clearTimeout(t);
   }, [taskIndex]);
 
@@ -55,6 +58,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
 
   const handleNext = () => {
     stopSpeaking();
+    playNextSound();
     // Practice runs belong to a therapy plan: step through that activity's own
     // task list, then hand back to the plan instead of unlocking a level.
     if (practice) {
@@ -77,6 +81,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="speech" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>

@@ -16,6 +16,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound, playTapSound } from "../../services/kidSounds";
 import { SPEECH_TASKS, getLevel, levelTaskCount, positionInLevel } from "../../config/speechTasks";
 import { speak, stopSpeaking } from "../../services/ttsService";
 
@@ -76,6 +78,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
   };
 
   const handleStartRecording = async () => {
+    playTapSound();
     // Make sure the app's own voice is silent before the mic opens.
     stopSpeaking();
     setHearing(false);
@@ -93,6 +96,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
   };
 
   const handleStopRecording = async () => {
+    playTapSound();
     stopTimer(); stopPulse();
     try {
       if (!audioRecorder.isRecording) return;
@@ -117,6 +121,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="speech" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={() => setToast((t) => ({ ...t, visible: false }))} />
 
@@ -208,7 +213,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
 
         {recordState === "done" && (
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.retryBtn} onPress={handleRetry} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => { playTapSound(); handleRetry(); }} activeOpacity={0.8}>
               <Ionicons name="refresh" size={18} color="#64748B" />
               <Text style={styles.retryBtnText}>Retry</Text>
             </TouchableOpacity>
@@ -216,7 +221,10 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 style={styles.nextBtnInner}
                 activeOpacity={0.88}
-                onPress={() => navigation.navigate("SpeechReview", { taskIndex, elapsed, retryCount, audioUri: audioUri ?? "", practice })}
+                onPress={() => {
+                  playNextSound();
+                  navigation.navigate("SpeechReview", { taskIndex, elapsed, retryCount, audioUri: audioUri ?? "", practice });
+                }}
               >
                 <Text style={styles.nextBtnText}>Review & Submit</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
