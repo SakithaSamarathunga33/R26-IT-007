@@ -7,6 +7,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import { auth } from "../../config/firebase";
 import {
   buildSpeechSummary,
@@ -139,6 +141,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="therapy" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
@@ -254,7 +257,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
               style={styles.ctaBtnInner}
               activeOpacity={allReady ? 0.85 : 1}
               disabled={!allReady}
-              onPress={() => navigation.navigate("FusionLoading")}
+              onPress={() => { playNextSound(); navigation.navigate("FusionLoading"); }}
             >
               <Ionicons
                 name={allReady ? "analytics" : "lock-closed"}
