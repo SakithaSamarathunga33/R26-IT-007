@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
+import KidBackground from "../../components/KidBackground";
+import { playNextSound } from "../../services/kidSounds";
 import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS, HANDWRITING_TASK_COLORS,
   HANDWRITING_LEVELS, HandwritingLevel, HandwritingLevelId,
@@ -142,6 +144,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
+      <KidBackground variant="handwriting" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
@@ -294,7 +297,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.doneBtnInner}
               activeOpacity={0.88}
-              onPress={() => navigation.navigate("HandwritingLevels")}
+              onPress={() => { playNextSound(); navigation.navigate("HandwritingLevels"); }}
             >
               <Ionicons name="layers-outline" size={20} color="#fff" />
               <Text style={styles.doneBtnText}>Continue to Level {nextLevel.id}</Text>
@@ -310,7 +313,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.doneBtnInner}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate("MainTabs")}
+            onPress={() => { playNextSound(); navigation.navigate("MainTabs"); }}
           >
             <Ionicons name="home-outline" size={20} color="#fff" />
             <Text style={styles.doneBtnText}>Back to Dashboard</Text>
