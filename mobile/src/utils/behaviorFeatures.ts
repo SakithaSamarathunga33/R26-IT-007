@@ -77,7 +77,13 @@ export function calculateBehaviorFeatures(
     ? (events.first_tap_ts - events.task_start_ts) / 1000
     : task_duration_sec;
 
-  const reaction_times = events.taps.map((t) => (t.ts - events.task_start_ts) / 1000);
+  // Reaction intervals are measured between interactions. The previous code
+  // measured every tap from task start, which inflated later reaction times
+  // when the child changed an answer.
+  const reaction_times = events.taps.map((t, i) => {
+    const previousTs = i === 0 ? events.task_start_ts : events.taps[i - 1].ts;
+    return (t.ts - previousTs) / 1000;
+  });
   const avg_reaction_time_sec = mean(reaction_times);
   const max_reaction_time_sec = reaction_times.length ? Math.max(...reaction_times) : task_duration_sec;
   const min_reaction_time_sec = reaction_times.length ? Math.min(...reaction_times) : 0;
@@ -87,8 +93,11 @@ export function calculateBehaviorFeatures(
   const avg_pause_duration_sec = mean(pause_durations);
   const idle_time_sec = pause_durations.reduce((a, b) => a + b, 0);
 
+  const effectiveAttempts = Math.max(events.taps.length, totalAttempts, 1);
+  const correctTapCount = events.taps.filter((t) => t.correct).length;
   const error_count = events.taps.filter((t) => !t.correct).length;
-  const retry_count = Math.max(0, totalAttempts - 1);
+  const retry_count = Math.max(0, effectiveAttempts - 1);
+  const attemptAccuracy = clamp(correctTapCount / effectiveAttempts);
   const task_switch_delay_sec = response_latency_sec * 0.3;
 
   const engagement_score = clamp(
@@ -136,10 +145,12 @@ export function calculateBehaviorFeatures(
     inactivity_count: events.inactivity_periods,
     pause_count,
     avg_pause_duration_sec: parseFloat(avg_pause_duration_sec.toFixed(3)),
+    // Final correctness and across-tap accuracy are intentionally separate.
+    // Example: wrong first choice then correct choice => final flag 1, accuracy 0.5.
     correct_response_flag: isCorrect ? 1 : 0,
-    accuracy_score: parseFloat(clamp(isCorrect ? 1 : 0).toFixed(3)),
+    accuracy_score: parseFloat(attemptAccuracy.toFixed(3)),
     error_count,
-    attempt_count: totalAttempts,
+    attempt_count: effectiveAttempts,
     retry_count,
     task_completion_status: events.skipped ? 0 : 1,
     prompt_replay_count: events.prompt_replays,
