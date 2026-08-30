@@ -20,7 +20,9 @@ def test_plain_similarity_exact_match():
 
 
 def test_plain_similarity_both_empty():
-    assert plain_similarity("", "") == 1.0
+    # An empty target is unscorable and must never read as a perfect match,
+    # even when the OCR text is also empty (e.g. blank/failed OCR).
+    assert plain_similarity("", "") == 0.0
 
 
 def test_plain_similarity_one_empty():
@@ -96,3 +98,76 @@ def test_empty_matching_result_is_all_zero_and_no_mirror():
     assert result["confusable_similarity_score"] == 0.0
     assert result["mirror_similarity_score"] == 0.0
     assert result["mirror_detected"] is False
+
+
+# --- Fix 2: an empty (or non-ASCII-only) target must never score a perfect match ---
+
+def test_plain_similarity_non_ascii_target_scores_zero_even_when_ocr_also_empty():
+    # A purely Sinhala target_text cleans to "" (same as blank/failed OCR).
+    # This must be treated as unscorable, not a perfect match.
+    assert plain_similarity("", "සිංහල") == 0.0
+
+
+def test_confusable_similarity_non_ascii_target_scores_zero_even_when_ocr_also_empty():
+    assert confusable_similarity("", "සිංහල") == 0.0
+
+
+def test_plain_similarity_empty_target_scores_zero_even_with_non_empty_ocr():
+    assert plain_similarity("cat", "") == 0.0
+
+
+# --- Fix 3: short (<=2 char) targets use best-substring-window matching ---
+
+def test_plain_similarity_short_target_with_trailing_extra_char():
+    # OCR returned one spurious trailing character; "b" is still an exact
+    # substring of "bd", so windowing should recover a perfect score instead
+    # of the whole-string-only result of 1 - 1/2 = 0.5.
+    assert plain_similarity("bd", "b") == 1.0
+
+
+def test_confusable_similarity_short_target_with_trailing_extra_char():
+    assert confusable_similarity("bd", "b") == 1.0
+
+
+def test_plain_similarity_short_target_with_leading_extra_char():
+    assert plain_similarity("lb", "b") == 1.0
+
+
+def test_confusable_similarity_short_target_with_leading_extra_char():
+    assert confusable_similarity("lb", "b") == 1.0
+
+
+def test_plain_similarity_short_target_windowing_beats_whole_string_score():
+    # Sanity check that windowing is actually doing something: the
+    # whole-string-only score for "bd" vs "b" is 0.5, well below the
+    # windowed result.
+    whole_string_score = 1.0 - (1.0 / 2)
+    assert whole_string_score == 0.5
+    assert plain_similarity("bd", "b") > whole_string_score
+
+
+def test_plain_similarity_long_target_unaffected_by_windowing():
+    # len("dog") == 3 > 2, so the windowing path must never trigger here.
+    # Whole-string weighted edit distance between "xdog" and "dog" is 1
+    # (delete the leading 'x'), normalized by max(len)=4: 1 - 1/4 = 0.75.
+    assert plain_similarity("xdog", "dog") == 0.75
+
+
+def test_confusable_similarity_long_target_unaffected_by_windowing():
+    assert confusable_similarity("xdog", "dog") == 0.75
+
+
+# --- Fix 4: unbounded input length must not break or blow up scoring ---
+
+def test_plain_similarity_handles_very_long_input_without_crashing():
+    long_text = "a" * 1000
+    score = plain_similarity(long_text, "cat")
+    assert isinstance(score, float)
+    assert 0.0 <= score <= 1.0
+
+
+def test_confusable_similarity_handles_very_long_input_without_crashing():
+    long_text = "b" * 1000
+    score = confusable_similarity(long_text, long_text)
+    assert isinstance(score, float)
+    assert 0.0 <= score <= 1.0

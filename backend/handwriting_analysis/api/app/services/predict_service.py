@@ -65,11 +65,18 @@ def predict_handwriting_from_image(
     raw_model_probability = float(model.predict_proba(feature_df)[0][1])
 
     matching = validation.get("matching", {})
-    target_match_score = matching.get("target_match_score", 0.0)
+    # The guardrail must gate on the unweighted plain-similarity score, not
+    # the confusable-weighted target_match_score: confusable substitutions
+    # (b/d, p/q, m/n, u/v, g/q) are exactly the reversal errors this feature
+    # exists to catch, and they cost far less than 1.0 in the confusable
+    # metric, which can push a single-letter reversal above the guardrail
+    # threshold and force risk down on the error we're supposed to flag.
+    # target_match_score itself is left untouched for OCR pass/fail matching.
+    guardrail_similarity_score = matching.get("template_similarity_score", 0.0)
     mirror_detected = matching.get("mirror_detected", False)
 
     consistency_guardrail_applied = (
-        target_match_score >= GUARDRAIL_MATCH_THRESHOLD and not mirror_detected
+        guardrail_similarity_score >= GUARDRAIL_MATCH_THRESHOLD and not mirror_detected
     )
     if consistency_guardrail_applied:
         risk_probability = min(raw_model_probability, GUARDRAIL_CEILING)
@@ -78,13 +85,21 @@ def predict_handwriting_from_image(
 
     risk_level = probability_to_risk_level(risk_probability)
 
-    reliability = reliability_from_warnings(validation.get("warnings", []))
+    all_warnings = validation.get("warnings", [])
+    # Mirror-detection is a working, informative finding, not evidence of
+    # poor data quality, so it should not count toward a reliability
+    # downgrade. The full warnings list is still returned unchanged
+    # everywhere else in the response.
+    reliability_warnings = [
+        w for w in all_warnings if w != "Writing appears to be mirrored/reversed."
+    ]
+    reliability = reliability_from_warnings(reliability_warnings)
 
     return {
         "validation": validation,
         "quality": {
             "prediction_reliability": reliability,
-            "warnings": validation.get("warnings", []),
+            "warnings": all_warnings,
             "note": "This is a prototype image feature extractor. Real handwritten-letter validation can be improved with a CNN or OCR model trained on child handwriting."
         },
         "features": features,

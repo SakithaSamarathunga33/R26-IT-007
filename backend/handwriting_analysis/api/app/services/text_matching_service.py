@@ -6,6 +6,8 @@ MIRROR_MIN_SCORE = 0.75
 MIRROR_MARGIN = 0.15
 GUARDRAIL_MATCH_THRESHOLD = 0.9
 GUARDRAIL_CEILING = 0.30
+MAX_CLEAN_LENGTH = 256
+SHORT_TARGET_WINDOW_LENGTH = 2
 
 CONFUSABLE_GROUPS = [
     {"0", "o"},
@@ -27,7 +29,10 @@ for _group in CONFUSABLE_GROUPS:
 
 
 def _clean(s: str) -> str:
-    return re.sub(r"[^A-Za-z0-9]", "", s or "").lower()
+    cleaned = re.sub(r"[^A-Za-z0-9]", "", s or "").lower()
+    # Bound worst-case DP cost: target_text/OCR text are unauthenticated and
+    # unbounded, but real target words in this app are a handful of characters.
+    return cleaned[:MAX_CLEAN_LENGTH]
 
 
 def _are_confusable(x: str, y: str) -> bool:
@@ -62,17 +67,44 @@ def _weighted_edit_distance(a: str, b: str, confusable_cost: float) -> float:
     return prev[m]
 
 
-def _similarity(a: str, b: str, confusable_cost: float) -> float:
-    a_clean = _clean(a)
-    b_clean = _clean(b)
-    if not a_clean and not b_clean:
-        return 1.0
-    if not a_clean or not b_clean:
-        return 0.0
+def _score_from_clean(a_clean: str, b_clean: str, confusable_cost: float) -> float:
     distance = _weighted_edit_distance(a_clean, b_clean, confusable_cost)
     max_len = max(len(a_clean), len(b_clean))
     similarity = 1.0 - (distance / max_len)
     return max(0.0, min(1.0, similarity))
+
+
+def _similarity(a: str, b: str, confusable_cost: float) -> float:
+    # Both plain_similarity(a, b) and confusable_similarity(a, b) are always
+    # called as (ocr_text, target_text) by image_validation_service.py, so
+    # `b` is always the target. A target that cleans to empty (e.g. purely
+    # non-ASCII target_text) is unscorable and must never be treated as a
+    # perfect match, even when the OCR text also cleans to empty.
+    a_clean = _clean(a)
+    b_clean = _clean(b)
+    if not b_clean:
+        return 0.0
+    if not a_clean:
+        return 0.0
+
+    whole_score = _score_from_clean(a_clean, b_clean, confusable_cost)
+
+    # Most shipped tasks use single/double-letter targets, where whole-string
+    # similarity is much stricter than the old substring-containment check
+    # (a single spurious extra OCR character tanks the score). For short
+    # targets only, also try every same-length window of the OCR text and
+    # take the best score. Longer targets are completely unaffected.
+    if len(b_clean) <= SHORT_TARGET_WINDOW_LENGTH and len(a_clean) > len(b_clean):
+        window_len = len(b_clean)
+        best_window_score = whole_score
+        for start in range(len(a_clean) - window_len + 1):
+            window = a_clean[start:start + window_len]
+            window_score = _score_from_clean(window, b_clean, confusable_cost)
+            if window_score > best_window_score:
+                best_window_score = window_score
+        return best_window_score
+
+    return whole_score
 
 
 def plain_similarity(a: str, b: str) -> float:
