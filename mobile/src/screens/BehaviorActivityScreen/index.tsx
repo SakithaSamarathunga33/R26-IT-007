@@ -181,6 +181,12 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
     const features = calculateBehaviorFeatures(rawEvents, isCorrect, attemptCount);
 
     const payload = {
+      // Send answer context so the backend can independently verify objective
+      // multiple-choice correctness instead of trusting a derived flag alone.
+      task_id: task.id,
+      level: task.level,
+      selected_answer: selectedOption,
+      correct_answer: task.correct_answer,
       task_type: task.task_type,
       difficulty_level: task.difficulty_level,
       task_description: task.task_description,
@@ -228,6 +234,12 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
       if (!response.ok) throw new Error(`Server error: ${response.status} — ${responseText}`);
       result = JSON.parse(responseText);
 
+      console.log("[BehaviorAPI] Task:", task.id);
+      console.log("[BehaviorAPI] Selected / correct:", selectedOption, "/", task.correct_answer);
+      console.log("[BehaviorAPI] Features:", features);
+      console.log("[BehaviorAPI] Prediction:", result?.prediction);
+      console.log("[BehaviorAPI] Quality:", result?.quality);
+
       if (!isPractice) await addDoc(collection(db, "behavior_predictions"), {
         attempt_id: attemptRef!.id,
         child_id: uid,
@@ -240,9 +252,23 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
         task_type: task.task_type,
         risk_probability: result.prediction?.risk_probability ?? null,
         risk_level: result.prediction?.risk_level ?? null,
-        risk_label_binary: result.prediction?.risk_label_binary ?? null,
+        risk_label_binary: result.prediction?.behavior_risk_label_binary ?? null,
+
+        // Keep the complete backend evidence needed by summaries and fusion.
+        quality: result.quality ?? null,
+        mapped_features: result.mapped_features ?? null,
+        features,
+
         attention_score: features.attention_score,
         engagement_score: features.engagement_score,
+        response_latency: features.response_latency_sec,
+        retry_count: features.retry_count,
+        correct_response_flag: features.correct_response_flag,
+        accuracy_score: features.accuracy_score,
+        error_count: features.error_count,
+        selected_answer: selectedOption,
+        correct_answer: task.correct_answer,
+        is_correct: isCorrect,
         saved_at: serverTimestamp(),
       });
     } catch (err: any) {
