@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from app.services.model_loader import get_model
 from app.services.image_validation_service import validate_image_upload
 from app.services.feature_extraction_service import extract_handwriting_features
+from app.services.text_matching_service import GUARDRAIL_MATCH_THRESHOLD, GUARDRAIL_CEILING
 from app.utils.risk_utils import probability_to_risk_level, reliability_from_warnings
 
 def predict_handwriting_from_image(
@@ -61,8 +62,21 @@ def predict_handwriting_from_image(
     )
 
     prediction = int(model.predict(feature_df)[0])
-    probability = float(model.predict_proba(feature_df)[0][1])
-    risk_level = probability_to_risk_level(probability)
+    raw_model_probability = float(model.predict_proba(feature_df)[0][1])
+
+    matching = validation.get("matching", {})
+    target_match_score = matching.get("target_match_score", 0.0)
+    mirror_detected = matching.get("mirror_detected", False)
+
+    consistency_guardrail_applied = (
+        target_match_score >= GUARDRAIL_MATCH_THRESHOLD and not mirror_detected
+    )
+    if consistency_guardrail_applied:
+        risk_probability = min(raw_model_probability, GUARDRAIL_CEILING)
+    else:
+        risk_probability = raw_model_probability
+
+    risk_level = probability_to_risk_level(risk_probability)
 
     reliability = reliability_from_warnings(validation.get("warnings", []))
 
@@ -76,7 +90,9 @@ def predict_handwriting_from_image(
         "features": features,
         "prediction": {
             "handwriting_risk_label_binary": prediction,
-            "risk_probability": round(probability, 4),
-            "risk_level": risk_level
+            "raw_model_probability": round(raw_model_probability, 4),
+            "risk_probability": round(risk_probability, 4),
+            "risk_level": risk_level,
+            "consistency_guardrail_applied": consistency_guardrail_applied
         }
     }
