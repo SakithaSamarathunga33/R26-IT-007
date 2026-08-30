@@ -3,7 +3,12 @@ from PIL import Image
 import numpy as np
 import cv2
 import io
-import re
+
+from app.services.text_matching_service import (
+    build_matching_result,
+    empty_matching_result,
+    TARGET_MATCH_THRESHOLD,
+)
 
 MAX_FILE_SIZE_MB = 10
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
@@ -105,7 +110,7 @@ def validate_image_upload(file: UploadFile, content: bytes, target_text: str, st
     # OCR is optional. It can fail for handwriting, so we do not rely only on it.
     ocr_available = False
     ocr_text = ""
-    ocr_target_match = False
+    ocr_text_mirror = ""
     ocr_error = None
 
     try:
@@ -115,20 +120,28 @@ def validate_image_upload(file: UploadFile, content: bytes, target_text: str, st
         # OCR with simple config for letters/words
         config = "--psm 6"
         ocr_text = pytesseract.image_to_string(gray, config=config)
-        ocr_text_clean = re.sub(r"[^A-Za-z0-9]", "", ocr_text).lower()
-        target_clean = re.sub(r"[^A-Za-z0-9]", "", target_text or "").lower()
 
-        if target_clean and target_clean in ocr_text_clean:
-            ocr_target_match = True
+        mirror_gray = cv2.flip(gray, 1)
+        ocr_text_mirror = pytesseract.image_to_string(mirror_gray, config=config)
     except Exception as e:
         ocr_error = str(e)
+
+    if ocr_available:
+        matching = build_matching_result(ocr_text, ocr_text_mirror, target_text)
+    else:
+        matching = empty_matching_result()
+
+    ocr_target_match = matching["target_match_score"] >= TARGET_MATCH_THRESHOLD
 
     warnings = []
 
     if not ocr_available:
         warnings.append("OCR engine is not available. Letter validation used image heuristics only.")
-    elif ocr_available and not ocr_target_match:
+    elif not ocr_target_match:
         warnings.append("OCR could not confidently match the target text. This may happen with child handwriting.")
+
+    if matching["mirror_detected"]:
+        warnings.append("Writing appears to be mirrored/reversed.")
 
     if foreground_ratio < 0.01:
         warnings.append("Foreground handwriting is very light or small.")
@@ -152,6 +165,7 @@ def validate_image_upload(file: UploadFile, content: bytes, target_text: str, st
         "ocr_text": ocr_text.strip(),
         "ocr_target_match": bool(ocr_target_match),
         "ocr_error": ocr_error,
+        "matching": matching,
         "warnings": warnings,
         "message": "Image validated successfully. Letter-like handwriting content was detected."
     }, image_rgb, gray, thresh
