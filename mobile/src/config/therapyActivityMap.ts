@@ -33,8 +33,8 @@ const ACTIVITY_MAP: Record<string, TherapyActivityTarget> = {
 
   // ── Attention & behaviour → Behaviour module ───────────────────────────────
   BEHAVIOR_001: { module: "behavior", taskIds: ["as_count", "as_odd"] },                    // focus_training
-  BEHAVIOR_002: { module: "behavior", taskIds: ["ml_sun_s", "ml_umbrella_u", "pc_shapes"] },// guided_attention
-  BEHAVIOR_003: { module: "behavior", taskIds: ["wm_seq_3", "wm_color_seq", "wm_letter_seq"] }, // working_memory
+  BEHAVIOR_002: { module: "behavior", taskIds: ["ml_cat_c", "ml_table_b", "pc_shapes"] },   // guided_attention
+  BEHAVIOR_003: { module: "behavior", taskIds: ["wm_seq_3", "wm_letter_seq"] },              // working_memory
 };
 
 /** Global index of a task id within its module's task array, or -1. */

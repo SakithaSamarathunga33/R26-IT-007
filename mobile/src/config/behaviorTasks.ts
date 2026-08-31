@@ -44,6 +44,12 @@ export interface BehaviorTask {
    */
   word?: string;
   missing_index?: number;
+  /**
+   * Shape-matching tasks only: the shape to show as the target. The activity
+   * screen draws it (and each option) as a real shape, so a pre-reader matches
+   * by sight rather than by reading the word. Must be one of `options`.
+   */
+  target_shape?: string;
 }
 
 export const BEHAVIOR_TASKS: BehaviorTask[] = [
@@ -79,22 +85,6 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     spoken_prompt: "The word is cat. Which letter is missing from cat?",
   },
   {
-    id: "ml_sun_s",
-    level: 1,
-    task_type: "missing_letter",
-    task_description: "Child picks the missing first letter of a familiar word.",
-    cognitive_focus: "letter_sound_mapping",
-    attention_load: "low",
-    difficulty_level: "easy",
-    instruction: "Which letter is missing?",
-    word: "sun",
-    missing_index: 0,
-    options: ["s", "z", "n", "u"],
-    correct_answer: "s",
-    hint: "The word is sun. It starts with an  sss  sound, like a snake.",
-    spoken_prompt: "The word is sun. Which letter is missing from sun?",
-  },
-  {
     id: "ml_dog_o",
     level: 1,
     task_type: "missing_letter",
@@ -118,11 +108,12 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     cognitive_focus: "visual_discrimination",
     attention_load: "low",
     difficulty_level: "easy",
-    instruction: "Which shape matches the one shown?  Circle",
+    instruction: "Which shape matches the one shown?",
+    target_shape: "Circle",
     options: ["Triangle", "Circle", "Square", "Diamond"],
     correct_answer: "Circle",
     hint: "A circle is perfectly round with no corners.",
-    spoken_prompt: "Which shape matches a circle?",
+    spoken_prompt: "Look at the shape at the top. Which shape below matches it?",
   },
   {
     id: "pc_colors",
@@ -137,20 +128,6 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     correct_answer: "Red",
     hint: "Look at the colors before the blank and find the repeating pattern.",
     spoken_prompt: "Red, blue, red, blue. What colour comes next?",
-  },
-  {
-    id: "li_a_easy",
-    level: 1,
-    task_type: "letter_identification",
-    task_description: "Child selects a vowel from four options.",
-    cognitive_focus: "basic_letter_focus",
-    attention_load: "low",
-    difficulty_level: "easy",
-    instruction: "Tap the letter  A",
-    options: ["A", "E", "H", "N"],
-    correct_answer: "A",
-    hint: "A has a pointy top like a tent.",
-    spoken_prompt: "Tap the letter A.",
   },
 
   // ── Level 2 — harder: confusable letters, longer words, mid-word gaps ───────
@@ -169,22 +146,6 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     spoken_prompt: "Tap the letter P.",
   },
   {
-    id: "ml_umbrella_u",
-    level: 2,
-    task_type: "missing_letter",
-    task_description: "Child picks the missing first letter of a long word.",
-    cognitive_focus: "letter_sound_mapping",
-    attention_load: "medium",
-    difficulty_level: "medium",
-    instruction: "Which letter is missing?",
-    word: "umbrella",
-    missing_index: 0,
-    options: ["a", "u", "o", "e"],
-    correct_answer: "u",
-    hint: "The word is umbrella. It starts with an  uh  sound.",
-    spoken_prompt: "The word is umbrella. Which letter is missing from umbrella?",
-  },
-  {
     id: "ml_table_b",
     level: 2,
     task_type: "missing_letter",
@@ -201,36 +162,6 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     correct_answer: "b",
     hint: "The word is table. Listen for the  buh  sound in the middle.",
     spoken_prompt: "The word is table. Which letter is missing from the middle of table?",
-  },
-  {
-    id: "ml_fish_i",
-    level: 2,
-    task_type: "missing_letter",
-    task_description: "Child picks a missing short vowel inside a word.",
-    cognitive_focus: "letter_sound_mapping",
-    attention_load: "medium",
-    difficulty_level: "medium",
-    instruction: "Which letter is missing?",
-    word: "fish",
-    missing_index: 1,
-    options: ["e", "i", "a", "o"],
-    correct_answer: "i",
-    hint: "The word is fish. The middle sound is  ih.",
-    spoken_prompt: "The word is fish. Which letter is missing from the middle of fish?",
-  },
-  {
-    id: "sm_diamond",
-    level: 2,
-    task_type: "shape_matching",
-    task_description: "Child matches a rotated shape to the correct option.",
-    cognitive_focus: "visual_discrimination",
-    attention_load: "medium",
-    difficulty_level: "medium",
-    instruction: "Which shape matches the one shown?  Diamond",
-    options: ["Square", "Rectangle", "Diamond", "Pentagon"],
-    correct_answer: "Diamond",
-    hint: "A diamond is a square tilted 45 degrees.",
-    spoken_prompt: "Which shape matches a diamond?",
   },
   {
     id: "pc_shapes",
@@ -311,22 +242,6 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     spoken_prompt: "The word is butterfly. Which letter is missing from butterfly?",
   },
   {
-    id: "ml_school_h",
-    level: 3,
-    task_type: "missing_letter",
-    task_description: "Child picks a missing letter from inside a consonant blend.",
-    cognitive_focus: "letter_sound_mapping",
-    attention_load: "high",
-    difficulty_level: "hard",
-    instruction: "Which letter is missing?",
-    word: "school",
-    missing_index: 2,
-    options: ["k", "h", "c", "l"],
-    correct_answer: "h",
-    hint: "The word is school. The  s  and  c  are followed by a silent  h.",
-    spoken_prompt: "The word is school. Which letter is missing from school?",
-  },
-  {
     id: "as_odd",
     level: 3,
     task_type: "attention_sustained",
@@ -339,20 +254,6 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     correct_answer: "5th",
     hint: "Look very carefully — one shape has slightly different angles.",
     spoken_prompt: "Look at the row of letters. One of them is different from the others. Which position is it in?",
-  },
-  {
-    id: "wm_color_seq",
-    level: 3,
-    task_type: "working_memory",
-    task_description: "Child recalls a color sequence after a short delay.",
-    cognitive_focus: "working_memory_load",
-    attention_load: "high",
-    difficulty_level: "hard",
-    instruction: "Remember: Red → Green → Blue → Yellow\nWhich color came third?",
-    options: ["Red", "Green", "Blue", "Yellow"],
-    correct_answer: "Blue",
-    hint: "Count through the colors from the beginning.",
-    spoken_prompt: "Remember these colours: red, green, blue, yellow. Which colour came third?",
   },
   {
     id: "wm_letter_seq",
@@ -442,7 +343,7 @@ export function behaviorLevelTaskCount(level: BehaviorLevelId): number {
   return BEHAVIOR_TASKS.filter((t) => t.level === level).length;
 }
 
-/** 1-based position of a task inside its own level (for "Activity 2 of 7"). */
+/** 1-based position of a task inside its own level (for "Activity 2 of 5"). */
 export function behaviorPositionInLevel(taskIndex: number): number {
   const level = BEHAVIOR_TASKS[taskIndex].level;
   return behaviorTaskIndicesForLevel(level).indexOf(taskIndex) + 1;

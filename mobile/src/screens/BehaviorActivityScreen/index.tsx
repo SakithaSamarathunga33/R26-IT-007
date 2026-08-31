@@ -11,6 +11,7 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import ShapeGlyph from "../../components/ShapeGlyph";
 import { playNextSound, playTapSound } from "../../services/kidSounds";
 import { auth, db } from "../../config/firebase";
 import {
@@ -53,6 +54,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const diff = DIFFICULTY_CONFIG[task.difficulty_level];
   const taskColors = BEHAVIOR_TASK_COLORS[task.task_type];
   const isMissingLetter = task.task_type === "missing_letter";
+  const isShapeMatching = task.task_type === "shape_matching";
 
   const [activityState, setActivityState] = useState<ActivityState>("idle");
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -344,6 +346,13 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.questionText}>{task.instruction}</Text>
 
+          {/* Shape-matching target: drawn as a real shape, not the word for it */}
+          {isShapeMatching && task.target_shape && (
+            <View style={[styles.shapeTargetBox, { backgroundColor: taskColors.bg, borderColor: taskColors.border }]}>
+              <ShapeGlyph shape={task.target_shape} size={104} color={taskColors.color} />
+            </View>
+          )}
+
           {/* Missing-letter word: the word with a gap where the letter belongs */}
           {isMissingLetter && task.word && (
             <View style={[styles.wordBox, { backgroundColor: taskColors.bg, borderColor: taskColors.border }]}>
@@ -405,15 +414,15 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
             <Text style={styles.letterPromptText}>Tap the missing letter</Text>
           </View>
         ) : (
-          <Text style={styles.optionsLabel}>Choose your answer</Text>
+          <Text style={styles.optionsLabel}>{isShapeMatching ? "Tap the matching shape" : "Choose your answer"}</Text>
         )}
-        <View style={isMissingLetter ? styles.letterGrid : styles.optionsGrid}>
+        <View style={isMissingLetter ? styles.letterGrid : isShapeMatching ? styles.shapeGrid : styles.optionsGrid}>
           {task.options.map((option, i) => {
             const isSelected = selectedOption === option;
             const isCorrectOption = option === task.correct_answer;
             const showResult = selectedOption !== null;
 
-            let cardStyle = isMissingLetter ? styles.letterCard : styles.optionCard;
+            let cardStyle = isMissingLetter ? styles.letterCard : isShapeMatching ? styles.shapeCard : styles.optionCard;
             // Tiles stay neutral so colour only appears where it carries meaning
             // — the child's selection, and right/wrong feedback.
             let bgColor = "#fff";
@@ -436,7 +445,20 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
                 activeOpacity={0.75}
                 disabled={submitting}
               >
-                {isMissingLetter ? (
+                {isShapeMatching ? (
+                  <>
+                    <ShapeGlyph shape={option} size={56} color={isSelected ? textColor : "#475569"} />
+                    <Text style={[styles.shapeCardLabel, { color: textColor }]}>{option}</Text>
+                    {showResult && isSelected && (
+                      <Ionicons
+                        name={isCorrectOption ? "checkmark-circle" : "close-circle"}
+                        size={16}
+                        color={isCorrectOption ? "#059669" : "#EF4444"}
+                        style={styles.letterCardBadge}
+                      />
+                    )}
+                  </>
+                ) : isMissingLetter ? (
                   <>
                     <Text style={[styles.letterCardText, { color: textColor }]}>{option}</Text>
                     {showResult && isSelected && (
@@ -552,6 +574,21 @@ const styles = StyleSheet.create({
   },
   maskedWordText: { fontSize: 34, fontFamily: theme.fonts.extraBold, letterSpacing: 2, textAlign: "center" },
   wordHintText: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#94A3B8" },
+
+  /* Shape-matching target — the shape to match, drawn rather than named */
+  shapeTargetBox: {
+    borderWidth: 1.5, borderRadius: 18, paddingVertical: 18,
+    alignItems: "center", justifyContent: "center", marginTop: 4,
+  },
+  /* Shape-matching answers — a 2×2 grid of drawn shapes with their labels */
+  shapeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  shapeCard: {
+    flexGrow: 1, flexBasis: "47%",
+    borderWidth: 2, borderRadius: 18, paddingVertical: 16,
+    alignItems: "center", justifyContent: "center", gap: 8, position: "relative",
+    shadowColor: "#94A3B8", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8, elevation: 3,
+  },
+  shapeCardLabel: { fontSize: 14, fontFamily: theme.fonts.semiBold },
 
   /* Listen controls */
   listenRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
