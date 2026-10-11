@@ -7,7 +7,6 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound, playTapSound } from "../../services/kidSounds";
 import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
   HANDWRITING_TASK_TYPE_ICONS, HANDWRITING_TASK_COLORS,
@@ -70,7 +69,6 @@ export default function HandwritingTaskScreen({ navigation, route }: Props) {
   const handleStart = () => {
     stopSpeaking();
     setSpeaking(false);
-    playNextSound();
     navigation.navigate("HandwritingCanvas", { taskIndex, inputMode, taskStartTs: Date.now(), practice });
   };
 
@@ -196,7 +194,7 @@ export default function HandwritingTaskScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 key={mode}
                 style={[styles.modeCard, active && { borderColor: taskColors.color, backgroundColor: taskColors.bg }]}
-                onPress={() => { playTapSound(); setInputMode(mode); }}
+                onPress={() => setInputMode(mode)}
                 activeOpacity={0.8}
               >
                 <Ionicons

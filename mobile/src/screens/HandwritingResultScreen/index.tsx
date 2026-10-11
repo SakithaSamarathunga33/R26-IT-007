@@ -14,7 +14,6 @@ import {
 } from "../../config/handwritingTasks";
 import { practiceNext } from "../../utils/practiceFlow";
 import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
-import { playNextSound, playSuccessSound } from "../../services/kidSounds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingResult">;
@@ -78,7 +77,6 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (spokenRef.current) return;
     spokenRef.current = true;
-    playSuccessSound();
     const t = setTimeout(() => speakFeedback("done", { seed: taskIndex }), 700);
     return () => clearTimeout(t);
   }, [taskIndex]);
@@ -87,7 +85,6 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
 
   const handleNext = () => {
     stopSpeaking();
-    playNextSound();
     // Practice runs belong to a therapy plan: step through that activity's own
     // task list, then hand back to the plan instead of unlocking a level.
     if (practice) {
@@ -116,7 +113,7 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
-        <View style={{ width: 62 }} />
+        <View style={{ width: 40 }} />
         <Text style={styles.headerTitle}>Activity Result</Text>
         <View style={[styles.levelPill, { backgroundColor: level.bg }]}>
           <Text style={[styles.levelPillText, { color: level.color }]}>

@@ -6,14 +6,13 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import ViewShot, { captureRef } from "react-native-view-shot";
+import ViewShot, { captureRef, ViewShotRef } from "react-native-view-shot";
 import Svg, { Path } from "react-native-svg";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound, playTapSound } from "../../services/kidSounds";
 import { speak, stopSpeaking } from "../../services/ttsService";
 import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
@@ -40,7 +39,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   const [pickingImage, setPickingImage] = useState(false);
   const [capturing, setCapturing] = useState(false);
 
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<ViewShotRef>(null);
   const canvasInnerRef = useRef<View>(null);
   const strokesRef = useRef<Stroke[]>([]);
   const currentStrokeRef = useRef<Stroke>([]);
@@ -105,7 +104,6 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   ).current;
 
   const handleClear = () => {
-    playTapSound();
     strokesRef.current = [];
     setStrokes([]);
     setCurrentStroke([]);
@@ -114,7 +112,6 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
 
   const handleUndo = () => {
     if (strokesRef.current.length === 0) return;
-    playTapSound();
     strokesRef.current = strokesRef.current.slice(0, -1);
     setStrokes([...strokesRef.current]);
   };
@@ -151,7 +148,6 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   // ── Submit: capture canvas → navigate to Review ───────────────────────────
 
   const handleSubmit = async () => {
-    playNextSound();
     const durationSec = Math.round((Date.now() - taskStartTs) / 1000);
 
     if (inputMode === "photo") {
@@ -354,22 +350,19 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
 
         {/* Action */}
         <View style={styles.actionArea}>
-          {!hasContent ? (
-            inputMode === "photo" ? (
-              <LinearGradient colors={["#2563EB", "#1D4ED8"]} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                <TouchableOpacity style={styles.submitBtnInner} onPress={handlePickPhoto} activeOpacity={0.88} disabled={pickingImage}>
-                  <Ionicons name="camera-outline" size={20} color="#fff" />
-                  <Text style={styles.submitBtnText}>Open Camera</Text>
-                </TouchableOpacity>
-              </LinearGradient>
-            ) : (
-              <View style={styles.emptyHint}>
-                <Text style={styles.emptyHintText}>Start writing above to continue</Text>
-              </View>
-            )
+          {!hasContent && inputMode === "photo" ? (
+            <LinearGradient colors={["#2563EB", "#1D4ED8"]} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+              <TouchableOpacity style={styles.submitBtnInner} onPress={handlePickPhoto} activeOpacity={0.88} disabled={pickingImage}>
+                <Ionicons name="camera-outline" size={20} color="#fff" />
+                <Text style={styles.submitBtnText}>Open Camera</Text>
+              </TouchableOpacity>
+            </LinearGradient>
           ) : (
-            <LinearGradient colors={[taskColors.color, taskColors.color]} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <TouchableOpacity style={styles.submitBtnInner} onPress={handleSubmit} activeOpacity={0.88} disabled={capturing}>
+            <LinearGradient
+              colors={hasContent ? [taskColors.color, taskColors.color] : ["#CBD5E1", "#CBD5E1"]}
+              style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            >
+              <TouchableOpacity style={styles.submitBtnInner} onPress={handleSubmit} activeOpacity={0.88} disabled={!hasContent || capturing}>
                 {capturing ? (
                   <><ActivityIndicator color="#fff" size="small" /><Text style={styles.submitBtnText}>Preparing…</Text></>
                 ) : (
@@ -480,6 +473,4 @@ const styles = StyleSheet.create({
   },
   submitBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
   submitBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
-  emptyHint: { alignItems: "center", paddingVertical: 14 },
-  emptyHintText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#CBD5E1" },
 });

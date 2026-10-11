@@ -6,7 +6,6 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 import {
   HANDWRITING_TASKS, HANDWRITING_LEVELS, handwritingLevelTaskCount,
 } from "../../config/handwritingTasks";
@@ -119,7 +118,7 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.startBtnInner}
             activeOpacity={0.88}
-            onPress={() => { playNextSound(); navigation.navigate("HandwritingLevels"); }}
+            onPress={() => navigation.navigate("HandwritingLevels")}
           >
             <Ionicons name="layers" size={20} color="#fff" />
             <Text style={styles.startBtnText}>Choose a Level</Text>
