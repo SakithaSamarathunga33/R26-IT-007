@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { auth, db } from "../config/firebase";
+import { db } from "../config/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { riskLevelFromScore } from "../config/riskThresholds";
 
@@ -118,19 +117,4 @@ export async function fetchLevelScore(
     lowRiskCount,
     taskCount,
   };
-}
-
-/** Loads a level's score on mount, for the level-complete screens. */
-export function useLevelScore(collectionName: string, level: number, logTag: string): LevelScore | null {
-  const [levelScore, setLevelScore] = useState<LevelScore | null>(null);
-
-  useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    fetchLevelScore(collectionName, uid, level)
-      .then(setLevelScore)
-      .catch((err) => console.warn(`[${logTag}] could not load level score:`, err?.message));
-  }, [collectionName, level, logTag]);
-
-  return levelScore;
 }

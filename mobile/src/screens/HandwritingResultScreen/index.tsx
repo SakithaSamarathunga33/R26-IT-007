@@ -18,6 +18,7 @@ import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
 import {
   getHandwritingSupplement, isHandwritingCorrect, setHandwritingSupplement,
 } from "../../services/handwritingLevelService";
+import { LETTER_START } from "../../utils/letterStart";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingResult">;
@@ -34,7 +35,7 @@ const FEEDBACK = {
 
 export default function HandwritingResultScreen({ navigation, route }: Props) {
   const { t } = useT();
-  const { taskIndex, retryCount, durationSec, result, error, practice } = route.params;
+  const { taskIndex, retryCount, durationSec, result, error, practice, startPointOk } = route.params;
   const task = HANDWRITING_TASKS[taskIndex];
   const level = getHandwritingLevel(task.level);
   // AETA: after an incorrect original the pending supplement comes next; after
@@ -140,6 +141,15 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
             <Ionicons name="eye-off-outline" size={18} color="#D97706" />
             <Text style={[styles.alertText, { color: "#92400E" }]}>
               {t("The system could not confidently read the target text. This is common with children's handwriting.")}
+            </Text>
+          </View>
+        )}
+        {/* Started the letter in the wrong place: a gentle tip, never a fail */}
+        {startPointOk === false && LETTER_START[task.target_text] && (
+          <View style={[styles.alertCard, { backgroundColor: "#ECFDF5", borderColor: "#BBF7D0" }]}>
+            <Ionicons name="play-circle" size={18} color="#059669" />
+            <Text style={[styles.alertText, { color: "#047857" }]}>
+              {t("Tip for next time: {cue}.", { cue: t(LETTER_START[task.target_text].cue) })}
             </Text>
           </View>
         )}

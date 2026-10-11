@@ -18,6 +18,7 @@ import {
   HANDWRITING_TASK_TYPE_ICONS, HANDWRITING_TASK_COLORS, handwritingSupplementIndex,
 } from "../../config/handwritingTasks";
 import { getTimeOfDay } from "../../utils/behaviorFeatures";
+import { checkLetterStart } from "../../utils/letterStart";
 import { getChildAge } from "../../services/childProfile";
 import {
   getHandwritingSupplement, isHandwritingCorrect, setHandwritingSupplement,
@@ -40,7 +41,10 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
   const taskColors = HANDWRITING_TASK_COLORS[task.task_type];
   const [submitting, setSubmitting] = useState(false);
 
-  const strokeCount = strokesJson ? (JSON.parse(strokesJson) as any[][]).length : 0;
+  const strokes: { x: number; y: number }[][] = strokesJson ? JSON.parse(strokesJson) : [];
+  const strokeCount = strokes.length;
+  // Canvas single letters only: did the first stroke begin where the letter is taught to start? null = not checked.
+  const startPointOk = checkLetterStart(strokes, task.target_text);
 
   const handleRetake = () => navigation.goBack();
 
@@ -155,6 +159,7 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
           risk_label_binary: result.prediction?.handwriting_risk_label_binary ?? null,
           target_match: result.target_match ?? null,
           is_correct: isCorrect,
+          start_point_ok: startPointOk,
           model_name: "logistic_regression",
           ...provenance,
           saved_at: serverTimestamp(),
@@ -186,6 +191,7 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
       durationSec,
       result,
       error: apiError,
+      startPointOk,
     });
   };
 

@@ -20,11 +20,13 @@ import {
 } from "../../config/behaviorTasks";
 import {
   clearBehaviorLevelPredictions,
+  countBehaviorUnmasteredPass,
   markBehaviorLevelComplete,
 } from "../../services/behaviorLevelService";
+import { MASTERY_MIN_SCORE, MAX_UNMASTERED_PASSES } from "../../services/levelProgressService";
 import { stopSpeaking } from "../../services/ttsService";
 import { speakFeedback } from "../../services/kidFeedback";
-import { useLevelScore } from "../../services/summaryService";
+import { LevelScore, fetchLevelScore } from "../../services/summaryService";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorLevelComplete">;
@@ -40,18 +42,33 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
 
   const [saving, setSaving] = useState(true);
   const [saveFailed, setSaveFailed] = useState(false);
-  const levelScore = useLevelScore("behavior_predictions", level, "BehaviorLevels");
+  const [levelScore, setLevelScore] = useState<LevelScore | null>(null);
+  // Mastered (score >= MASTERY_MIN_SCORE), or allowed on after MAX_UNMASTERED_PASSES tries.
+  const [canProceed, setCanProceed] = useState(false);
+  const passProceedRef = useRef<boolean | null>(null);
   const popAnim = useRef(new Animated.Value(0)).current;
   const praisedRef = useRef(false);
 
-  // Persist the unlock before the child moves on. If this fails the level would
-  // silently re-lock on the next login, so surface it and offer a retry.
+  // Persist the unlock before the child moves on — only once the level is
+  // mastered. If this fails the level would silently re-lock on the next
+  // login, so surface it and offer a retry.
   const saveProgress = useCallback(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) { setSaving(false); return; }
     setSaving(true);
     setSaveFailed(false);
-    markBehaviorLevelComplete(uid, level)
+    fetchLevelScore("behavior_predictions", uid, level)
+      .then(async (s) => {
+        setLevelScore(s);
+        const mastered = s.score >= MASTERY_MIN_SCORE;
+        // the save-retry card re-runs this; count the pass once and reuse the decision
+        if (!mastered && passProceedRef.current === null) {
+          passProceedRef.current = countBehaviorUnmasteredPass(level) >= MAX_UNMASTERED_PASSES;
+        }
+        const proceed = mastered || !!passProceedRef.current;
+        setCanProceed(proceed);
+        if (proceed) await markBehaviorLevelComplete(uid, level);
+      })
       .then(() => setSaveFailed(false))
       .catch((err) => {
         console.warn("[BehaviorLevels] could not save unlock:", err?.message);
@@ -65,17 +82,18 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
   // Spoken celebration — the level-complete moment is the main reward, and
   // a pre-reader needs to hear it, not read it.
   useEffect(() => {
-    if (praisedRef.current) return;
+    if (saving || !levelScore || praisedRef.current) return;
     praisedRef.current = true;
     const t = setTimeout(
       () => speakFeedback("levelDone", {
         seed: level,
-        extra: isFinalLevel ? "All levels done!" : `Level ${level + 1} unlocked.`,
+        extra: !canProceed ? "Let's practise and try again!"
+          : isFinalLevel ? "All levels done!" : `Level ${level + 1} unlocked.`,
       }),
       800
     );
     return () => clearTimeout(t);
-  }, [level, isFinalLevel]);
+  }, [level, isFinalLevel, saving, canProceed, levelScore]);
 
   useEffect(() => () => stopSpeaking(), []);
 
@@ -110,6 +128,14 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
     // stack duplicates in the summary.
     if (uid) await clearBehaviorLevelPredictions(uid, nextLevel.id).catch(() => {});
     navigation.replace("BehaviorActivity", { taskIndex: behaviorTaskIndicesForLevel(nextLevel.id)[0] });
+  };
+
+  // Not mastered: replay this level from a clean slate so the new run is scored on its own.
+  const retryLevel = async () => {
+    stopSpeaking();
+    const uid = auth.currentUser?.uid;
+    if (uid) await clearBehaviorLevelPredictions(uid, level).catch(() => {});
+    navigation.replace("BehaviorActivity", { taskIndex: behaviorTaskIndicesForLevel(level)[0] });
   };
 
   return (
@@ -156,8 +182,20 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
           />
         )}
 
-        {/* Unlock notice */}
-        {nextLevel ? (
+        {/* Unlock notice — or, when not yet mastered, a gentle invitation to practise */}
+        {saving || !levelScore ? null : !canProceed ? (
+          <View style={styles.unlockCard}>
+            <View style={[styles.unlockBadge, { backgroundColor: config.bg }]}>
+              <Ionicons name="refresh" size={20} color={config.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.unlockTitle}>{t("Let's practise a little more!")}</Text>
+              <Text style={styles.unlockSub}>
+                {nextLevel ? t("Play Level {n} again to get even better and open Level {next}.", { n: level, next: nextLevel.id }) : t("Play Level {n} again to get even better.", { n: level })}
+              </Text>
+            </View>
+          </View>
+        ) : nextLevel ? (
           <View style={styles.unlockCard}>
             <LinearGradient
               colors={nextLevel.gradColors}
@@ -200,7 +238,19 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
         <View style={{ flex: 1 }} />
 
         {/* Primary action */}
-        {isFinalLevel ? (
+        {!levelScore ? null : !canProceed ? (
+          <LinearGradient colors={config.gradColors} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <TouchableOpacity
+              style={styles.primaryBtnInner}
+              activeOpacity={0.88}
+              onPress={retryLevel}
+              disabled={saving}
+            >
+              <Text style={styles.primaryBtnText}>{t("Try Level {n} Again", { n: level })}</Text>
+              <Ionicons name="refresh" size={18} color="#fff" />
+            </TouchableOpacity>
+          </LinearGradient>
+        ) : isFinalLevel ? (
           <LinearGradient colors={["#0891B2", "#0E7490"]} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             <TouchableOpacity
               style={styles.primaryBtnInner}
@@ -226,7 +276,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
           </LinearGradient>
         )}
 
-        {!isFinalLevel && (
+        {(!isFinalLevel || !canProceed) && (
           <TouchableOpacity
             style={styles.secondaryBtn}
             activeOpacity={0.8}

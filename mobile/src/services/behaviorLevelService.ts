@@ -3,6 +3,7 @@ import {
   LevelModuleConfig,
   LevelProgress,
   clearPredictionsForLevel,
+  countUnmasteredPass,
   fetchProgress,
   isUnlocked,
   markComplete,
@@ -21,6 +22,10 @@ export type BehaviorLevelProgress = LevelProgress;
 
 export function fetchBehaviorLevelProgress(uid: string) {
   return fetchProgress(CONFIG, uid);
+}
+
+export function countBehaviorUnmasteredPass(level: BehaviorLevelId) {
+  return countUnmasteredPass(CONFIG, level);
 }
 
 export function markBehaviorLevelComplete(uid: string, level: BehaviorLevelId) {

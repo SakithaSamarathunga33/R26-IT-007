@@ -142,6 +142,8 @@ export type RootStackParamList = {
     durationSec: number;
     result: any | null;
     error?: string;
+    /** First stroke began at the taught start point; null when not checked. */
+    startPointOk?: boolean | null;
     practice?: PracticeParams;
   };
   HandwritingSummary: undefined;

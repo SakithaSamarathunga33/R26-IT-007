@@ -39,6 +39,17 @@ const DIFFICULTY_CONFIG = {
 
 type ActivityState = "idle" | "active" | "submitting" | "done";
 
+// Pattern tasks name colours as well as shapes; a colour is drawn as a circle of
+// that colour and keeps it under feedback, or the answer itself would change.
+const PATTERN_COLORS: Record<string, string> = {
+  red: "#EF4444", blue: "#2563EB", green: "#16A34A", yellow: "#EAB308",
+};
+
+function PictureGlyph({ value, size, color }: { value: string; size: number; color?: string }) {
+  const hex = PATTERN_COLORS[value.trim().toLowerCase()];
+  return <ShapeGlyph shape={hex ? "circle" : value} size={size} color={hex ?? color} />;
+}
+
 export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const taskIndex = route.params?.taskIndex ?? 0;
   const practice = route.params?.practice;
@@ -55,6 +66,8 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const taskColors = BEHAVIOR_TASK_COLORS[task.task_type];
   const isMissingLetter = task.task_type === "missing_letter";
   const isShapeMatching = task.task_type === "shape_matching";
+  // Shape-matching and picture-pattern tasks both answer with drawn tiles, not words.
+  const isPictureTask = isShapeMatching || !!task.sequence;
 
   const [activityState, setActivityState] = useState<ActivityState>("idle");
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -384,6 +397,20 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
             </View>
           )}
 
+          {/* Picture pattern: the sequence drawn, then a blank for the answer */}
+          {task.sequence && (
+            <View
+              style={[styles.sequenceRow, { backgroundColor: taskColors.bg, borderColor: taskColors.border }]}
+              accessible
+              accessibilityLabel={`${task.sequence.join(", ")}, what comes next?`}
+            >
+              {task.sequence.map((item, i) => <PictureGlyph key={i} value={item} size={36} />)}
+              <View style={[styles.sequenceBlank, { borderColor: taskColors.color }]}>
+                <Text style={[styles.sequenceBlankText, { color: taskColors.color }]}>?</Text>
+              </View>
+            </View>
+          )}
+
           {/* Missing-letter word: the word with a gap where the letter belongs */}
           {isMissingLetter && task.word && (
             <View style={[styles.wordBox, { backgroundColor: taskColors.bg, borderColor: taskColors.border }]}>
@@ -445,15 +472,17 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
             <Text style={styles.letterPromptText}>Tap the missing letter</Text>
           </View>
         ) : (
-          <Text style={styles.optionsLabel}>{isShapeMatching ? "Tap the matching shape" : "Choose your answer"}</Text>
+          <Text style={styles.optionsLabel}>
+            {isShapeMatching ? "Tap the matching shape" : task.sequence ? "Tap what comes next" : "Choose your answer"}
+          </Text>
         )}
-        <View style={isMissingLetter ? styles.letterGrid : isShapeMatching ? styles.shapeGrid : styles.optionsGrid}>
+        <View style={isMissingLetter ? styles.letterGrid : isPictureTask ? styles.shapeGrid : styles.optionsGrid}>
           {task.options.map((option, i) => {
             const isSelected = selectedOption === option;
             const isCorrectOption = option === task.correct_answer;
             const showResult = selectedOption !== null;
 
-            let cardStyle = isMissingLetter ? styles.letterCard : isShapeMatching ? styles.shapeCard : styles.optionCard;
+            let cardStyle = isMissingLetter ? styles.letterCard : isPictureTask ? styles.shapeCard : styles.optionCard;
             // Tile chrome stays neutral so colour only appears where it carries
             // meaning — the child's selection, and right/wrong feedback. Shape
             // glyphs are the exception: they keep their own bright per-shape
@@ -478,9 +507,9 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
                 activeOpacity={0.75}
                 disabled={submitting}
               >
-                {isShapeMatching ? (
+                {isPictureTask ? (
                   <>
-                    <ShapeGlyph shape={option} size={56} color={showResult && isSelected ? textColor : undefined} />
+                    <PictureGlyph value={option} size={56} color={showResult && isSelected ? textColor : undefined} />
                     <Text style={[styles.shapeCardLabel, { color: textColor }]}>{option}</Text>
                     {showResult && isSelected && (
                       <Ionicons
@@ -622,6 +651,16 @@ const styles = StyleSheet.create({
     shadowColor: "#94A3B8", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8, elevation: 3,
   },
   shapeCardLabel: { fontSize: 14, fontFamily: theme.fonts.semiBold },
+  /* Picture pattern — the drawn sequence with a dashed blank at the end */
+  sequenceRow: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8,
+    borderWidth: 1.5, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 10, marginTop: 4,
+  },
+  sequenceBlank: {
+    width: 36, height: 36, borderRadius: 10, borderWidth: 2, borderStyle: "dashed",
+    alignItems: "center", justifyContent: "center",
+  },
+  sequenceBlankText: { fontSize: 20, fontFamily: theme.fonts.extraBold },
 
   /* Listen controls */
   listenRow: { flexDirection: "row", gap: 10, marginBottom: 16 },

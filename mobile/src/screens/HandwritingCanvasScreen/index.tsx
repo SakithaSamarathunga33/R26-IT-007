@@ -18,6 +18,7 @@ import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
   HANDWRITING_TASK_TYPE_ICONS, HANDWRITING_TASK_COLORS,
 } from "../../config/handwritingTasks";
+import { LETTER_START } from "../../utils/letterStart";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingCanvas">;
@@ -61,6 +62,9 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   // Never leave the app talking once the child moves on.
   useEffect(() => () => stopSpeaking(), []);
   const showTarget = !isMemory && !isDictation && inputMode === "canvas";
+  // Single letters get a "where to start" cue; the review screen checks the first stroke against it.
+  const startCue = showTarget && (task.task_type === "letter_trace" || task.task_type === "letter_copy")
+    ? LETTER_START[task.target_text]?.cue : undefined;
 
   const hasContent = inputMode === "canvas" ? strokes.length > 0 : photoUri !== null;
 
@@ -240,6 +244,19 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
             <Text style={styles.targetReminderLabel}>Write:</Text>
             <Text style={[styles.targetReminderText, { color: taskColors.color }]}>{task.target_text}</Text>
           </View>
+        )}
+        {startCue && (
+          <TouchableOpacity
+            style={[styles.targetReminder, { borderColor: "#BBF7D0", backgroundColor: "#ECFDF5" }]}
+            activeOpacity={0.8}
+            onPress={() => speak(startCue)}
+            accessibilityRole="button"
+            accessibilityLabel={startCue}
+          >
+            <Ionicons name="play-circle" size={16} color="#059669" />
+            <Text style={[styles.hiddenHint, { color: "#047857" }]}>{startCue}</Text>
+            <Ionicons name="volume-medium-outline" size={14} color="#059669" />
+          </TouchableOpacity>
         )}
         {(isMemory || isDictation) && (
           <View style={[styles.targetReminder, { borderColor: "#E8EDF5", backgroundColor: "#F8FAFC" }]}>

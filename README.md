@@ -83,11 +83,23 @@ Welcome → Onboarding → Login / Signup
 
 **Missing-letter** activities show a word with a gap and four letter tiles — e.g. `_ m b r e l l a` → **u**. Nine of these run across the three levels, progressing from `cat` and `sun` to `butterfly` and `school`, with b/d/p/q traps at Level 3.
 
+**Shape-matching and colour/shape pattern** activities are drawn as pictures (the sequence, a `?` blank, and picture answer tiles), not written as words, so a pre-reader solves them by sight.
+
 ---
 
 ## Levels
 
-Every module splits its activities into **3 locked levels**. Level 1 is always open; each later level unlocks when the one before it is completed.
+Every module splits its activities into **3 locked levels**, ordered easy → hard. Level 1 is always open; a later level unlocks only when the child **performs well enough** on the one before it:
+
+| Module | Mastery rule to unlock the next level |
+|---|---|
+| Writing | 4 of the 5 scored tasks correct (target letter/word matched) |
+| Speech | ≥ 60% of the level's tasks scored low-risk (3 of 4 on L1, 2 of 3 on L2–L3) |
+| Behaviour | ≥ 60% of the level's tasks scored low-risk (3 of 5) |
+
+A child who misses the bar is asked to replay the level, which starts clean and is scored on its own. So the screening can always finish, the next level unlocks anyway after **2 unmastered passes**. The low score is kept and is still what the summary and fusion see.
+
+Writing progresses **trace → copy letter → copy word → write from memory / dictation**, so support drops away as words get longer (`b` → `cat` → `butterfly`). Single-letter tasks show where the letter starts (e.g. *"Start at the top of the tall line"*), and the first stroke is checked against that point and saved as `start_point_ok`.
 
 | Level | Speech (10) | Writing (21) | Behaviour (15) |
 |---|---|---|---|

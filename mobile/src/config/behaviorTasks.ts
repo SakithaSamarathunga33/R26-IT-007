@@ -50,6 +50,11 @@ export interface BehaviorTask {
    * by sight rather than by reading the word. Must be one of `options`.
    */
   target_shape?: string;
+  /**
+   * Pattern tasks drawn as pictures: the items before the blank, each a shape
+   * or colour name. The screen draws these and the options instead of words.
+   */
+  sequence?: string[];
 }
 
 export const BEHAVIOR_TASKS: BehaviorTask[] = [
@@ -123,7 +128,8 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     cognitive_focus: "pattern_recognition",
     attention_load: "medium",
     difficulty_level: "easy",
-    instruction: "Red, Blue, Red, Blue, ___?",
+    instruction: "What colour comes next?",
+    sequence: ["Red", "Blue", "Red", "Blue"],
     options: ["Green", "Blue", "Red", "Yellow"],
     correct_answer: "Red",
     hint: "Look at the colors before the blank and find the repeating pattern.",
@@ -171,7 +177,8 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     cognitive_focus: "pattern_recognition",
     attention_load: "medium",
     difficulty_level: "medium",
-    instruction: "Circle, Square, Triangle, Circle, Square, ___?",
+    instruction: "What shape comes next?",
+    sequence: ["Circle", "Square", "Triangle", "Circle", "Square"],
     options: ["Circle", "Diamond", "Triangle", "Square"],
     correct_answer: "Triangle",
     hint: "The pattern repeats every 3 shapes.",

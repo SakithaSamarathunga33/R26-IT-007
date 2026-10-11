@@ -7,7 +7,9 @@ import {
 import {
   LevelModuleConfig,
   LevelProgress,
+  MAX_UNMASTERED_PASSES,
   clearPredictionsForLevel,
+  countUnmasteredPass as countPass,
   fetchProgress,
   isUnlocked,
   markComplete,
@@ -28,13 +30,11 @@ export function fetchHandwritingLevelProgress(uid: string) {
   return fetchProgress(CONFIG, uid);
 }
 
-// A screening must always be finishable: after this many unmastered passes the level
-// unlocks anyway (mastery is still recorded false, so the 4-of-5 result isn't faked).
-export const MAX_UNMASTERED_PASSES = 2;
-// ponytail: in-memory, resets on app reload; persist per level if the cap must survive restarts.
-const unmasteredPasses: Partial<Record<HandwritingLevelId, number>> = {};
+// After MAX_UNMASTERED_PASSES the level unlocks anyway; mastery is still recorded
+// false, so the 4-of-5 result isn't faked.
+export { MAX_UNMASTERED_PASSES };
 export function countUnmasteredPass(level: HandwritingLevelId): number {
-  return (unmasteredPasses[level] = (unmasteredPasses[level] ?? 0) + 1);
+  return countPass(CONFIG, level);
 }
 
 /** Call once the level is mastered (or the pass cap is reached) — the stored "completed" list is what unlocks the next level. */

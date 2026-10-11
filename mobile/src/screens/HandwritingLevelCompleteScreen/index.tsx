@@ -83,7 +83,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
   // a pre-reader needs to hear it, not read it.
   const praisedRef = useRef(false);
   useEffect(() => {
-    if (saving || praisedRef.current) return;
+    if (saving || !levelResult || praisedRef.current) return;
     praisedRef.current = true;
     const t = setTimeout(
       () => speakFeedback("levelDone", {
@@ -94,7 +94,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
       800
     );
     return () => clearTimeout(t);
-  }, [level, isFinalLevel, saving, canProceed]);
+  }, [level, isFinalLevel, saving, canProceed, levelResult]);
 
   useEffect(() => () => stopSpeaking(), []);
 

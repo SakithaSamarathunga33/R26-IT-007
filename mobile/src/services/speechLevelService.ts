@@ -3,6 +3,7 @@ import {
   LevelModuleConfig,
   LevelProgress,
   clearPredictionsForLevel,
+  countUnmasteredPass,
   fetchProgress,
   isUnlocked,
   markComplete,
@@ -21,6 +22,10 @@ export type SpeechLevelProgress = LevelProgress;
 
 export function fetchLevelProgress(uid: string) {
   return fetchProgress(CONFIG, uid);
+}
+
+export function countSpeechUnmasteredPass(level: LevelId) {
+  return countUnmasteredPass(CONFIG, level);
 }
 
 export function markLevelComplete(uid: string, level: LevelId) {

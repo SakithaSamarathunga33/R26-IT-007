@@ -13,8 +13,9 @@ import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
 import { auth } from "../../config/firebase";
 import { useT } from "../../i18n";
 import { LevelId, SPEECH_LEVELS, getLevel, levelTaskCount, taskIndicesForLevel } from "../../config/speechTasks";
-import { clearLevelPredictions, markLevelComplete } from "../../services/speechLevelService";
-import { useLevelScore } from "../../services/summaryService";
+import { clearLevelPredictions, countSpeechUnmasteredPass, markLevelComplete } from "../../services/speechLevelService";
+import { MASTERY_MIN_SCORE, MAX_UNMASTERED_PASSES } from "../../services/levelProgressService";
+import { LevelScore, fetchLevelScore } from "../../services/summaryService";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechLevelComplete">;
@@ -30,17 +31,32 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
 
   const [saving, setSaving] = useState(true);
   const [saveFailed, setSaveFailed] = useState(false);
-  const levelScore = useLevelScore("speech_predictions", level, "SpeechLevels");
+  const [levelScore, setLevelScore] = useState<LevelScore | null>(null);
+  // Mastered (score >= MASTERY_MIN_SCORE), or allowed on after MAX_UNMASTERED_PASSES tries.
+  const [canProceed, setCanProceed] = useState(false);
+  const passProceedRef = useRef<boolean | null>(null);
   const popAnim = useRef(new Animated.Value(0)).current;
 
-  // Persist the unlock before the child moves on. If this fails the level would
-  // silently re-lock on the next login, so surface it and offer a retry.
+  // Persist the unlock before the child moves on — only once the level is
+  // mastered. If this fails the level would silently re-lock on the next
+  // login, so surface it and offer a retry.
   const saveProgress = useCallback(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) { setSaving(false); return; }
     setSaving(true);
     setSaveFailed(false);
-    markLevelComplete(uid, level)
+    fetchLevelScore("speech_predictions", uid, level)
+      .then(async (s) => {
+        setLevelScore(s);
+        const mastered = s.score >= MASTERY_MIN_SCORE;
+        // the save-retry card re-runs this; count the pass once and reuse the decision
+        if (!mastered && passProceedRef.current === null) {
+          passProceedRef.current = countSpeechUnmasteredPass(level) >= MAX_UNMASTERED_PASSES;
+        }
+        const proceed = mastered || !!passProceedRef.current;
+        setCanProceed(proceed);
+        if (proceed) await markLevelComplete(uid, level);
+      })
       .then(() => setSaveFailed(false))
       .catch((err) => {
         console.warn("[SpeechLevels] could not save unlock:", err?.message);
@@ -55,17 +71,18 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
   // a pre-reader needs to hear it, not read it.
   const praisedRef = useRef(false);
   useEffect(() => {
-    if (praisedRef.current) return;
+    if (saving || !levelScore || praisedRef.current) return;
     praisedRef.current = true;
     const t = setTimeout(
       () => speakFeedback("levelDone", {
         seed: level,
-        extra: isFinalLevel ? "All levels done!" : `Level ${level + 1} unlocked.`,
+        extra: !canProceed ? "Let's practise and try again!"
+          : isFinalLevel ? "All levels done!" : `Level ${level + 1} unlocked.`,
       }),
       800
     );
     return () => clearTimeout(t);
-  }, [level, isFinalLevel]);
+  }, [level, isFinalLevel, saving, canProceed, levelScore]);
 
   useEffect(() => () => stopSpeaking(), []);
 
@@ -98,6 +115,14 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
     // stack duplicates in the summary.
     if (uid) await clearLevelPredictions(uid, nextLevel.id).catch(() => {});
     navigation.replace("SpeechActivity", { taskIndex: taskIndicesForLevel(nextLevel.id)[0] });
+  };
+
+  // Not mastered: replay this level from a clean slate so the new run is scored on its own.
+  const retryLevel = async () => {
+    stopSpeaking();
+    const uid = auth.currentUser?.uid;
+    if (uid) await clearLevelPredictions(uid, level).catch(() => {});
+    navigation.replace("SpeechActivity", { taskIndex: taskIndicesForLevel(level)[0] });
   };
 
   return (
@@ -144,8 +169,20 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
           />
         )}
 
-        {/* Unlock notice */}
-        {nextLevel ? (
+        {/* Unlock notice — or, when not yet mastered, a gentle invitation to practise */}
+        {saving || !levelScore ? null : !canProceed ? (
+          <View style={styles.unlockCard}>
+            <View style={[styles.unlockBadge, { backgroundColor: config.bg }]}>
+              <Ionicons name="refresh" size={20} color={config.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.unlockTitle}>{t("Let's practise a little more!")}</Text>
+              <Text style={styles.unlockSub}>
+                {nextLevel ? t("Play Level {n} again to get even better and open Level {next}.", { n: level, next: nextLevel.id }) : t("Play Level {n} again to get even better.", { n: level })}
+              </Text>
+            </View>
+          </View>
+        ) : nextLevel ? (
           <View style={styles.unlockCard}>
             <LinearGradient
               colors={nextLevel.gradColors}
@@ -188,7 +225,19 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
         <View style={{ flex: 1 }} />
 
         {/* Primary action */}
-        {isFinalLevel ? (
+        {!levelScore ? null : !canProceed ? (
+          <LinearGradient colors={config.gradColors} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <TouchableOpacity
+              style={styles.primaryBtnInner}
+              activeOpacity={0.88}
+              onPress={retryLevel}
+              disabled={saving}
+            >
+              <Text style={styles.primaryBtnText}>{t("Try Level {n} Again", { n: level })}</Text>
+              <Ionicons name="refresh" size={18} color="#fff" />
+            </TouchableOpacity>
+          </LinearGradient>
+        ) : isFinalLevel ? (
           <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             <TouchableOpacity
               style={styles.primaryBtnInner}
@@ -215,7 +264,7 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
         )}
 
         {/* Secondary actions */}
-        {!isFinalLevel && (
+        {(!isFinalLevel || !canProceed) && (
           <TouchableOpacity
             style={styles.secondaryBtn}
             activeOpacity={0.8}
