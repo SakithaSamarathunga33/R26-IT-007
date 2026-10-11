@@ -3,23 +3,30 @@ import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated, Easing, 
 import Toast from "../../components/Toast";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useAudioRecorder, AudioModule, IOSOutputFormat, AudioQuality } from "expo-audio";
-
-const WAV_RECORDING_OPTIONS = {
-  extension: ".wav", sampleRate: 16000, numberOfChannels: 1, bitRate: 128000,
-  ios: { outputFormat: IOSOutputFormat.LINEARPCM, audioQuality: AudioQuality.HIGH, linearPCMBitDepth: 16 as const, linearPCMIsBigEndian: false, linearPCMIsFloat: false },
-  android: { extension: ".m4a", outputFormat: "mpeg4", audioEncoder: "aac" },
-  web: { mimeType: "audio/wav" },
-};
-
+import { useAudioRecorder, useAudioRecorderState, AudioModule, IOSOutputFormat, AudioQuality, RecordingOptions } from "expo-audio";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound, playTapSound } from "../../services/kidSounds";
 import { SPEECH_TASKS, getLevel, levelTaskCount, positionInLevel } from "../../config/speechTasks";
 import { speak, stopSpeaking } from "../../services/ttsService";
+
+const WAV_RECORDING_OPTIONS: RecordingOptions = {
+  extension: ".wav", sampleRate: 16000, numberOfChannels: 1, bitRate: 128000, isMeteringEnabled: true,
+  ios: { outputFormat: IOSOutputFormat.LINEARPCM, audioQuality: AudioQuality.HIGH, linearPCMBitDepth: 16 as const, linearPCMIsBigEndian: false, linearPCMIsFloat: false },
+  android: { extension: ".m4a", outputFormat: "mpeg4", audioEncoder: "aac" },
+  web: { mimeType: "audio/wav" },
+};
+
+// Typical mic metering range is roughly -60dB (near silence) to 0dB (peak).
+const METERING_FLOOR_DB = -60;
+const WAVE_BAR_COUNT = 10;
+
+function normalizeMetering(db: number | undefined): number {
+  if (db === undefined || !Number.isFinite(db)) return 0;
+  return Math.max(0, Math.min(1, (db - METERING_FLOOR_DB) / -METERING_FLOOR_DB));
+}
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechRecording">;
@@ -36,18 +43,27 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
   const level = getLevel(task.level);
 
   const [recordState, setRecordState] = useState<RecordState>("idle");
-  const [elapsed, setElapsed] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [hearing, setHearing] = useState(false);
+  const [waveLevels, setWaveLevels] = useState<number[]>(Array(WAVE_BAR_COUNT).fill(0));
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "", type: "warning" as "error" | "success" | "warning" });
 
   const audioRecorder = useAudioRecorder(WAV_RECORDING_OPTIONS);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recorderState = useAudioRecorderState(audioRecorder, 100);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const [finalElapsed, setFinalElapsed] = useState<number | null>(null);
+  // Mirrors recorderState.durationMillis, but readable synchronously inside the
+  // async stop handler (a state closure there would be stale).
+  const liveElapsedRef = useRef(0);
+  liveElapsedRef.current = Math.min(Math.floor(recorderState.durationMillis / 1000), MAX_SECONDS);
 
-  const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  // The recorder's own duration resets to 0 the instant it stops, so once
+  // stopped we freeze the last live reading instead of showing that reset.
+  const elapsed = finalElapsed ?? liveElapsedRef.current;
+
   const stopPulse = () => { pulseLoopRef.current?.stop(); pulseAnim.setValue(1); };
   const startPulse = () => {
     pulseLoopRef.current = Animated.loop(Animated.sequence([
@@ -57,14 +73,26 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
     pulseLoopRef.current.start();
   };
 
-  useEffect(() => { setRecordState("idle"); setElapsed(0); setRetryCount(0); setAudioUri(null); stopTimer(); stopPulse(); }, [taskIndex]);
+  useEffect(() => { setRecordState("idle"); setRetryCount(0); setAudioUri(null); setWaveLevels(Array(WAVE_BAR_COUNT).fill(0)); setFinalElapsed(null); stopPulse(); }, [taskIndex]);
   useEffect(() => {
     return () => {
-      stopTimer();
       stopSpeaking();
       try { if (audioRecorder.isRecording) audioRecorder.stop().catch(() => {}); } catch {}
     };
   }, []);
+
+  // Scroll real mic levels into the waveform, and enforce the max recording length.
+  // The waveform only needs to look alive, not track every 100ms poll tick, so
+  // it updates on every other tick to halve the re-renders during recording.
+  const waveTickRef = useRef(0);
+  useEffect(() => {
+    if (recordState !== "recording") return;
+    waveTickRef.current += 1;
+    if (waveTickRef.current % 2 === 0) {
+      setWaveLevels((prev) => [...prev.slice(1), normalizeMetering(recorderState.metering)]);
+    }
+    if (recorderState.durationMillis / 1000 >= MAX_SECONDS) handleStopRecording();
+  }, [recorderState.durationMillis, recorderState.metering, recordState]);
 
   /** Replays the target word — only offered while idle so TTS never bleeds into the mic. */
   const handleHearAgain = () => {
@@ -78,7 +106,9 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
   };
 
   const handleStartRecording = async () => {
-    playTapSound();
+    if (busy) return;
+    setBusy(true);
+    // No tap sound here — it would bleed into the start of the recording.
     // Make sure the app's own voice is silent before the mic opens.
     stopSpeaking();
     setHearing(false);
@@ -88,28 +118,40 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
       await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await audioRecorder.prepareToRecordAsync();
       audioRecorder.record();
-      setRecordState("recording"); setElapsed(0); setAudioUri(null); startPulse();
-      timerRef.current = setInterval(() => {
-        setElapsed((prev) => { if (prev + 1 >= MAX_SECONDS) { handleStopRecording(); return MAX_SECONDS; } return prev + 1; });
-      }, 1000);
-    } catch (err: any) { Alert.alert("Recording Error", err.message); }
+      setAudioUri(null);
+      setWaveLevels(Array(WAVE_BAR_COUNT).fill(0));
+      setFinalElapsed(null);
+      setRecordState("recording");
+      startPulse();
+    } catch (err: any) {
+      Alert.alert("Recording Error", err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleStopRecording = async () => {
-    playTapSound();
-    stopTimer(); stopPulse();
+    if (busy) return;
+    setBusy(true);
+    stopPulse();
     try {
       if (!audioRecorder.isRecording) return;
+      setFinalElapsed(liveElapsedRef.current);
       await audioRecorder.stop();
       const uri = audioRecorder.uri ?? null;
       await AudioModule.setAudioModeAsync({ allowsRecording: false });
-      setAudioUri(uri); setRecordState("done");
-    } catch (err: any) { Alert.alert("Stop Error", err.message); }
+      setAudioUri(uri);
+      setRecordState("done");
+    } catch (err: any) {
+      Alert.alert("Stop Error", err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleRetry = () => {
     if (retryCount >= 3) { setToast({ visible: true, message: "Maximum 3 retries allowed.", type: "warning" }); return; }
-    setRetryCount((c) => c + 1); setElapsed(0); setAudioUri(null); setRecordState("idle");
+    setRetryCount((c) => c + 1); setAudioUri(null); setWaveLevels(Array(WAVE_BAR_COUNT).fill(0)); setFinalElapsed(null); setRecordState("idle");
   };
 
   const progressPct = Math.min((elapsed / MAX_SECONDS) * 100, 100);
@@ -150,13 +192,17 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
           <Text style={styles.wordHint}>{task.say_hint}</Text>
         </View>
 
-        {/* Hear it again — hidden once the mic is live so audio can't overlap */}
-        {recordState === "idle" && (
-          <TouchableOpacity style={styles.hearBtn} activeOpacity={0.8} onPress={handleHearAgain}>
-            <Ionicons name={hearing ? "stop" : "volume-high"} size={16} color="#2563EB" />
-            <Text style={styles.hearBtnText}>{hearing ? "Stop" : "Hear it again"}</Text>
-          </TouchableOpacity>
-        )}
+        {/* Hear it again — disabled (not unmounted) once the mic is live, so the
+            layout below doesn't jump and audio still can't overlap the recording. */}
+        <TouchableOpacity
+          style={[styles.hearBtn, recordState !== "idle" && styles.hearBtnDisabled]}
+          activeOpacity={0.8}
+          onPress={handleHearAgain}
+          disabled={recordState !== "idle"}
+        >
+          <Ionicons name={hearing ? "stop" : "volume-high"} size={16} color="#2563EB" />
+          <Text style={styles.hearBtnText}>{hearing ? "Stop" : "Hear it again"}</Text>
+        </TouchableOpacity>
 
         {/* Timer bar */}
         <View style={styles.timerTrack}>
@@ -176,7 +222,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={recordState === "idle" ? handleStartRecording : handleStopRecording}
-            disabled={recordState === "done"}
+            disabled={recordState === "done" || busy}
           >
             <LinearGradient colors={micColors} style={styles.micBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               <Ionicons
@@ -193,11 +239,11 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
           {recordState === "done" && "Recording complete!"}
         </Text>
 
-        {/* Waveform */}
+        {/* Waveform — driven by real mic levels */}
         {recordState === "recording" && (
           <View style={styles.waveRow}>
-            {[0.4, 0.7, 1, 0.6, 0.5, 0.9, 0.6, 1, 0.4, 0.8].map((h, i) => (
-              <LinearGradient key={i} colors={["#3B72F6", "#2563EB"]} style={[styles.waveBar, { height: 6 + h * 28 }]} />
+            {waveLevels.map((level, i) => (
+              <LinearGradient key={i} colors={["#3B72F6", "#2563EB"]} style={[styles.waveBar, { height: 6 + level * 28 }]} />
             ))}
           </View>
         )}
@@ -213,7 +259,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
 
         {recordState === "done" && (
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => { playTapSound(); handleRetry(); }} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.retryBtn} onPress={handleRetry} activeOpacity={0.8}>
               <Ionicons name="refresh" size={18} color="#64748B" />
               <Text style={styles.retryBtnText}>Retry</Text>
             </TouchableOpacity>
@@ -221,10 +267,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 style={styles.nextBtnInner}
                 activeOpacity={0.88}
-                onPress={() => {
-                  playNextSound();
-                  navigation.navigate("SpeechReview", { taskIndex, elapsed, retryCount, audioUri: audioUri ?? "", practice });
-                }}
+                onPress={() => navigation.navigate("SpeechReview", { taskIndex, elapsed, retryCount, audioUri: audioUri ?? "", practice })}
               >
                 <Text style={styles.nextBtnText}>Review & Submit</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
@@ -279,6 +322,7 @@ const styles = StyleSheet.create({
     shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8, elevation: 2,
   },
   hearBtnText: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
+  hearBtnDisabled: { opacity: 0.35 },
 
   timerTrack: { width: "100%", height: 6, backgroundColor: "#E2E8F0", borderRadius: 3, overflow: "hidden", marginBottom: 6 },
   timerFill: { height: 6, borderRadius: 3 },

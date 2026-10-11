@@ -7,7 +7,6 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 import {
   SPEECH_TASKS,
   TASK_TYPE_LABELS,
@@ -118,10 +117,7 @@ export default function SpeechActivityScreen({ navigation, route }: Props) {
           <TouchableOpacity
             style={styles.recordBtnInner}
             activeOpacity={0.88}
-            onPress={() => {
-              playNextSound();
-              navigation.navigate("SpeechListen", { taskIndex, practice });
-            }}
+            onPress={() => navigation.navigate("SpeechListen", { taskIndex, practice })}
           >
             <Ionicons name="volume-high" size={22} color="#fff" />
             <Text style={styles.recordBtnText}>Listen to the Word</Text>

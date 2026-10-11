@@ -9,7 +9,6 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 import { SPEECH_TASKS, TASK_TYPE_LABELS } from "../../config/speechTasks";
 import { auth, db } from "../../config/firebase";
 
@@ -59,7 +58,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     try {
       const player = createAudioPlayer({ uri: audioUri });
       playerRef.current = player;
-      player.addListener("playbackStatusUpdate", (status: any) => {
+      player.addListener("playbackStatusUpdate", (status) => {
         if (!mountedRef.current) return;
         if (status.didJustFinish) { setPlaying(false); _destroyPlayer(); }
       });
@@ -124,7 +123,6 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
   const handleSubmit = async () => {
     if (!audioUri) { Alert.alert("No recording", "Please go back and record first."); return; }
     if (elapsed < 0.5) { Alert.alert("Too short", "Please record for at least 0.5 seconds."); return; }
-    playNextSound();
     try {
       setSubmitStep("analysing");
       let result: any = null; let apiError: string | undefined;
@@ -202,14 +200,6 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
             ))}
           </View>
         </TouchableOpacity>
-
-        {/* Step indicator */}
-        {(submitStep === "saving" || submitStep === "analysing") && (
-          <View style={styles.stepCard}>
-            <ActivityIndicator color="#2563EB" size="small" />
-            <Text style={styles.stepLabel}>{STEP_LABELS[submitStep]}</Text>
-          </View>
-        )}
 
         {submitStep === "idle" && (
           <View style={styles.qualityNotice}>
@@ -314,13 +304,6 @@ const styles = StyleSheet.create({
   playDuration: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#94A3B8" },
   playBars: { flexDirection: "row", alignItems: "center", gap: 3 },
   playBar: { width: 4, borderRadius: 2 },
-
-  stepCard: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
-    borderRadius: 16, padding: 14, marginBottom: 12,
-  },
-  stepLabel: { fontSize: 14, fontFamily: theme.fonts.medium, color: "#2563EB" },
 
   qualityNotice: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
