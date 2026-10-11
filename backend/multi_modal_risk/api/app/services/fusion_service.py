@@ -65,28 +65,38 @@ def learned_fusion_probability(statuses, model):
     return 1.0 / (1.0 + math.exp(-z))
 
 def calculate_weighted_fusion(statuses, config: Dict[str, Any], status: str):
+    """Severity (score + low/medium/high band) comes from the reliability-weighted rule; the at-risk yes/no label and
+    its calibrated probability come from the trained model when it is available (rule fallback otherwise).
+    The model outputs P(at risk), not severity, so it must not drive the bands: banding it would jump almost
+    everything just past the cut-off straight to "high"."""
     threshold = float(config.get('threshold', 0.35))
     weights = effective_weights(statuses, config)
-    rule_score = score = None
+    score = label = prob = None
     strategy = config.get('model_name', 'reliability_weighted_rule_fusion')
     version = config.get('model_version', 'reliability_weighted_rule_v2')
+    borderline = False
     if status != 'insufficient_evidence':
-        rule_score = score = sum(weights[name] * s['score'] for name, s in statuses.items() if s['usable'])
+        score = sum(weights[name] * s['score'] for name, s in statuses.items() if s['usable'])
+        label = binary_label_from_score(score, threshold)
         model = get_fusion_model()
         prob = learned_fusion_probability(statuses, model)
-        if prob is not None:  # the trained model is preferred; the rule stays as fallback and is reported alongside
-            score, threshold = prob, float(model.get('decision_threshold', 0.5))
+        if prob is not None:
+            model_label = int(prob >= float(model.get('decision_threshold', 0.5)))
+            borderline = model_label != label  # model and severity disagree near the cut-off: let a human look
+            label = model_label
             strategy, version = model['model_name'], model['model_version']
     return {
         'overall_risk_score': None if score is None else round(score, 4),
-        'final_dyslexia_risk_label': None if score is None else binary_label_from_score(score, threshold),
+        'final_dyslexia_risk_label': label,
         'final_dyslexia_risk_level': None if score is None else final_risk_level(score),
-        'rule_score': None if rule_score is None else round(rule_score, 4),
+        'risk_probability': None if prob is None else round(prob, 4),
+        'rule_score': None if score is None else round(score, 4),
+        'borderline': borderline,
         'threshold': threshold,
         'weights': {f'{name}_weight': round(w, 4) for name, w in weights.items()},
         'fusion_strategy': strategy,
         'model_version': version,
-        'review_status': status
+        'review_status': 'review_recommended' if borderline and status == 'normal' else status
     }
 
 def predict_primary_difficulty(feature_df, statuses, features_complete=True):

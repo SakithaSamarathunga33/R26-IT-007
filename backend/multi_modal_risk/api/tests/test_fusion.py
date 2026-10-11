@@ -110,8 +110,26 @@ def test_learned_model_used_and_calibrated_probability():
     fp = post(payload())['final_prediction']
     assert fp['fusion_strategy'] == 'reliability_aware_logistic_fusion'
     assert fp['model_version'] == 'reliability_aware_lr_v1'
-    assert 0.0 <= fp['overall_risk_score'] <= 1.0 and fp['threshold'] == 0.5
-    assert fp['final_dyslexia_risk_label'] == int(fp['overall_risk_score'] >= 0.5)
+    assert 0.0 <= fp['risk_probability'] <= 1.0
+    assert fp['final_dyslexia_risk_label'] == int(fp['risk_probability'] >= 0.5)
+
+@pytest.mark.parametrize('p,level', [(0.30, 'low'), (0.40, 'medium'), (0.45, 'medium'), (0.75, 'high')])
+def test_bands_follow_severity_not_model_probability(p, level):
+    # the model is ~0.8-0.94 sure at 0.40-0.45; the band must still say medium
+    fp = post(payload(**{m: {'risk_probability': p, 'quality': {'prediction_reliability': 'high'}} for m in ('speech', 'handwriting', 'behavior')}))['final_prediction']
+    assert fp['final_dyslexia_risk_level'] == level
+    assert fp['overall_risk_score'] == fp['rule_score'] == pytest.approx(p, abs=1e-4)
+
+@pytest.mark.parametrize('scores,level,label', [((0.3, 0.5, 0.2), 'low', 1), ((0.3, 0.3, 0.5), 'medium', 0)])
+def test_borderline_disagreement_escalates_to_review(scores, level, label):
+    # severity sits right at the 0.35 cut-off while the model leans the other way: flag it, don't hide it
+    mods = {m: {'risk_probability': p, 'quality': {'prediction_reliability': 'high'}} for m, p in zip(('speech', 'handwriting', 'behavior'), scores)}
+    body = post(payload(**mods))
+    fp = body['final_prediction']
+    assert fp['borderline'] is True
+    assert fp['final_dyslexia_risk_level'] == level and fp['final_dyslexia_risk_label'] == label
+    assert body['review_status'] == 'review_recommended' == fp['review_status']
+    assert any('Borderline' in w for w in body['quality']['warnings'])
 
 def test_missing_module_does_not_drag_learned_score_to_low():
     both_high = post(payload(speech=None, handwriting={'risk_probability': 0.8}, behavior={'risk_probability': 0.8}))
@@ -122,7 +140,7 @@ def test_rule_fallback_when_artifact_missing(monkeypatch):
     monkeypatch.setattr(fusion_service, 'get_fusion_model', lambda: None)
     fp = post(payload())['final_prediction']
     assert fp['fusion_strategy'] == 'reliability_weighted_rule_fusion'
-    assert fp['overall_risk_score'] == fp['rule_score']
+    assert fp['risk_probability'] is None and fp['borderline'] is False
 
 def test_artifact_with_wrong_feature_order_is_ignored(monkeypatch):
     from app.services import fusion_service

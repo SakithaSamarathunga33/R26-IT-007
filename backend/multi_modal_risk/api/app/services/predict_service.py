@@ -16,6 +16,7 @@ def predict_fusion(payload: Dict[str, Any]):
     disagreement = disagreement_indicator(statuses, config)
     status = review_status(statuses, disagreement, config)
     final_prediction = calculate_weighted_fusion(statuses, config, status)
+    status = final_prediction['review_status']  # a borderline model/severity split escalates normal -> review_recommended
     primary_difficulty = secondary_difficulty_label = therapy_recommendation = None
     if status != 'insufficient_evidence':
         # XGBoost also needs each module's sub-features; empty feature dicts would reach it as zeros
@@ -25,6 +26,8 @@ def predict_fusion(payload: Dict[str, Any]):
         secondary_difficulty_label = predict_secondary_difficulty(statuses, primary_label)
         therapy_recommendation = build_therapy_recommendation(final_prediction, primary_difficulty, secondary_difficulty_label, difficulty_scores(statuses).get(primary_label))
     quality = fusion_quality(payload, statuses)
+    if final_prediction['borderline']:
+        quality['warnings'].append('Borderline case: the trained model and the severity score disagree about the at-risk cut-off.')
     review_fields = {
         'component_statuses': statuses,
         'evidence_completeness': round(usable_count(statuses) / len(statuses), 4),

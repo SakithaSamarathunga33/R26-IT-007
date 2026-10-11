@@ -119,6 +119,9 @@ export default function FusionReportScreen({ navigation, route }: Props) {
                 {insufficient ? "Complete more activities to get a screening result." : `Overall Risk Score: ${score}%`}
               </Text>
               <Text style={styles.resultMethod}>Method: {fusionMethodLabel(fp.fusion_strategy)}</Text>
+              {!insufficient && typeof fp.risk_probability === "number" && (
+                <Text style={styles.resultMethod}>Model confidence of risk: {Math.round(fp.risk_probability * 100)}%{fp.borderline ? " (borderline — review advised)" : ""}</Text>
+              )}
             </View>
             <View style={[styles.scoreCircle, { borderColor: RISK_COLORS[level] }]}>
               <Text style={[styles.scoreCircleVal, { color: RISK_COLORS[level] }]}>{insufficient ? "—" : `${score}%`}</Text>
