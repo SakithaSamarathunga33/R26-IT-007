@@ -9,6 +9,7 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import { auth } from "../../config/firebase";
 import { resolveTherapyActivity } from "../../config/therapyActivityMap";
 import {
@@ -38,6 +39,7 @@ const DIFFICULTY_COLORS: Record<string, { color: string; bg: string; iconBg: str
 };
 
 export default function FusionTherapyScreen({ navigation, route }: Props) {
+  const { t } = useT();
   const { response, reportId: reportIdParam, completedActivityId } = route.params;
   const therapy = response.therapy_recommendation ?? {};
   const [expandedActivity, setExpandedActivity] = useState<number | null>(null);
@@ -84,7 +86,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
           return;
         } catch (err: any) {
           console.warn("[Therapy] could not save session:", err?.message);
-          Alert.alert("Not saved", "That practice session could not be saved. Please try again.");
+          Alert.alert(t("Not saved"), t("That practice session could not be saved. Please try again."));
         }
       }
       setProgress(loaded);
@@ -116,12 +118,12 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
 
   const handleAbandon = () => {
     Alert.alert(
-      "Start a new screening?",
-      `You have completed ${doneCount} of ${target} practice sessions. Starting a new screening will end this plan and your progress will be lost.`,
+      t("Start a new screening?"),
+      t("You have completed {done} of {total} practice sessions. Starting a new screening will end this plan and your progress will be lost.", { done: doneCount, total: target }),
       [
-        { text: "Keep practising", style: "cancel" },
+        { text: t("Keep practising"), style: "cancel" },
         {
-          text: "End plan",
+          text: t("End plan"),
           style: "destructive",
           onPress: async () => {
             const uid = auth.currentUser?.uid;
@@ -132,7 +134,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
               setProgress(next);
               navigation.navigate("MainTabs");
             } catch (err: any) {
-              Alert.alert("Could not end plan", err?.message ?? "Please try again.");
+              Alert.alert(t("Could not end plan"), err?.message ?? t("Please try again."));
             } finally {
               setSaving(false);
             }
@@ -147,7 +149,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
       <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={20} color="#1E293B" />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>Therapy Plan</Text>
+      <Text style={styles.headerTitle}>{t("Therapy Plan")}</Text>
       <View style={{ width: 40 }} />
     </View>
   );
@@ -162,11 +164,11 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
         <View style={styles.content}>
           <View style={styles.safetyCard}>
             <Ionicons name="hourglass-outline" size={16} color="#64748B" />
-            <Text style={styles.safetyText}>Not enough evidence yet — complete more activities to get a practice plan.</Text>
+            <Text style={styles.safetyText}>{t("Not enough evidence yet — complete more activities to get a practice plan.")}</Text>
           </View>
           <TouchableOpacity style={styles.homeBtn} activeOpacity={0.8} onPress={() => navigation.navigate("MainTabs")}>
             <Ionicons name="home-outline" size={18} color="#64748B" />
-            <Text style={styles.homeBtnText}>Back to Dashboard</Text>
+            <Text style={styles.homeBtnText}>{t("Back to Dashboard")}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -189,23 +191,23 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
           <View style={styles.planIconWrap}>
             <Ionicons name="fitness-outline" size={32} color="#fff" />
           </View>
-          <Text style={styles.planTitle}>Personalised Practice Plan</Text>
+          <Text style={styles.planTitle}>{t("Personalised Practice Plan")}</Text>
           <Text style={styles.planFocus}>{therapy.primary_focus}</Text>
 
           <View style={styles.planStatsRow}>
             <View style={[styles.planStat, styles.planStatBorder]}>
               <Text style={styles.planStatVal}>{therapy.recommended_sessions_per_week}</Text>
-              <Text style={styles.planStatLabel}>Sessions{"\n"}/ Week</Text>
+              <Text style={styles.planStatLabel}>{t("Sessions / Week")}</Text>
             </View>
             <View style={[styles.planStat, styles.planStatBorder]}>
               <Text style={styles.planStatVal}>{(therapy.recommended_activities ?? []).length}</Text>
-              <Text style={styles.planStatLabel}>Activities</Text>
+              <Text style={styles.planStatLabel}>{t("Activities")}</Text>
             </View>
             <View style={styles.planStat}>
               <View style={[styles.intensityBadge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                <Text style={styles.intensityBadgeText}>{intensityCfg.label}</Text>
+                <Text style={styles.intensityBadgeText}>{t(intensityCfg.label)}</Text>
               </View>
-              <Text style={styles.planStatLabel}>Intensity</Text>
+              <Text style={styles.planStatLabel}>{t("Intensity")}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -216,11 +218,11 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
             <Ionicons name={primaryDifficultyCfg.icon} size={18} color={primaryDifficultyCfg.color} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.focusBadgeLabel, { color: primaryDifficultyCfg.color }]}>Primary Focus Area</Text>
+            <Text style={[styles.focusBadgeLabel, { color: primaryDifficultyCfg.color }]}>{t("Primary Focus Area")}</Text>
             <Text style={styles.focusBadgeText}>{therapy.primary_focus}</Text>
           </View>
           <View style={[styles.intensityPill, { backgroundColor: intensityCfg.bg, borderColor: intensityCfg.border }]}>
-            <Text style={[styles.intensityPillText, { color: intensityCfg.color }]}>{intensityCfg.label}</Text>
+            <Text style={[styles.intensityPillText, { color: intensityCfg.color }]}>{t(intensityCfg.label)}</Text>
           </View>
         </View>
 
@@ -236,14 +238,14 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.progressTitle}>
-                {planComplete ? "Plan complete!" : "Practice Progress"}
+                {planComplete ? t("Plan complete!") : t("Practice Progress")}
               </Text>
               <Text style={styles.progressSub}>
                 {progress
                   ? planComplete
-                    ? "You can start a new screening now."
-                    : `${doneCount} of ${target} sessions done`
-                  : "Loading…"}
+                    ? t("You can start a new screening now.")
+                    : t("{done} of {total} sessions done", { done: doneCount, total: target })
+                  : t("Loading…")}
               </Text>
             </View>
             {progress ? (
@@ -265,9 +267,9 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
 
         {/* Activity list */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionLabel}>Recommended Activities</Text>
+          <Text style={styles.sectionLabel}>{t("Recommended Activities")}</Text>
           <View style={styles.sectionBadge}>
-            <Text style={styles.sectionBadgeText}>{activities.length} activities</Text>
+            <Text style={styles.sectionBadgeText}>{t("{n} activities", { n: activities.length })}</Text>
           </View>
         </View>
 
@@ -292,7 +294,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
                   <View style={styles.activityMeta}>
                     <View style={styles.activityMetaItem}>
                       <Ionicons name="time-outline" size={12} color="#94A3B8" />
-                      <Text style={styles.activityMetaText}>{act.duration_minutes} min</Text>
+                      <Text style={styles.activityMetaText}>{t("{n} min", { n: act.duration_minutes })}</Text>
                     </View>
                     <View style={styles.activityMetaDot} />
                     <Text style={styles.activitySkill}>{(act.target_skill ?? "").replace(/_/g, " ")}</Text>
@@ -318,7 +320,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
                     >
                       <Ionicons name="play-circle-outline" size={16} color={primaryDifficultyCfg.color} />
                       <Text style={[styles.startActivityBtnText, { color: primaryDifficultyCfg.color }]}>
-                        {done > 0 ? "Practise Again" : "Start Activity"}
+                        {done > 0 ? t("Practise Again") : t("Start Activity")}
                       </Text>
                     </TouchableOpacity>
                   ) : (
@@ -326,7 +328,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
                     // than showing a button that goes nowhere.
                     <View style={styles.offlineActivityNote}>
                       <Ionicons name="home-outline" size={14} color="#64748B" />
-                      <Text style={styles.offlineActivityText}>Practise this one together offline.</Text>
+                      <Text style={styles.offlineActivityText}>{t("Practise this one together offline.")}</Text>
                     </View>
                   )}
                 </View>
@@ -338,7 +340,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
         {/* Secondary recommendation */}
         {secondaryActivity && (
           <>
-            <Text style={[styles.sectionLabel, { marginTop: 24, marginBottom: 12 }]}>Secondary Support</Text>
+            <Text style={[styles.sectionLabel, { marginTop: 24, marginBottom: 12 }]}>{t("Secondary Support")}</Text>
             {(() => {
               const secCfg = DIFFICULTY_COLORS[secondaryActivity.difficulty_label] ?? DIFFICULTY_COLORS.phonological_processing;
               const secAct = secondaryActivity.suggested_activity;
@@ -379,7 +381,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
             onPress={() => navigation.navigate("FusionReport", { response })}
           >
             <Ionicons name="document-text-outline" size={20} color="#fff" />
-            <Text style={styles.reportBtnText}>View Full Report</Text>
+            <Text style={styles.reportBtnText}>{t("View Full Report")}</Text>
           </TouchableOpacity>
         </LinearGradient>
 
@@ -389,7 +391,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
           onPress={() => navigation.navigate("MainTabs")}
         >
           <Ionicons name="home-outline" size={18} color="#64748B" />
-          <Text style={styles.homeBtnText}>Back to Dashboard</Text>
+          <Text style={styles.homeBtnText}>{t("Back to Dashboard")}</Text>
         </TouchableOpacity>
 
         {/* Escape hatch — a family that abandons a plan must not be stuck for good */}
@@ -400,7 +402,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
             onPress={handleAbandon}
             disabled={saving}
           >
-            <Text style={styles.abandonBtnText}>End plan and start a new screening</Text>
+            <Text style={styles.abandonBtnText}>{t("End plan and start a new screening")}</Text>
           </TouchableOpacity>
         )}
 

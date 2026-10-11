@@ -10,6 +10,7 @@ import KidBackground from "../../components/KidBackground";
 import StatChipRow from "../../components/StatChipRow";
 import ConfettiBurst from "../../components/ConfettiBurst";
 import { auth } from "../../config/firebase";
+import { useT } from "../../i18n";
 import {
   BehaviorLevelId,
   BEHAVIOR_LEVELS,
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export default function BehaviorLevelCompleteScreen({ navigation, route }: Props) {
+  const { t } = useT();
   const level = route.params.level;
   const config = getBehaviorLevel(level);
   const nextLevel = BEHAVIOR_LEVELS.find((l) => l.id === ((level + 1) as BehaviorLevelId));
@@ -118,7 +120,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
 
       <View style={styles.header}>
         <View style={{ width: 40 }} />
-        <Text style={styles.headerTitle}>Level Complete</Text>
+        <Text style={styles.headerTitle}>{t("Level Complete")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -135,10 +137,10 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
             <Animated.View style={[styles.heroIconWrap, { transform: [{ translateY: trophyTranslateY }] }]}>
               <Ionicons name="trophy" size={52} color="#fff" />
             </Animated.View>
-            <Text style={styles.heroKicker}>Level {level} finished!</Text>
-            <Text style={styles.heroTitle}>{config.title}</Text>
+            <Text style={styles.heroKicker}>{t("Level {n} finished!", { n: level })}</Text>
+            <Text style={styles.heroTitle}>{t(config.title)}</Text>
             <Text style={styles.heroSub}>
-              You completed all {behaviorLevelTaskCount(level)} activities. Great focus!
+              {t("You completed all {n} activities. Great focus!", { n: behaviorLevelTaskCount(level) })}
             </Text>
           </LinearGradient>
         </Animated.View>
@@ -147,9 +149,9 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
         {levelScore && (
           <StatChipRow
             chips={[
-              { icon: "star", label: "Score", value: `${levelScore.score}`, color: "#0891B2", bg: "#ECFEFF", border: "#CFFAFE" },
-              { icon: "checkmark-circle", label: "Done", value: `${levelScore.lowRiskCount}/${levelScore.taskCount}`, color: "#059669", bg: "#ECFDF5", border: "#BBF7D0" },
-              { icon: "flag", label: "Level", value: `${level}`, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
+              { icon: "star", label: t("Score"), value: `${levelScore.score}`, color: "#0891B2", bg: "#ECFEFF", border: "#CFFAFE" },
+              { icon: "checkmark-circle", label: t("Done"), value: `${levelScore.lowRiskCount}/${levelScore.taskCount}`, color: "#059669", bg: "#ECFDF5", border: "#BBF7D0" },
+              { icon: "flag", label: t("Level"), value: `${level}`, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
             ]}
           />
         )}
@@ -165,8 +167,8 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
               <Ionicons name="lock-open" size={20} color="#fff" />
             </LinearGradient>
             <View style={{ flex: 1 }}>
-              <Text style={styles.unlockTitle}>Level {nextLevel.id} unlocked — {nextLevel.title}</Text>
-              <Text style={styles.unlockSub}>{nextLevel.description}</Text>
+              <Text style={styles.unlockTitle}>{t("Level {n} unlocked — {title}", { n: nextLevel.id, title: t(nextLevel.title) })}</Text>
+              <Text style={styles.unlockSub}>{t(nextLevel.description)}</Text>
             </View>
           </View>
         ) : (
@@ -175,8 +177,8 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
               <Ionicons name="checkmark-done" size={20} color="#059669" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.unlockTitle}>All levels complete!</Text>
-              <Text style={styles.unlockSub}>You finished every activity. Time to see the results.</Text>
+              <Text style={styles.unlockTitle}>{t("All levels complete!")}</Text>
+              <Text style={styles.unlockSub}>{t("You finished every activity. Time to see the results.")}</Text>
             </View>
           </View>
         )}
@@ -186,9 +188,9 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
           <TouchableOpacity style={styles.saveFailCard} activeOpacity={0.8} onPress={saveProgress}>
             <Ionicons name="cloud-offline-outline" size={18} color="#EF4444" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.saveFailTitle}>Progress not saved</Text>
+              <Text style={styles.saveFailTitle}>{t("Progress not saved")}</Text>
               <Text style={styles.saveFailSub}>
-                This level may be locked again next time you log in. Tap to try again.
+                {t("This level may be locked again next time you log in. Tap to try again.")}
               </Text>
             </View>
             <Ionicons name="refresh" size={18} color="#EF4444" />
@@ -206,7 +208,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
               onPress={() => go(() => navigation.replace("BehaviorSummary"))}
               disabled={saving}
             >
-              <Text style={styles.primaryBtnText}>View Full Summary</Text>
+              <Text style={styles.primaryBtnText}>{t("View Full Summary")}</Text>
               <Ionicons name="bar-chart-outline" size={18} color="#fff" />
             </TouchableOpacity>
           </LinearGradient>
@@ -218,7 +220,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
               onPress={startNextLevel}
               disabled={saving}
             >
-              <Text style={styles.primaryBtnText}>Start Level {nextLevel!.id}</Text>
+              <Text style={styles.primaryBtnText}>{t("Start Level {n}", { n: nextLevel!.id })}</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" />
             </TouchableOpacity>
           </LinearGradient>
@@ -232,7 +234,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
             disabled={saving}
           >
             <Ionicons name="stats-chart-outline" size={18} color="#64748B" />
-            <Text style={styles.secondaryBtnText}>See results so far</Text>
+            <Text style={styles.secondaryBtnText}>{t("See results so far")}</Text>
           </TouchableOpacity>
         )}
 
@@ -242,7 +244,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
           onPress={() => go(() => navigation.replace("BehaviorLevels"))}
           disabled={saving}
         >
-          <Text style={styles.linkBtnText}>Back to levels</Text>
+          <Text style={styles.linkBtnText}>{t("Back to levels")}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

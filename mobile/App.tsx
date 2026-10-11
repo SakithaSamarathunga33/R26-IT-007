@@ -10,6 +10,7 @@ import {
   Outfit_800ExtraBold,
 } from "@expo-google-fonts/outfit";
 import AppNavigator from "./src/navigation/AppNavigator";
+import { LanguageProvider } from "./src/i18n";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -30,7 +31,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppNavigator />
+      <LanguageProvider>
+        <AppNavigator />
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

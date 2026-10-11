@@ -11,6 +11,7 @@ import StatChipRow from "../../components/StatChipRow";
 import ConfettiBurst from "../../components/ConfettiBurst";
 import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
 import { auth } from "../../config/firebase";
+import { useT } from "../../i18n";
 import {
   HandwritingLevelId,
   HANDWRITING_LEVELS,
@@ -34,6 +35,7 @@ type Props = {
 };
 
 export default function HandwritingLevelCompleteScreen({ navigation, route }: Props) {
+  const { t } = useT();
   const level = route.params.level;
   const config = getHandwritingLevel(level);
   const nextLevel = HANDWRITING_LEVELS.find((l) => l.id === ((level + 1) as HandwritingLevelId));
@@ -145,7 +147,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
 
       <View style={styles.header}>
         <View style={{ width: 40 }} />
-        <Text style={styles.headerTitle}>Level Complete</Text>
+        <Text style={styles.headerTitle}>{t("Level Complete")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -162,10 +164,10 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
             <Animated.View style={[styles.heroIconWrap, { transform: [{ translateY: trophyTranslateY }] }]}>
               <Ionicons name="trophy" size={52} color="#fff" />
             </Animated.View>
-            <Text style={styles.heroKicker}>Level {level} finished!</Text>
-            <Text style={styles.heroTitle}>{config.title}</Text>
+            <Text style={styles.heroKicker}>{t("Level {n} finished!", { n: level })}</Text>
+            <Text style={styles.heroTitle}>{t(config.title)}</Text>
             <Text style={styles.heroSub}>
-              You completed all {handwritingLevelTaskCount(level)} tasks. Great writing!
+              {t("You completed all {n} tasks. Great writing!", { n: handwritingLevelTaskCount(level) })}
             </Text>
           </LinearGradient>
         </Animated.View>
@@ -174,9 +176,9 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
         {levelResult && (
           <StatChipRow
             chips={[
-              { icon: "star", label: "Score", value: `${levelResult.score}`, color: "#2563EB", bg: "#EFF6FF", border: "#DBEAFE" },
-              { icon: "checkmark-circle", label: "Correct", value: `${levelResult.correct}/${levelResult.total}`, color: "#059669", bg: "#ECFDF5", border: "#BBF7D0" },
-              { icon: "flag", label: "Level", value: `${level}`, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
+              { icon: "star", label: t("Score"), value: `${levelResult.score}`, color: "#2563EB", bg: "#EFF6FF", border: "#DBEAFE" },
+              { icon: "checkmark-circle", label: t("Correct"), value: `${levelResult.correct}/${levelResult.total}`, color: "#059669", bg: "#ECFDF5", border: "#BBF7D0" },
+              { icon: "flag", label: t("Level"), value: `${level}`, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
             ]}
           />
         )}
@@ -188,9 +190,9 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
               <Ionicons name="refresh" size={20} color={config.color} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.unlockTitle}>Let's practise a little more!</Text>
+              <Text style={styles.unlockTitle}>{t("Let's practise a little more!")}</Text>
               <Text style={styles.unlockSub}>
-                Play Level {level} again to get even better{nextLevel ? ` and open Level ${nextLevel.id}` : ""}.
+                {nextLevel ? t("Play Level {n} again to get even better and open Level {next}.", { n: level, next: nextLevel.id }) : t("Play Level {n} again to get even better.", { n: level })}
               </Text>
             </View>
           </View>
@@ -204,8 +206,8 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
               <Ionicons name="lock-open" size={20} color="#fff" />
             </LinearGradient>
             <View style={{ flex: 1 }}>
-              <Text style={styles.unlockTitle}>Level {nextLevel.id} unlocked — {nextLevel.title}</Text>
-              <Text style={styles.unlockSub}>{nextLevel.description}</Text>
+              <Text style={styles.unlockTitle}>{t("Level {n} unlocked — {title}", { n: nextLevel.id, title: t(nextLevel.title) })}</Text>
+              <Text style={styles.unlockSub}>{t(nextLevel.description)}</Text>
             </View>
           </View>
         ) : (
@@ -214,8 +216,8 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
               <Ionicons name="checkmark-done" size={20} color="#059669" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.unlockTitle}>All levels complete!</Text>
-              <Text style={styles.unlockSub}>You finished every writing task. Time to see the results.</Text>
+              <Text style={styles.unlockTitle}>{t("All levels complete!")}</Text>
+              <Text style={styles.unlockSub}>{t("You finished every writing task. Time to see the results.")}</Text>
             </View>
           </View>
         )}
@@ -225,9 +227,9 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
           <TouchableOpacity style={styles.saveFailCard} activeOpacity={0.8} onPress={saveProgress}>
             <Ionicons name="cloud-offline-outline" size={18} color="#EF4444" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.saveFailTitle}>Progress not saved</Text>
+              <Text style={styles.saveFailTitle}>{t("Progress not saved")}</Text>
               <Text style={styles.saveFailSub}>
-                This level may be locked again next time you log in. Tap to try again.
+                {t("This level may be locked again next time you log in. Tap to try again.")}
               </Text>
             </View>
             <Ionicons name="refresh" size={18} color="#EF4444" />
@@ -245,7 +247,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
               onPress={retryLevel}
               disabled={saving}
             >
-              <Text style={styles.primaryBtnText}>Try Level {level} Again</Text>
+              <Text style={styles.primaryBtnText}>{t("Try Level {n} Again", { n: level })}</Text>
               <Ionicons name="refresh" size={18} color="#fff" />
             </TouchableOpacity>
           </LinearGradient>
@@ -257,7 +259,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
               onPress={() => { stopSpeaking(); navigation.replace("HandwritingSummary"); }}
               disabled={saving}
             >
-              <Text style={styles.primaryBtnText}>View Full Summary</Text>
+              <Text style={styles.primaryBtnText}>{t("View Full Summary")}</Text>
               <Ionicons name="bar-chart-outline" size={18} color="#fff" />
             </TouchableOpacity>
           </LinearGradient>
@@ -269,7 +271,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
               onPress={startNextLevel}
               disabled={saving}
             >
-              <Text style={styles.primaryBtnText}>Start Level {nextLevel!.id}</Text>
+              <Text style={styles.primaryBtnText}>{t("Start Level {n}", { n: nextLevel!.id })}</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" />
             </TouchableOpacity>
           </LinearGradient>
@@ -283,7 +285,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
             disabled={saving}
           >
             <Ionicons name="stats-chart-outline" size={18} color="#64748B" />
-            <Text style={styles.secondaryBtnText}>See results so far</Text>
+            <Text style={styles.secondaryBtnText}>{t("See results so far")}</Text>
           </TouchableOpacity>
         )}
 
@@ -293,7 +295,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
           onPress={() => navigation.replace("HandwritingLevels")}
           disabled={saving}
         >
-          <Text style={styles.linkBtnText}>Back to levels</Text>
+          <Text style={styles.linkBtnText}>{t("Back to levels")}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

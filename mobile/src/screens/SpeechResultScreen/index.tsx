@@ -7,6 +7,7 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import { SPEECH_TASKS, getLevel, levelTaskCount, nextIndexInLevel, positionInLevel } from "../../config/speechTasks";
 import { practiceNext } from "../../utils/practiceFlow";
 import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
@@ -26,6 +27,7 @@ const CHEER = {
 };
 
 export default function SpeechResultScreen({ navigation, route }: Props) {
+  const { t } = useT();
   const { taskIndex, retryCount, result, error, practice } = route.params;
   const task = SPEECH_TASKS[taskIndex];
   const level = getLevel(task.level);
@@ -50,8 +52,8 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (spokenRef.current) return;
     spokenRef.current = true;
-    const t = setTimeout(() => speakFeedback("done", { seed: taskIndex }), 700);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => speakFeedback("done", { seed: taskIndex }), 700);
+    return () => clearTimeout(timer);
   }, [taskIndex]);
 
   useEffect(() => () => stopSpeaking(), []);
@@ -85,7 +87,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
 
       <View style={styles.header}>
         <View style={{ width: 40 }} />
-        <Text style={styles.headerTitle}>All Done!</Text>
+        <Text style={styles.headerTitle}>{t("All Done!")}</Text>
         <View style={[styles.levelPill, { backgroundColor: level.bg }]}>
           <Text style={[styles.levelPillText, { color: level.color }]}>
             L{level.id} · {positionInLevel(taskIndex)}/{levelTaskCount(level.id)}
@@ -100,14 +102,14 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
           <View style={styles.riskIconWrap}>
             <Ionicons name={cheer.icon} size={48} color="#fff" />
           </View>
-          <Text style={styles.riskLabel}>{cheer.label}</Text>
-          <Text style={styles.riskSubLabel}>{cheer.sublabel}</Text>
+          <Text style={styles.riskLabel}>{t(cheer.label)}</Text>
+          <Text style={styles.riskSubLabel}>{t(cheer.sublabel)}</Text>
         </LinearGradient>
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <StatCard icon="refresh-outline" label="Tries" value={String(retryCount + 1)} accent="#2563EB" bg="#EFF6FF" />
-          <StatCard icon="text-outline" label="Word" value={task.target_word} accent="#7C3AED" bg="#F5F3FF" />
+          <StatCard icon="refresh-outline" label={t("Tries")} value={String(retryCount + 1)} accent="#2563EB" bg="#EFF6FF" />
+          <StatCard icon="text-outline" label={t("Word")} value={task.target_word} accent="#7C3AED" bg="#F5F3FF" />
         </View>
 
         <View style={{ height: 20 }} />
@@ -115,7 +117,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
         {isLowQuality && (
           <TouchableOpacity style={styles.reRecordBtn} onPress={() => navigation.replace("SpeechRecording", { taskIndex, practice })} activeOpacity={0.8}>
             <Ionicons name="mic-outline" size={18} color="#64748B" />
-            <Text style={styles.reRecordBtnText}>Try Again</Text>
+            <Text style={styles.reRecordBtnText}>{t("Try Again")}</Text>
           </TouchableOpacity>
         )}
 
@@ -123,8 +125,8 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.nextBtnInner} onPress={handleNext} activeOpacity={0.88}>
             <Text style={styles.nextBtnText}>
               {practice
-                ? (practice.remaining.length ? "Next Practice" : "Finish Practice")
-                : isLevelEnd ? `Finish Level ${level.id}` : "Next Activity"}
+                ? (practice.remaining.length ? t("Next Practice") : t("Finish Practice"))
+                : isLevelEnd ? t("Finish Level {n}", { n: level.id }) : t("Next Activity")}
             </Text>
             <Ionicons
               name={practice

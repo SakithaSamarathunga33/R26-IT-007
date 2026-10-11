@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import { auth } from "../../config/firebase";
 import {
   buildSpeechSummary,
@@ -32,6 +33,7 @@ const STEPS = [
 ];
 
 export default function FusionLoadingScreen({ navigation }: Props) {
+  const { t } = useT();
   const childId = auth.currentUser?.uid ?? "unknown";
   // Module predictions and the assessment_sessions doc are keyed by the
   // persistent session id; each fusion run gets its own id for the backend/record.
@@ -114,7 +116,7 @@ export default function FusionLoadingScreen({ navigation }: Props) {
         navigation.replace("FusionRiskSummary", { response, saveFailed });
       }, 600);
     } catch (e: any) {
-      setError(e?.message ?? "Something went wrong. Please try again.");
+      setError(e?.message ?? t("Something went wrong. Please try again."));
     }
   }
 
@@ -130,7 +132,7 @@ export default function FusionLoadingScreen({ navigation }: Props) {
             <View style={styles.errorIconWrap}>
               <Ionicons name="alert-circle" size={48} color="#EF4444" />
             </View>
-            <Text style={styles.errorTitle}>Analysis Failed</Text>
+            <Text style={styles.errorTitle}>{t("Analysis Failed")}</Text>
             <Text style={styles.errorMsg}>{error}</Text>
           </View>
         </LinearGradient>
@@ -163,8 +165,8 @@ export default function FusionLoadingScreen({ navigation }: Props) {
             <Ionicons name="git-merge" size={44} color="#fff" />
           </Animated.View>
 
-          <Text style={styles.title}>Analysing Results</Text>
-          <Text style={styles.subtitle}>Preparing your final screening summary</Text>
+          <Text style={styles.title}>{t("Analysing Results")}</Text>
+          <Text style={styles.subtitle}>{t("Preparing your final screening summary")}</Text>
 
           {/* Step progress */}
           <View style={styles.stepsWrap}>
@@ -172,7 +174,7 @@ export default function FusionLoadingScreen({ navigation }: Props) {
               <View key={i} style={[styles.stepRow, i > step && styles.stepRowFuture]}>
                 <View style={[styles.stepDot, i < step && styles.stepDotDone, i === step && styles.stepDotActive]} />
                 <Text style={[styles.stepText, i === step && styles.stepTextActive, i < step && styles.stepTextDone]}>
-                  {s}
+                  {t(s)}
                 </Text>
               </View>
             ))}

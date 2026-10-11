@@ -8,6 +8,7 @@ import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
 import { auth } from "../../config/firebase";
+import { useT } from "../../i18n";
 import { SPEECH_LEVELS, SpeechLevel, levelTaskCount, taskIndicesForLevel } from "../../config/speechTasks";
 import { clearModulePredictions } from "../../services/sessionService";
 import {
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export default function SpeechLevelsScreen({ navigation }: Props) {
+  const { t } = useT();
   const [progress, setProgress] = useState<SpeechLevelProgress>({ completed: [] });
   const [loading, setLoading] = useState(true);
 
@@ -70,7 +72,7 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Choose a Level</Text>
+        <Text style={styles.headerTitle}>{t("Choose a Level")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -82,9 +84,9 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
               <Ionicons name="trophy-outline" size={20} color="#2563EB" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.progressTitle}>Your Progress</Text>
+              <Text style={styles.progressTitle}>{t("Your Progress")}</Text>
               <Text style={styles.progressSub}>
-                {completedCount} of {SPEECH_LEVELS.length} levels complete
+                {t("{done} of {total} levels complete", { done: completedCount, total: SPEECH_LEVELS.length })}
               </Text>
             </View>
             <Text style={styles.progressPct}>
@@ -133,16 +135,16 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
 
                 <View style={styles.levelInfo}>
                   <View style={styles.levelTitleRow}>
-                    <Text style={[styles.levelTitle, !unlocked && styles.textMuted]}>{level.title}</Text>
+                    <Text style={[styles.levelTitle, !unlocked && styles.textMuted]}>{t(level.title)}</Text>
                     {done && (
                       <View style={styles.doneChip}>
                         <Ionicons name="checkmark" size={11} color="#059669" />
-                        <Text style={styles.doneChipText}>Done</Text>
+                        <Text style={styles.doneChipText}>{t("Done")}</Text>
                       </View>
                     )}
                   </View>
                   <Text style={[styles.levelDesc, !unlocked && styles.textMuted]}>
-                    {unlocked ? level.description : `Finish Level ${level.id - 1} to unlock this.`}
+                    {unlocked ? t(level.description) : t("Finish Level {n} to unlock this.", { n: level.id - 1 })}
                   </Text>
 
                   <View style={styles.metaRow}>
@@ -153,12 +155,12 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
                         color={unlocked ? level.color : "#94A3B8"}
                       />
                       <Text style={[styles.metaChipText, { color: unlocked ? level.color : "#94A3B8" }]}>
-                        {level.subtitle}
+                        {t("Level {n}", { n: level.id })}
                       </Text>
                     </View>
                     <View style={styles.metaChipPlain}>
                       <Ionicons name="list-outline" size={11} color="#94A3B8" />
-                      <Text style={styles.metaChipPlainText}>{count} activities</Text>
+                      <Text style={styles.metaChipPlainText}>{t("{n} activities", { n: count })}</Text>
                     </View>
                   </View>
                 </View>
@@ -188,7 +190,7 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
         <View style={styles.noteCard}>
           <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
           <Text style={styles.noteText}>
-            Levels get harder as you go. Each one starts with the app saying the word — listen first, then say it back.
+            {t("Levels get harder as you go. Each one starts with the app saying the word — listen first, then say it back.")}
           </Text>
         </View>
 

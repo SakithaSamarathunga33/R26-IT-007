@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS, HANDWRITING_TASK_COLORS,
   HANDWRITING_LEVELS, HandwritingLevel, HandwritingLevelId,
@@ -85,6 +86,7 @@ function MiniBar({ value, color }: { value: number; color: string }) {
 }
 
 export default function HandwritingSummaryScreen({ navigation }: Props) {
+  const { t } = useT();
   const markedRef = useRef(false);
   const [summary, setSummary] = useState<ModuleSummary | null>(null);
   const [levelProgress, setLevelProgress] = useState<HandwritingLevelProgress>({ completed: [] });
@@ -121,7 +123,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
         {loading ? (
           <ActivityIndicator size="large" color="#2563EB" />
         ) : (
-          <Text style={{ fontFamily: theme.fonts.regular, color: "#64748B" }}>No results found for this session.</Text>
+          <Text style={{ fontFamily: theme.fonts.regular, color: "#64748B" }}>{t("No results found for this session.")}</Text>
         )}
       </View>
     );
@@ -154,7 +156,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Handwriting Summary</Text>
+        <Text style={styles.headerTitle}>{t("Handwriting Summary")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -166,13 +168,13 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
           <View style={styles.overallIconWrap}>
             <Ionicons name={config.icon} size={44} color="#fff" />
           </View>
-          <Text style={styles.overallLabel}>{config.label}</Text>
-          <Text style={styles.overallSub}>{config.sublabel}</Text>
+          <Text style={styles.overallLabel}>{t(config.label)}</Text>
+          <Text style={styles.overallSub}>{t(config.sublabel)}</Text>
           <View style={styles.overallStatsRow}>
             {[
-              { label: "Quality",    value: `${Math.round(avgQuality * 100)}%` },
-              { label: "Shape",      value: `${Math.round(avgSimilarity * 100)}%` },
-              { label: "Completed",  value: `${completedCount}/${attemptedTaskTotal}` },
+              { label: t("Quality"),    value: `${Math.round(avgQuality * 100)}%` },
+              { label: t("Shape"),      value: `${Math.round(avgSimilarity * 100)}%` },
+              { label: t("Completed"),  value: `${completedCount}/${attemptedTaskTotal}` },
             ].map((s, i) => (
               <View key={i} style={[styles.overallStat, i < 2 && styles.overallStatBorder]}>
                 <Text style={styles.overallStatVal}>{s.value}</Text>
@@ -190,10 +192,10 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.partialTitle}>
-                {remainingLevels.length} level{remainingLevels.length > 1 ? "s" : ""} still to go
+                {t(remainingLevels.length > 1 ? "{n} levels still to go" : "{n} level still to go", { n: remainingLevels.length })}
               </Text>
               <Text style={styles.partialSub}>
-                These results cover the levels played so far. Finish Level {nextLevel.id} to complete the writing module.
+                {t("These results cover the levels played so far. Finish Level {n} to complete the writing module.", { n: nextLevel.id })}
               </Text>
             </View>
           </View>
@@ -202,7 +204,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
         {/* Risk score bar */}
         <View style={styles.probCard}>
           <View style={styles.probHeader}>
-            <Text style={styles.probTitle}>Overall Handwriting Risk Score</Text>
+            <Text style={styles.probTitle}>{t("Overall Handwriting Risk Score")}</Text>
             <Text style={[styles.probValue, { color: RISK_COLORS[overallLevel] }]}>
               {Math.round(avgProb * 100)}%
             </Text>
@@ -214,7 +216,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             />
           </View>
-          <Text style={styles.probNote}>Based on {completedCount} completed tasks</Text>
+          <Text style={styles.probNote}>{t("Based on {n} completed tasks", { n: completedCount })}</Text>
         </View>
 
         {/* Reversal indicator */}
@@ -223,15 +225,15 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
             <Ionicons name="swap-horizontal-outline" size={18} color={totalReversals >= 2 ? "#EF4444" : "#D97706"} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.reversalTitle, { color: totalReversals >= 2 ? "#991B1B" : "#92400E" }]}>
-                Letter reversal detected in {totalReversals} task{totalReversals > 1 ? "s" : ""}
+                {t(totalReversals > 1 ? "Letter reversal noticed in {n} tasks" : "Letter reversal noticed in {n} task", { n: totalReversals })}
               </Text>
-              <Text style={styles.reversalSub}>b/d/p/q confusion is a common early dyslexia indicator.</Text>
+              <Text style={styles.reversalSub}>{t("b/d/p/q confusion can be an early sign worth reviewing.")}</Text>
             </View>
           </View>
         )}
 
         {/* Task breakdown, grouped by level */}
-        <Text style={styles.sectionLabel}>Task Breakdown</Text>
+        <Text style={styles.sectionLabel}>{t("Task Breakdown")}</Text>
         {groups.map((group) => (
           <View key={group.level.id} style={styles.levelGroup}>
             <View style={styles.levelGroupHeader}>
@@ -269,12 +271,12 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
                     </View>
                     <View style={styles.breakdownInfo}>
                       <Text style={styles.breakdownTask}>{typeLabel}</Text>
-                      <Text style={styles.breakdownWord}>{text ? `"${text}"` : "Handwriting sample"}</Text>
+                      <Text style={styles.breakdownWord}>{text ? `"${text}"` : t("Handwriting sample")}</Text>
                       <MiniBar value={quality} color={tc.color} />
                     </View>
                     <View style={[styles.riskPill, { backgroundColor: RISK_BG[row.risk_level], borderColor: RISK_BORDER[row.risk_level] }]}>
                       <Text style={[styles.riskPillText, { color: rc }]}>
-                        {row.risk_level === "requires_review" ? "review" : row.risk_level}
+                        {t(row.risk_level === "requires_review" ? "review" : row.risk_level)}
                       </Text>
                     </View>
                   </View>
@@ -288,7 +290,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
         <View style={styles.disclaimerCard}>
           <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
           <Text style={styles.disclaimerText}>
-            These results are screening indicators only. They are not a diagnosis. Please consult a qualified professional for a full evaluation. The handwriting result is one part of the multi-modal assessment.
+            {t("These results are screening indicators only. They are not a diagnosis. Please consult a qualified professional for a full evaluation. The handwriting result is one part of the multi-modal assessment.")}
           </Text>
         </View>
 
@@ -303,7 +305,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
               onPress={() => navigation.navigate("HandwritingLevels")}
             >
               <Ionicons name="layers-outline" size={20} color="#fff" />
-              <Text style={styles.doneBtnText}>Continue to Level {nextLevel.id}</Text>
+              <Text style={styles.doneBtnText}>{t("Continue to Level {n}", { n: nextLevel.id })}</Text>
             </TouchableOpacity>
           </LinearGradient>
         )}
@@ -319,7 +321,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
             onPress={() => navigation.navigate("MainTabs")}
           >
             <Ionicons name="home-outline" size={20} color="#fff" />
-            <Text style={styles.doneBtnText}>Back to Dashboard</Text>
+            <Text style={styles.doneBtnText}>{t("Back to Dashboard")}</Text>
           </TouchableOpacity>
         </LinearGradient>
 

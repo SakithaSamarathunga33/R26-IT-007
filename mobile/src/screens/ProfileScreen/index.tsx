@@ -24,11 +24,15 @@ import { theme } from "../../theme";
 import { useFocusEffect } from "@react-navigation/native";
 import { getAssessmentHistory } from "../../services/sessionService";
 
+import { useT } from "../../i18n";
+const LANG_NAMES = { EN: "English", SI: "සිංහල", TA: "தமிழ்" } as const;
+
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "MainTabs">;
 };
 
 export default function ProfileScreen({ navigation }: Props) {
+  const { lang, t } = useT();
   const user = auth.currentUser;
 
   const getFirstName = () => user?.displayName?.split(" ")[0] ?? "";
@@ -68,10 +72,10 @@ export default function ProfileScreen({ navigation }: Props) {
   );
 
   const formatDob = (dob: string | null) => {
-    if (!dob) return "Not set";
+    if (!dob) return t("Not set");
     const [y, m, d] = dob.split("-");
     const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return `${parseInt(d)} ${months[parseInt(m) - 1]} ${y}`;
+    return `${parseInt(d)} ${t(months[parseInt(m) - 1])} ${y}`;
   };
 
   const openEdit = () => {
@@ -84,7 +88,7 @@ export default function ProfileScreen({ navigation }: Props) {
     const trimFirst = firstName.trim();
     const trimLast = lastName.trim();
     if (!trimFirst || !trimLast) {
-      Alert.alert("Error", "First name and last name cannot be empty.");
+      Alert.alert(t("Error"), t("First name and last name cannot be empty."));
       return;
     }
     setSaving(true);
@@ -99,7 +103,7 @@ export default function ProfileScreen({ navigation }: Props) {
       setDisplayName(fullName);
       setEditVisible(false);
     } catch (error: any) {
-      Alert.alert("Update Failed", error.message);
+      Alert.alert(t("Update Failed"), error.message);
     } finally {
       setSaving(false);
     }
@@ -116,7 +120,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>{t("Profile")}</Text>
         <TouchableOpacity style={styles.editIconBtn} onPress={openEdit}>
           <Ionicons name="create-outline" size={19} color="#2563EB" />
         </TouchableOpacity>
@@ -138,34 +142,34 @@ export default function ProfileScreen({ navigation }: Props) {
           <Text style={styles.avatarEmail}>{user?.email}</Text>
           <TouchableOpacity style={styles.editNameBtn} onPress={openEdit} activeOpacity={0.8}>
             <Ionicons name="create-outline" size={13} color="#fff" />
-            <Text style={styles.editNameText}>Edit Name</Text>
+            <Text style={styles.editNameText}>{t("Edit Name")}</Text>
           </TouchableOpacity>
         </LinearGradient>
 
         {/* Stats */}
         <View style={styles.statsCard}>
-          <StatItem value={reportCount === null ? "…" : String(reportCount)} label="Sessions" icon="clipboard-outline" color="#2563EB" bg="#EFF6FF" />
+          <StatItem value={reportCount === null ? "…" : String(reportCount)} label={t("Sessions")} icon="clipboard-outline" color="#2563EB" bg="#EFF6FF" />
           <View style={styles.statsDivider} />
-          <StatItem value={reportCount === null ? "…" : String(reportCount)} label="Reports" icon="bar-chart-outline" color="#7C3AED" bg="#F5F3FF" />
+          <StatItem value={reportCount === null ? "…" : String(reportCount)} label={t("Reports")} icon="bar-chart-outline" color="#7C3AED" bg="#F5F3FF" />
           <View style={styles.statsDivider} />
-          <StatItem value="Active" label="Status" icon="checkmark-circle-outline" color="#059669" bg="#ECFDF5" />
+          <StatItem value={t("Active")} label={t("Status")} icon="checkmark-circle-outline" color="#059669" bg="#ECFDF5" />
         </View>
 
         {/* Account */}
-        <Text style={styles.sectionLabel}>Account</Text>
+        <Text style={styles.sectionLabel}>{t("Account")}</Text>
         <View style={styles.card}>
-          <SettingsRow icon="mail-outline" iconColor="#2563EB" iconBg="#EFF6FF" label="Email Address" value={user?.email ?? "—"} />
-          <SettingsRow icon="calendar-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label="Date of Birth" value={formatDob(dateOfBirth)} />
-          <SettingsRow icon="shield-checkmark-outline" iconColor="#059669" iconBg="#ECFDF5" label="Account Status" value="Verified" />
-          <SettingsRow icon="notifications-outline" iconColor="#D97706" iconBg="#FFFBEB" label="Notifications" value="On" last />
+          <SettingsRow icon="mail-outline" iconColor="#2563EB" iconBg="#EFF6FF" label={t("Email Address")} value={user?.email ?? "—"} />
+          <SettingsRow icon="calendar-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label={t("Date of Birth")} value={formatDob(dateOfBirth)} />
+          <SettingsRow icon="shield-checkmark-outline" iconColor="#059669" iconBg="#ECFDF5" label={t("Account Status")} value={t("Verified")} />
+          <SettingsRow icon="notifications-outline" iconColor="#D97706" iconBg="#FFFBEB" label={t("Notifications")} value={t("On")} last />
         </View>
 
         {/* App */}
-        <Text style={styles.sectionLabel}>App</Text>
+        <Text style={styles.sectionLabel}>{t("App")}</Text>
         <View style={styles.card}>
-          <SettingsRow icon="language-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label="Language" value="English" />
-          <SettingsRow icon="color-palette-outline" iconColor="#0891B2" iconBg="#ECFEFF" label="Theme" value="Light" />
-          <SettingsRow icon="information-circle-outline" iconColor="#94A3B8" iconBg="#F1F5F9" label="Version" value="v1.1.0" last />
+          <SettingsRow icon="language-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label={t("Language")} value={LANG_NAMES[lang]} />
+          <SettingsRow icon="color-palette-outline" iconColor="#0891B2" iconBg="#ECFEFF" label={t("Theme")} value={t("Light")} />
+          <SettingsRow icon="information-circle-outline" iconColor="#94A3B8" iconBg="#F1F5F9" label={t("Version")} value="v1.1.0" last />
         </View>
 
         {/* Sign out */}
@@ -173,7 +177,7 @@ export default function ProfileScreen({ navigation }: Props) {
           <View style={styles.logoutIconWrap}>
             <Ionicons name="log-out-outline" size={18} color="#EF4444" />
           </View>
-          <Text style={styles.logoutText}>Sign Out</Text>
+          <Text style={styles.logoutText}>{t("Sign Out")}</Text>
           <Ionicons name="chevron-forward" size={15} color="#EF4444" style={{ marginLeft: "auto" }} />
         </TouchableOpacity>
 
@@ -188,33 +192,33 @@ export default function ProfileScreen({ navigation }: Props) {
             <View style={styles.modalCard}>
               <View style={styles.modalHandle} />
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Edit Name</Text>
+                <Text style={styles.modalTitle}>{t("Edit Name")}</Text>
                 <TouchableOpacity onPress={() => setEditVisible(false)} style={styles.modalCloseBtn}>
                   <Ionicons name="close" size={18} color="#64748B" />
                 </TouchableOpacity>
               </View>
               <View style={styles.nameRow}>
                 <View style={styles.nameField}>
-                  <Text style={styles.inputLabel}>First Name</Text>
+                  <Text style={styles.inputLabel}>{t("First Name")}</Text>
                   <TextInput
                     style={[styles.input, focusedField === "first" && styles.inputFocused]}
                     value={firstName}
                     onChangeText={setFirstName}
                     autoCapitalize="words"
-                    placeholder="First"
+                    placeholder={t("First")}
                     placeholderTextColor="#9CA3AF"
                     onFocus={() => setFocusedField("first")}
                     onBlur={() => setFocusedField(null)}
                   />
                 </View>
                 <View style={styles.nameField}>
-                  <Text style={styles.inputLabel}>Last Name</Text>
+                  <Text style={styles.inputLabel}>{t("Last Name")}</Text>
                   <TextInput
                     style={[styles.input, focusedField === "last" && styles.inputFocused]}
                     value={lastName}
                     onChangeText={setLastName}
                     autoCapitalize="words"
-                    placeholder="Last"
+                    placeholder={t("Last")}
                     placeholderTextColor="#9CA3AF"
                     onFocus={() => setFocusedField("last")}
                     onBlur={() => setFocusedField(null)}
@@ -232,7 +236,7 @@ export default function ProfileScreen({ navigation }: Props) {
                 ) : (
                   <>
                     <Ionicons name="checkmark" size={16} color="#fff" />
-                    <Text style={styles.saveBtnText}>Save Changes</Text>
+                    <Text style={styles.saveBtnText}>{t("Save Changes")}</Text>
                   </>
                 )}
               </TouchableOpacity>

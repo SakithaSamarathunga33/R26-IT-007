@@ -9,6 +9,7 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionRiskSummary">;
@@ -61,6 +62,7 @@ const RISK_CONFIG = {
 const RELIABILITY_COLORS = { high: "#059669", medium: "#D97706", low: "#EF4444" };
 
 export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
+  const { t } = useT();
   const { response, saveFailed } = route.params;
   const fp = response.final_prediction ?? {};
   const quality = response.quality;
@@ -89,7 +91,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Final Risk Summary</Text>
+        <Text style={styles.headerTitle}>{t("Final Risk Summary")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -101,22 +103,22 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           <View style={styles.resultIconWrap}>
             <Ionicons name={config.icon} size={48} color="#fff" />
           </View>
-          <Text style={styles.resultTitle}>{config.title}</Text>
-          <Text style={styles.resultMsg}>{config.message}</Text>
+          <Text style={styles.resultTitle}>{t(config.title)}</Text>
+          <Text style={styles.resultMsg}>{t(config.message)}</Text>
 
           {/* Score row */}
           <View style={styles.scoreRow}>
             <View style={[styles.scoreStat, styles.scoreStatBorder]}>
               <Text style={styles.scoreVal}>{insufficient ? "—" : `${score}%`}</Text>
-              <Text style={styles.scoreLabel}>Risk Score</Text>
+              <Text style={styles.scoreLabel}>{t("Risk Score")}</Text>
             </View>
             <View style={[styles.scoreStat, styles.scoreStatBorder]}>
-              <Text style={styles.scoreVal}>{insufficient ? "—" : level.charAt(0).toUpperCase() + level.slice(1)}</Text>
-              <Text style={styles.scoreLabel}>Risk Level</Text>
+              <Text style={styles.scoreVal}>{insufficient ? "—" : t(level.charAt(0).toUpperCase() + level.slice(1))}</Text>
+              <Text style={styles.scoreLabel}>{t("Risk Level")}</Text>
             </View>
             <View style={styles.scoreStat}>
-              <Text style={styles.scoreVal}>{reliability.charAt(0).toUpperCase() + reliability.slice(1)}</Text>
-              <Text style={styles.scoreLabel}>Reliability</Text>
+              <Text style={styles.scoreVal}>{t(reliability.charAt(0).toUpperCase() + reliability.slice(1))}</Text>
+              <Text style={styles.scoreLabel}>{t("Reliability")}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -124,7 +126,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
         {saveFailed && (
           <View style={styles.warningCard}>
             <Ionicons name="cloud-offline-outline" size={18} color="#D97706" />
-            <Text style={styles.warningText}>These results could not be saved to your profile, so they won't appear in History.</Text>
+            <Text style={styles.warningText}>{t("These results could not be saved to your profile, so they won't appear in History.")}</Text>
           </View>
         )}
 
@@ -132,7 +134,9 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           <View style={styles.warningCard}>
             <Ionicons name="eye-outline" size={18} color="#D97706" />
             <Text style={styles.warningText}>
-              Review recommended{response.disagreement_indicator?.flagged ? " — the activities gave noticeably different results" : ""}. Please go over this screening with a teacher or specialist.
+              {response.disagreement_indicator?.flagged
+                ? t("Review recommended — the activities gave noticeably different results. Please go over this screening with a teacher or specialist.")
+                : t("Review recommended. Please go over this screening with a teacher or specialist.")}
             </Text>
           </View>
         )}
@@ -141,25 +145,25 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
         {!insufficient && (
         <View style={styles.probCard}>
           <View style={styles.probHeader}>
-            <Text style={styles.probTitle}>Overall Dyslexia Risk Score</Text>
+            <Text style={styles.probTitle}>{t("Overall Dyslexia Risk Score")}</Text>
             <Text style={[styles.probValue, { color: config.accentColor }]}>{score}%</Text>
           </View>
           <View style={styles.probTrack}>
             <View style={[styles.probFill, { width: `${score}%` as any, backgroundColor: config.accentColor }]} />
           </View>
           <View style={styles.probThresholdRow}>
-            <Text style={styles.probNote}>Decision threshold: 35%</Text>
+            <Text style={styles.probNote}>{t("Decision threshold: 35%")}</Text>
             <View style={styles.thresholdMark} />
           </View>
         </View>
         )}
 
         {/* Module contributions */}
-        <Text style={styles.sectionLabel}>Module Contributions</Text>
+        <Text style={styles.sectionLabel}>{t("Module Contributions")}</Text>
         <View style={styles.modulesCard}>
           {modules.map((m, i) => (
             <View key={i} style={[styles.moduleRow, i < modules.length - 1 && styles.moduleBorder]}>
-              <Text style={styles.moduleName}>{m.label}</Text>
+              <Text style={styles.moduleName}>{t(m.label)}</Text>
               <View style={styles.moduleBarWrap}>
                 <View style={styles.moduleTrack}>
                   <View
@@ -180,7 +184,11 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           ))}
           <View style={styles.weightsRow}>
             <Text style={styles.weightsText}>
-              Weights: Speech {Math.round((fp.weights?.speech_weight ?? 0.4) * 100)}%  ·  Writing {Math.round((fp.weights?.handwriting_weight ?? 0.35) * 100)}%  ·  Behaviour {Math.round((fp.weights?.behavior_weight ?? 0.25) * 100)}%
+              {t("Weights: Speech {s}%  ·  Writing {w}%  ·  Behaviour {b}%", {
+                s: Math.round((fp.weights?.speech_weight ?? 0.4) * 100),
+                w: Math.round((fp.weights?.handwriting_weight ?? 0.35) * 100),
+                b: Math.round((fp.weights?.behavior_weight ?? 0.25) * 100),
+              })}
             </Text>
           </View>
         </View>
@@ -190,7 +198,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           <View style={styles.warningCard}>
             <Ionicons name="warning-outline" size={18} color="#D97706" />
             <Text style={styles.warningText}>
-              Fusion reliability is low due to one or more module outputs having low quality. Consider repeating the affected modules for a more accurate result.
+              {t("Fusion reliability is low due to one or more module outputs having low quality. Consider repeating the affected modules for a more accurate result.")}
             </Text>
           </View>
         )}
@@ -211,7 +219,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
         <View style={styles.disclaimerCard}>
           <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
           <Text style={styles.disclaimerText}>
-            This is a <Text style={styles.disclaimerBold}>screening risk indicator only</Text> — not a clinical diagnosis. The result combines speech, handwriting, and behaviour modules. Please consult a qualified professional for a full evaluation.
+            <Text style={styles.disclaimerBold}>{t("This is a screening risk indicator only, not a clinical diagnosis.")}</Text>{" "}{t("The result combines speech, handwriting, and behaviour modules. Please consult a qualified professional for a full evaluation.")}
           </Text>
         </View>
 
@@ -226,7 +234,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
               onPress={() => navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] })}
             >
               <Ionicons name="home-outline" size={20} color="#fff" />
-              <Text style={styles.primaryBtnText}>Back to Dashboard</Text>
+              <Text style={styles.primaryBtnText}>{t("Back to Dashboard")}</Text>
             </TouchableOpacity>
           </LinearGradient>
         ) : (
@@ -238,7 +246,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
             onPress={() => navigation.navigate("FusionDifficulty", { response })}
           >
             <Ionicons name="layers-outline" size={20} color="#fff" />
-            <Text style={styles.primaryBtnText}>View Difficulty Breakdown</Text>
+            <Text style={styles.primaryBtnText}>{t("View Difficulty Breakdown")}</Text>
           </TouchableOpacity>
         </LinearGradient>
 
@@ -248,7 +256,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           onPress={() => navigation.navigate("FusionTherapy", { response })}
         >
           <Ionicons name="fitness-outline" size={18} color="#2563EB" />
-          <Text style={styles.secondaryBtnText}>View Therapy Plan</Text>
+          <Text style={styles.secondaryBtnText}>{t("View Therapy Plan")}</Text>
         </TouchableOpacity>
         </>
         )}

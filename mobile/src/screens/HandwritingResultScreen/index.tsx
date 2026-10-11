@@ -7,6 +7,7 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
   getHandwritingLevel, handwritingLevelTaskCount,
@@ -32,6 +33,7 @@ const FEEDBACK = {
 };
 
 export default function HandwritingResultScreen({ navigation, route }: Props) {
+  const { t } = useT();
   const { taskIndex, retryCount, durationSec, result, error, practice } = route.params;
   const task = HANDWRITING_TASKS[taskIndex];
   const level = getHandwritingLevel(task.level);
@@ -66,8 +68,8 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (spokenRef.current) return;
     spokenRef.current = true;
-    const t = setTimeout(() => speakFeedback("done", { seed: taskIndex }), 700);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => speakFeedback("done", { seed: taskIndex }), 700);
+    return () => clearTimeout(timer);
   }, [taskIndex]);
 
   useEffect(() => () => stopSpeaking(), []);
@@ -104,10 +106,10 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
 
       <View style={styles.header}>
         <View style={{ width: 40 }} />
-        <Text style={styles.headerTitle}>Activity Result</Text>
+        <Text style={styles.headerTitle}>{t("Activity Result")}</Text>
         <View style={[styles.levelPill, { backgroundColor: level.bg }]}>
           <Text style={[styles.levelPillText, { color: level.color }]}>
-            {position ? `L${level.id} · ${position}/${handwritingLevelTaskCount(level.id)}` : "Bonus"}
+            {position ? `L${level.id} · ${position}/${handwritingLevelTaskCount(level.id)}` : t("Bonus")}
           </Text>
         </View>
       </View>
@@ -120,8 +122,8 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
           <View style={styles.riskIconWrap}>
             <Ionicons name={config.icon} size={48} color="#fff" />
           </View>
-          <Text style={styles.riskLabel}>{config.label}</Text>
-          <Text style={styles.riskSub}>{config.sublabel}</Text>
+          <Text style={styles.riskLabel}>{t(config.label)}</Text>
+          <Text style={styles.riskSub}>{t(config.sublabel)}</Text>
         </LinearGradient>
 
         {/* Reliability / validation warnings */}
@@ -129,7 +131,7 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
           <View style={[styles.alertCard, { backgroundColor: "#FFFBEB", borderColor: "#FEF3C7" }]}>
             <Ionicons name="alert-circle-outline" size={18} color="#D97706" />
             <Text style={[styles.alertText, { color: "#92400E" }]}>
-              The handwriting image was not clear enough for a reliable result. Please retake or rewrite if possible.
+              {t("The handwriting image was not clear enough for a reliable result. Please retake or rewrite if possible.")}
             </Text>
           </View>
         )}
@@ -137,18 +139,18 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
           <View style={[styles.alertCard, { backgroundColor: "#FFFBEB", borderColor: "#FEF3C7" }]}>
             <Ionicons name="eye-off-outline" size={18} color="#D97706" />
             <Text style={[styles.alertText, { color: "#92400E" }]}>
-              The system could not confidently read the target text. This is common with children's handwriting.
+              {t("The system could not confidently read the target text. This is common with children's handwriting.")}
             </Text>
           </View>
         )}
         {/* Activity stats */}
         <View style={styles.statsCard}>
-          <Text style={styles.sectionLabel}>Activity Stats</Text>
+          <Text style={styles.sectionLabel}>{t("Activity Stats")}</Text>
           {[
-            { icon: "text-outline" as const, iconColor: "#2563EB", iconBg: "#EFF6FF", label: "Task type", value: HANDWRITING_TASK_TYPE_LABELS[task.task_type] },
-            { icon: "create-outline" as const, iconColor: "#0891B2", iconBg: "#ECFEFF", label: "Target", value: task.target_text },
-            { icon: "time-outline" as const, iconColor: "#D97706", iconBg: "#FFFBEB", label: "Duration", value: `${durationSec}s` },
-            { icon: "refresh-outline" as const, iconColor: "#7C3AED", iconBg: "#F5F3FF", label: "Rewrites", value: `${retryCount}`, last: true },
+            { icon: "text-outline" as const, iconColor: "#2563EB", iconBg: "#EFF6FF", label: t("Task type"), value: HANDWRITING_TASK_TYPE_LABELS[task.task_type] },
+            { icon: "create-outline" as const, iconColor: "#0891B2", iconBg: "#ECFEFF", label: t("Target"), value: task.target_text },
+            { icon: "time-outline" as const, iconColor: "#D97706", iconBg: "#FFFBEB", label: t("Duration"), value: t("{n}s", { n: durationSec }) },
+            { icon: "refresh-outline" as const, iconColor: "#7C3AED", iconBg: "#F5F3FF", label: t("Rewrites"), value: `${retryCount}`, last: true },
           ].map((row, i) => (
             <View key={i} style={[styles.statsRow, !row.last && styles.statsRowBorder]}>
               <View style={[styles.statsIcon, { backgroundColor: row.iconBg }]}>
@@ -163,7 +165,7 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
         {error && error !== "Skipped" && (
           <View style={styles.errorCard}>
             <Ionicons name="warning-outline" size={16} color="#D97706" />
-            <Text style={styles.errorText}>Analysis unavailable: {error}</Text>
+            <Text style={styles.errorText}>{t("Analysis unavailable: {error}", { error })}</Text>
           </View>
         )}
 
@@ -173,8 +175,8 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.nextBtnInner} onPress={handleNext} activeOpacity={0.88}>
             <Text style={styles.nextBtnText}>
               {practice
-                ? (practice.remaining.length ? "Next Practice" : "Finish Practice")
-                : isLevelEnd ? `Finish Level ${level.id}` : "Next Task"}
+                ? (practice.remaining.length ? t("Next Practice") : t("Finish Practice"))
+                : isLevelEnd ? t("Finish Level {n}", { n: level.id }) : t("Next Task")}
             </Text>
             <Ionicons
               name={practice

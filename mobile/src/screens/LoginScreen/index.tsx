@@ -12,12 +12,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from "../../components/Toast";
 import { theme } from "../../theme";
+import { useT } from "../../i18n";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Login">;
 };
 
 export default function LoginScreen({ navigation }: Props) {
+  const { t } = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,19 +31,19 @@ export default function LoginScreen({ navigation }: Props) {
     setToast({ visible: true, message, type });
 
   const handleLogin = async () => {
-    if (!email || !password) { showToast("Please enter your email and password."); return; }
+    if (!email || !password) { showToast(t("Please enter your email and password.")); return; }
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
     } catch (error: any) {
       if (error.code === "auth/too-many-requests") {
-        showToast("Too many attempts. Please try again later.", "warning");
+        showToast(t("Too many attempts. Please try again later."), "warning");
       } else {
         const msg = error.code === "auth/invalid-credential" || error.code === "auth/wrong-password"
-          ? "Incorrect email or password."
+          ? t("Incorrect email or password.")
           : error.code === "auth/user-not-found"
-          ? "No account found with this email."
+          ? t("No account found with this email.")
           : error.message;
         showToast(msg);
       }
@@ -49,15 +51,15 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   const handleForgotPassword = async () => {
-    if (!email.trim()) { showToast("Enter your email above, then tap Forgot Password."); return; }
+    if (!email.trim()) { showToast(t("Enter your email above, then tap Forgot Password.")); return; }
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      showToast("Password reset link sent. Check your email.", "success");
+      showToast(t("Password reset link sent. Check your email."), "success");
     } catch (error: any) {
       showToast(
-        error.code === "auth/invalid-email" ? "Please enter a valid email address."
-        : error.code === "auth/user-not-found" ? "No account found with this email."
-        : error.code === "auth/too-many-requests" ? "Too many attempts. Please try again later."
+        error.code === "auth/invalid-email" ? t("Please enter a valid email address.")
+        : error.code === "auth/user-not-found" ? t("No account found with this email.")
+        : error.code === "auth/too-many-requests" ? t("Too many attempts. Please try again later.")
         : error.message
       );
     }
@@ -81,12 +83,12 @@ export default function LoginScreen({ navigation }: Props) {
             <Text style={styles.heroBadgeText}>LexiScan</Text>
           </View>
 
-          <Text style={styles.title}>Welcome{"\n"}Back 👋</Text>
-          <Text style={styles.subtitle}>Sign in to continue your screening journey</Text>
+          <Text style={styles.title}>{t("Welcome Back")} 👋</Text>
+          <Text style={styles.subtitle}>{t("Sign in to continue your screening journey")}</Text>
 
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>{t("Email Address")}</Text>
               <View style={[styles.inputWrapper, focusedField === "email" && styles.inputFocused]}>
                 <View style={styles.inputIcon}>
                   <Ionicons name="mail-outline" size={18} color={focusedField === "email" ? "#2563EB" : "#94A3B8"} />
@@ -106,14 +108,14 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>{t("Password")}</Text>
               <View style={[styles.inputWrapper, focusedField === "password" && styles.inputFocused]}>
                 <View style={styles.inputIcon}>
                   <Ionicons name="lock-closed-outline" size={18} color={focusedField === "password" ? "#2563EB" : "#94A3B8"} />
                 </View>
                 <TextInput
                   style={styles.inputInner}
-                  placeholder="Your password"
+                  placeholder={t("Your password")}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -129,14 +131,14 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
 
             <TouchableOpacity style={styles.forgotRow} onPress={handleForgotPassword} disabled={loading}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
+              <Text style={styles.forgotText}>{t("Forgot Password?")}</Text>
             </TouchableOpacity>
 
             <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.primaryButton} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
               <TouchableOpacity style={styles.primaryButtonInner} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
                 {loading ? <ActivityIndicator color="#fff" /> : (
                   <>
-                    <Text style={styles.primaryButtonText}>Sign In</Text>
+                    <Text style={styles.primaryButtonText}>{t("Sign In")}</Text>
                     <Ionicons name="arrow-forward" size={18} color="#fff" />
                   </>
                 )}
@@ -147,14 +149,14 @@ export default function LoginScreen({ navigation }: Props) {
           {/* Divider */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
+            <Text style={styles.dividerText}>{t("or")}</Text>
             <View style={styles.dividerLine} />
           </View>
 
           <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Text style={styles.footerText}>{t("Don't have an account?")} </Text>
             <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
-              <Text style={styles.footerLink}>Sign Up</Text>
+              <Text style={styles.footerLink}>{t("Sign Up")}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
