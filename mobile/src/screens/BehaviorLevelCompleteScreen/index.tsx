@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated } from "react-native";
+import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -7,6 +7,8 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import StatChipRow from "../../components/StatChipRow";
+import ConfettiBurst from "../../components/ConfettiBurst";
 import { auth } from "../../config/firebase";
 import {
   BehaviorLevelId,
@@ -21,7 +23,7 @@ import {
 } from "../../services/behaviorLevelService";
 import { stopSpeaking } from "../../services/ttsService";
 import { speakFeedback } from "../../services/kidFeedback";
-import { playNextSound, playSuccessSound } from "../../services/kidSounds";
+import { useLevelScore } from "../../services/summaryService";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorLevelComplete">;
@@ -36,6 +38,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
 
   const [saving, setSaving] = useState(true);
   const [saveFailed, setSaveFailed] = useState(false);
+  const levelScore = useLevelScore("behavior_predictions", level, "BehaviorLevels");
   const popAnim = useRef(new Animated.Value(0)).current;
   const praisedRef = useRef(false);
 
@@ -62,7 +65,6 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
   useEffect(() => {
     if (praisedRef.current) return;
     praisedRef.current = true;
-    playSuccessSound();
     const t = setTimeout(
       () => speakFeedback("levelDone", {
         seed: level,
@@ -81,12 +83,26 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
 
   const scale = popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
 
-  const go = (fn: () => void) => { stopSpeaking(); playNextSound(); fn(); };
+  // A gentle continuous bounce on the trophy so the hero card feels alive,
+  // not just a one-time pop-in.
+  const trophyBounce = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(trophyBounce, { toValue: 1, duration: 650, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(trophyBounce, { toValue: 0, duration: 650, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [trophyBounce]);
+  const trophyTranslateY = trophyBounce.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
+
+  const go = (fn: () => void) => { stopSpeaking(); fn(); };
 
   const startNextLevel = async () => {
     if (!nextLevel) return;
     stopSpeaking();
-    playNextSound();
     const uid = auth.currentUser?.uid;
     // Drop any rows this level left behind on an earlier run so a replay doesn't
     // stack duplicates in the summary.
@@ -97,6 +113,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
   return (
     <View style={styles.container}>
       <KidBackground variant="celebration" />
+      <ConfettiBurst />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
       <View style={styles.header}>
@@ -115,9 +132,9 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
           >
             <View style={styles.decoCircle1} />
             <View style={styles.decoCircle2} />
-            <View style={styles.heroIconWrap}>
+            <Animated.View style={[styles.heroIconWrap, { transform: [{ translateY: trophyTranslateY }] }]}>
               <Ionicons name="trophy" size={52} color="#fff" />
-            </View>
+            </Animated.View>
             <Text style={styles.heroKicker}>Level {level} finished!</Text>
             <Text style={styles.heroTitle}>{config.title}</Text>
             <Text style={styles.heroSub}>
@@ -125,6 +142,17 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
             </Text>
           </LinearGradient>
         </Animated.View>
+
+        {/* Stat chips — score, activities done, level number */}
+        {levelScore && (
+          <StatChipRow
+            chips={[
+              { icon: "star", label: "Score", value: `${levelScore.score}`, color: "#0891B2", bg: "#ECFEFF", border: "#CFFAFE" },
+              { icon: "checkmark-circle", label: "Done", value: `${levelScore.lowRiskCount}/${levelScore.taskCount}`, color: "#059669", bg: "#ECFDF5", border: "#BBF7D0" },
+              { icon: "flag", label: "Level", value: `${level}`, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
+            ]}
+          />
+        )}
 
         {/* Unlock notice */}
         {nextLevel ? (

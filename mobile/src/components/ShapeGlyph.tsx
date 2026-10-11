@@ -17,6 +17,23 @@ export type ShapeName =
   | "Hexagon"
   | "Star";
 
+/** A bright, distinct color per shape so kids can tell shapes apart at a glance. */
+export const SHAPE_COLORS: Record<string, string> = {
+  circle: "#EF4444",
+  oval: "#F97316",
+  square: "#2563EB",
+  rectangle: "#0EA5E9",
+  triangle: "#F59E0B",
+  diamond: "#A855F7",
+  pentagon: "#059669",
+  hexagon: "#0891B2",
+  star: "#EAB308",
+};
+
+export function shapeColor(shape: string): string {
+  return SHAPE_COLORS[shape.trim().toLowerCase()] ?? "#7C3AED";
+}
+
 interface Props {
   shape: string;
   size?: number;
@@ -50,10 +67,11 @@ function starPolygon(points: number, size: number, pad: number): string {
   return pts.join(" ");
 }
 
-export default function ShapeGlyph({ shape, size = 96, color = "#7C3AED", filled = true }: Props) {
+export default function ShapeGlyph({ shape, size = 96, color, filled = true }: Props) {
   const s = size;
-  const fill = filled ? color : "none";
-  const stroke = color;
+  const resolvedColor = color ?? shapeColor(shape);
+  const fill = filled ? resolvedColor : "none";
+  const stroke = resolvedColor;
   const strokeWidth = filled ? 0 : Math.max(3, s * 0.07);
   const pad = strokeWidth / 2 + 2;
   const key = shape.trim().toLowerCase();

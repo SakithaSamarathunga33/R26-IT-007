@@ -6,7 +6,6 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 import {
   BEHAVIOR_TASKS, BEHAVIOR_TASK_TYPE_LABELS, BEHAVIOR_TASK_COLORS,
   BEHAVIOR_LEVELS, BehaviorLevel, BehaviorLevelId,
@@ -280,7 +279,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.doneBtnInner}
               activeOpacity={0.88}
-              onPress={() => { playNextSound(); navigation.navigate("BehaviorLevels"); }}
+              onPress={() => navigation.navigate("BehaviorLevels")}
             >
               <Ionicons name="layers-outline" size={20} color="#fff" />
               <Text style={styles.doneBtnText}>Continue to Level {nextLevel.id}</Text>
@@ -296,7 +295,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.doneBtnInner}
             activeOpacity={0.88}
-            onPress={() => { playNextSound(); navigation.navigate("MainTabs"); }}
+            onPress={() => navigation.navigate("MainTabs")}
           >
             <Ionicons name="home-outline" size={20} color="#fff" />
             <Text style={styles.doneBtnText}>Back to Dashboard</Text>

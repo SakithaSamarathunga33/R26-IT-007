@@ -12,7 +12,6 @@ import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
 import ShapeGlyph from "../../components/ShapeGlyph";
-import { playNextSound, playTapSound } from "../../services/kidSounds";
 import { auth, db } from "../../config/firebase";
 import {
   BEHAVIOR_TASKS, BEHAVIOR_TASK_TYPE_LABELS, BEHAVIOR_TASK_TYPE_ICONS, BEHAVIOR_TASK_COLORS,
@@ -114,7 +113,6 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
   const handleOptionTap = (option: string) => {
     if (activityState !== "active" || submitting) return;
-    playTapSound();
     const now = Date.now();
     if (!firstTapRef.current) firstTapRef.current = now;
     const isCorrect = option === task.correct_answer;
@@ -153,7 +151,6 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
   const handleSubmit = async () => {
     if (!selectedOption || submitting) return;
-    playNextSound();
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     stopSpeaking();
     setSpeaking(false);
@@ -235,12 +232,6 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
       if (!response.ok) throw new Error(`Server error: ${response.status} — ${responseText}`);
       result = JSON.parse(responseText);
-
-      console.log("[BehaviorAPI] Task:", task.id);
-      console.log("[BehaviorAPI] Selected / correct:", selectedOption, "/", task.correct_answer);
-      console.log("[BehaviorAPI] Features:", features);
-      console.log("[BehaviorAPI] Prediction:", result?.prediction);
-      console.log("[BehaviorAPI] Quality:", result?.quality);
 
       if (!isPractice) await addDoc(collection(db, "behavior_predictions"), {
         attempt_id: attemptRef!.id,
@@ -423,8 +414,10 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
             const showResult = selectedOption !== null;
 
             let cardStyle = isMissingLetter ? styles.letterCard : isShapeMatching ? styles.shapeCard : styles.optionCard;
-            // Tiles stay neutral so colour only appears where it carries meaning
-            // — the child's selection, and right/wrong feedback.
+            // Tile chrome stays neutral so colour only appears where it carries
+            // meaning — the child's selection, and right/wrong feedback. Shape
+            // glyphs are the exception: they keep their own bright per-shape
+            // colour so kids can tell shapes apart, until feedback overrides it.
             let bgColor = "#fff";
             let borderColor = "#E2E8F0";
             let textColor = "#1E293B";
@@ -447,7 +440,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
               >
                 {isShapeMatching ? (
                   <>
-                    <ShapeGlyph shape={option} size={56} color={isSelected ? textColor : "#475569"} />
+                    <ShapeGlyph shape={option} size={56} color={showResult && isSelected ? textColor : undefined} />
                     <Text style={[styles.shapeCardLabel, { color: textColor }]}>{option}</Text>
                     {showResult && isSelected && (
                       <Ionicons

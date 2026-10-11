@@ -6,7 +6,6 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 import {
   BEHAVIOR_TASKS, BEHAVIOR_LEVELS, behaviorLevelTaskCount,
 } from "../../config/behaviorTasks";
@@ -119,7 +118,7 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.startBtnInner}
             activeOpacity={0.88}
-            onPress={() => { playNextSound(); navigation.navigate("BehaviorLevels"); }}
+            onPress={() => navigation.navigate("BehaviorLevels")}
           >
             <Ionicons name="layers" size={20} color="#fff" />
             <Text style={styles.startBtnText}>Choose a Level</Text>
