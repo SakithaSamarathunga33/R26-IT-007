@@ -264,7 +264,7 @@ npm run android  # Android emulator / device
 npm run ios      # iOS simulator (macOS only)
 ```
 
-By default the app calls the **deployed Azure endpoints** in `mobile/src/config/apiConfig.ts` — no backend setup is needed to run it.
+By default the app calls the **deployed endpoints** in `mobile/src/config/apiConfig.ts` — no backend setup is needed to run it.
 
 To point at local backends instead, edit that file:
 
