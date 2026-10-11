@@ -75,7 +75,7 @@ Welcome → Onboarding → Login / Signup
 |---|---|---|---|
 | **Speech & Phonological** | 10 | Phoneme accuracy, rhyme, syllable segmentation, phonological memory | Microphone (WAV) |
 | **Handwriting** | 21 | Letter formation, b/d/p/q reversals, spacing, alignment | Canvas drawing or photo |
-| **Behavioural & Attention** | 22 | Attention, working memory, letter–sound mapping, pattern recognition | Multiple choice taps |
+| **Behavioural & Attention** | 15 | Attention, working memory, letter–sound mapping, pattern recognition | Multiple choice taps |
 
 ### Behaviour task types
 
@@ -89,11 +89,11 @@ Welcome → Onboarding → Login / Signup
 
 Every module splits its activities into **3 locked levels**. Level 1 is always open; each later level unlocks when the one before it is completed.
 
-| Level | Speech (10) | Writing (21) | Behaviour (22) |
+| Level | Speech (10) | Writing (21) | Behaviour (15) |
 |---|---|---|---|
-| **1** | Simple Sounds — 4 | Letters — 7 | Getting Started — 7 |
-| **2** | Getting Harder — 3 | Letters & Words — 7 | Looking Closer — 8 |
-| **3** | Challenge — 3 | Advanced Writing — 7 | Challenge — 7 |
+| **1** | Simple Sounds — 4 | Letters — 7 | Getting Started — 5 |
+| **2** | Getting Harder — 3 | Letters & Words — 7 | Looking Closer — 5 |
+| **3** | Challenge — 3 | Advanced Writing — 7 | Challenge — 5 |
 
 Progress is stored **per child, not per session**, so a completed level stays unlocked across logins and re-runs. Unlocks reset only when a new screening round begins.
 
@@ -190,6 +190,13 @@ Dyslexia-Early-Screening-AI/
 │           └── therapy_service.py    # therapy activity library
 ├── mobile/                       # React Native / Expo app
 │   └── src/
+│       ├── components/
+│       │   ├── KidBackground.tsx     # animated per-module screen backdrop
+│       │   ├── ConfettiBurst.tsx     # celebration confetti
+│       │   ├── AnimatedScore.tsx     # count-up score reveal
+│       │   ├── LevelScoreCard.tsx    # shared level-complete score card
+│       │   ├── ShapeGlyph.tsx        # drawn shapes for shape-matching tasks
+│       │   └── Toast.tsx
 │       ├── config/
 │       │   ├── apiConfig.ts          # backend URLs
 │       │   ├── firebase.ts
@@ -226,7 +233,7 @@ Dyslexia-Early-Screening-AI/
 
 | Layer | Technology |
 |---|---|
-| Mobile | React Native 0.81, Expo 54, TypeScript |
+| Mobile | React Native 0.86, Expo 57, TypeScript |
 | Navigation | React Navigation 6 (native stack + bottom tabs) |
 | Auth & Database | Firebase 11 (Auth + Firestore) |
 | Text-to-speech | expo-speech |

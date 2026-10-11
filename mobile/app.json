@@ -5,11 +5,6 @@
     "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
-    "splash": {
-      "image": "./src/assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#2563EB"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.lexiscan.app"
@@ -28,7 +23,17 @@
     },
     "plugins": [
       "expo-font",
-      "expo-audio"
+      "expo-audio",
+      "expo-status-bar",
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./src/assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#2563EB"
+        }
+      ]
     ]
   }
 }

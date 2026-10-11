@@ -8,7 +8,6 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 import { auth } from "../../config/firebase";
 import {
   buildSpeechSummary,
@@ -257,7 +256,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
               style={styles.ctaBtnInner}
               activeOpacity={allReady ? 0.85 : 1}
               disabled={!allReady}
-              onPress={() => { playNextSound(); navigation.navigate("FusionLoading"); }}
+              onPress={() => navigation.navigate("FusionLoading")}
             >
               <Ionicons
                 name={allReady ? "analytics" : "lock-closed"}

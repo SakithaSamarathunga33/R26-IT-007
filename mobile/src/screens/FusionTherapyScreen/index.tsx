@@ -9,7 +9,6 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 import { auth } from "../../config/firebase";
 import { resolveTherapyActivity } from "../../config/therapyActivityMap";
 import {
@@ -103,7 +102,6 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
   const startActivity = (activityId: string) => {
     const resolved = resolveTherapyActivity(activityId);
     if (!resolved) return;
-    playNextSound();
     const [first, ...rest] = resolved.taskIndices;
     const practice = { activityId, remaining: rest, response, reportId };
 

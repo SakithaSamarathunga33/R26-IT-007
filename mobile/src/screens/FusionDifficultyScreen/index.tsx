@@ -9,7 +9,6 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionDifficulty">;
@@ -201,7 +200,7 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
           <TouchableOpacity
             style={styles.nextBtnInner}
             activeOpacity={0.85}
-            onPress={() => { playNextSound(); navigation.navigate("FusionTherapy", { response }); }}
+            onPress={() => navigation.navigate("FusionTherapy", { response })}
           >
             <Ionicons name="fitness-outline" size={20} color="#fff" />
             <Text style={styles.nextBtnText}>View Therapy Plan</Text>

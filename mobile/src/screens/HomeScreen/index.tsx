@@ -13,11 +13,12 @@ const { width } = Dimensions.get("window");
 const COL = (width - 44 - 10) / 2;
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { CompositeNavigationProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../../navigation/AppNavigator";
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { RootStackParamList, TabParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
-import { playNextSound } from "../../services/kidSounds";
 import { auth } from "../../config/firebase";
 import { useFocusEffect } from "@react-navigation/native";
 import { getOrCreateSession, SessionProgress } from "../../services/sessionService";
@@ -25,7 +26,10 @@ import { ActiveTherapyPlan, fetchActiveTherapyPlan } from "../../services/therap
 
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList>;
+  navigation: CompositeNavigationProp<
+    BottomTabNavigationProp<TabParamList, "Home">,
+    NativeStackNavigationProp<RootStackParamList>
+  >;
 };
 
 const MODULES = [
@@ -120,7 +124,21 @@ export default function HomeScreen({ navigation }: Props) {
       >
         {/* ── Top bar ── */}
         <View style={styles.topBar}>
-          <View style={styles.avatarWrap}>
+          <View style={styles.heroWrap}>
+            <Text style={styles.heroLine1}>Your Screening</Text>
+            <View style={styles.heroLine2Row}>
+              <Text style={styles.heroLine2Bold}>Dashboard</Text>
+              <View style={styles.heroBadge}>
+                <Ionicons name="sparkles" size={13} color="#2563EB" />
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate("Profile")}
+          >
             <LinearGradient
               colors={["#2563EB", "#3B72F6"]}
               style={styles.avatar}
@@ -129,31 +147,11 @@ export default function HomeScreen({ navigation }: Props) {
                 {firstName.charAt(0).toUpperCase()}
               </Text>
             </LinearGradient>
-          </View>
-          <View style={styles.topBarRight}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Ionicons name="search-outline" size={20} color="#1E293B" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Ionicons name="notifications-outline" size={20} color="#1E293B" />
-              <View style={styles.notifDot} />
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </View>
-
-        {/* ── Hero title ── */}
-        <View style={styles.heroWrap}>
-          <Text style={styles.heroLine1}>Your Screening</Text>
-          <View style={styles.heroLine2Row}>
-            <Text style={styles.heroLine2Bold}>Dashboard</Text>
-            <View style={styles.heroBadge}>
-              <Ionicons name="sparkles" size={13} color="#2563EB" />
-            </View>
-          </View>
-          <Text style={styles.heroSub}>
-            Hi {firstName}, track your child's dyslexia screening progress.
-          </Text>
-        </View>
+        <Text style={styles.heroSub}>
+          Hi {firstName}, track your child's dyslexia screening progress.
+        </Text>
 
         {/* ── Progress card (blue, full width) ── */}
         <LinearGradient
@@ -171,9 +169,6 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.progressLabel}>Overall Progress</Text>
               <Text style={styles.progressName}>{firstName}</Text>
             </View>
-            <TouchableOpacity style={styles.progressCalBtn}>
-              <Ionicons name="calendar-outline" size={16} color="#2563EB" />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.progressGrid}>
@@ -210,7 +205,6 @@ export default function HomeScreen({ navigation }: Props) {
             activeOpacity={0.85}
             style={styles.therapyCard}
             onPress={() => {
-              playNextSound();
               navigation.navigate("FusionTherapy", {
                 response: therapyPlan.response,
                 reportId: therapyPlan.reportId,
@@ -283,7 +277,6 @@ export default function HomeScreen({ navigation }: Props) {
                 style={[styles.moduleCard, isWide && styles.moduleCardWide, modulesLocked && styles.moduleCardLocked]}
                 onPress={() => {
                   if (isActive && mod.route) {
-                    playNextSound();
                     navigation.navigate(mod.route as any);
                   }
                 }}
@@ -404,7 +397,6 @@ export default function HomeScreen({ navigation }: Props) {
             disabled={completedCount < 3}
             onPress={() => {
               if (completedCount === 3) {
-                playNextSound();
                 navigation.navigate("FusionProgress");
               }
             }}
@@ -445,8 +437,8 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 24,
+    gap: 14,
+    marginBottom: 10,
   },
   avatarWrap: {
     shadowColor: "#2563EB",
@@ -456,49 +448,20 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 22,
     fontFamily: theme.fonts.bold,
     color: "#fff",
   },
-  topBarRight: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#94A3B8",
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  notifDot: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#2563EB",
-    borderWidth: 1.5,
-    borderColor: "#fff",
-  },
-
   /* Hero */
   heroWrap: {
-    marginBottom: 24,
+    flex: 1,
   },
   heroLine1: {
     fontSize: 34,
@@ -520,7 +483,7 @@ const styles = StyleSheet.create({
   heroBadge: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 12,
     backgroundColor: "#E8EFFF",
     alignItems: "center",
     justifyContent: "center",
@@ -529,7 +492,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: theme.fonts.regular,
     color: "#64748B",
-    marginTop: 8,
+    marginBottom: 24,
     lineHeight: 20,
   },
 
@@ -579,14 +542,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: theme.fonts.bold,
     color: "#fff",
-  },
-  progressCalBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
   },
   progressGrid: {
     flexDirection: "row",

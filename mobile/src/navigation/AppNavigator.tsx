@@ -280,7 +280,11 @@ export default function AppNavigator() {
         <Stack.Screen name="HandwritingLevels" component={HandwritingLevelsScreen} />
         <Stack.Screen name="HandwritingTask" component={HandwritingTaskScreen} />
         <Stack.Screen name="HandwritingLevelComplete" component={HandwritingLevelCompleteScreen} />
-        <Stack.Screen name="HandwritingCanvas" component={HandwritingCanvasScreen} />
+        <Stack.Screen
+          name="HandwritingCanvas"
+          component={HandwritingCanvasScreen}
+          options={{ gestureEnabled: false }}
+        />
         <Stack.Screen name="HandwritingReview" component={HandwritingReviewScreen} />
         <Stack.Screen name="HandwritingResult" component={HandwritingResultScreen} />
         <Stack.Screen name="HandwritingSummary" component={HandwritingSummaryScreen} />
@@ -348,7 +352,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   bubbleInner: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: theme.colors.accent,
     borderRadius: 32,
   },

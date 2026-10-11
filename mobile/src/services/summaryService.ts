@@ -1,4 +1,5 @@
-import { db } from "../config/firebase";
+import { useEffect, useState } from "react";
+import { auth, db } from "../config/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
 export type RiskLevel = "low" | "medium" | "high" | "requires_review";
@@ -71,4 +72,58 @@ export async function fetchModuleSummary(
     count === 0 ? "requires_review" : avgProb >= 0.6 ? "high" : avgProb >= 0.35 ? "medium" : "low";
 
   return { rows, count, avgProb, overallLevel };
+}
+
+export type LevelScore = {
+  /** Percent of this level's tasks that scored low-risk, 0-100. */
+  score: number;
+  lowRiskCount: number;
+  taskCount: number;
+};
+
+/**
+ * Score for one completed level: the percent of its tasks that came back
+ * low-risk. Mirrors fetchModuleSummary's risk-level logic so a task counts as
+ * low-risk the same way here as it does on the full summary screen.
+ */
+export async function fetchLevelScore(
+  collectionName: string,
+  childId: string,
+  level: number
+): Promise<LevelScore> {
+  const snap = await getDocs(
+    query(
+      collection(db, collectionName),
+      where("child_id", "==", childId),
+      where("level", "==", level)
+    )
+  );
+
+  const taskCount = snap.docs.length;
+  const lowRiskCount = snap.docs.reduce((n, d) => {
+    const data = d.data();
+    const prob = Number(data.risk_probability ?? 0);
+    return toLevel(data.risk_level, prob) === "low" ? n + 1 : n;
+  }, 0);
+
+  return {
+    score: taskCount ? Math.round((lowRiskCount / taskCount) * 100) : 0,
+    lowRiskCount,
+    taskCount,
+  };
+}
+
+/** Loads a level's score on mount, for the level-complete screens. */
+export function useLevelScore(collectionName: string, level: number, logTag: string): LevelScore | null {
+  const [levelScore, setLevelScore] = useState<LevelScore | null>(null);
+
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    fetchLevelScore(collectionName, uid, level)
+      .then(setLevelScore)
+      .catch((err) => console.warn(`[${logTag}] could not load level score:`, err?.message));
+  }, [collectionName, level, logTag]);
+
+  return levelScore;
 }
