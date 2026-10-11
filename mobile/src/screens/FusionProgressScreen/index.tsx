@@ -164,7 +164,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
           </View>
           <Text style={styles.heroTitle}>Multi-Modal Fusion</Text>
           <Text style={styles.heroSub}>
-            All three modules — and every level inside them — must be completed before the final dyslexia risk analysis can run.
+            All three modules — and every level inside them — must be completed before the final screening analysis can run.
           </Text>
         </LinearGradient>
 

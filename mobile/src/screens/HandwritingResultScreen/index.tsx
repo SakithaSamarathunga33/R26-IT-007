@@ -14,61 +14,50 @@ import {
 } from "../../config/handwritingTasks";
 import { practiceNext } from "../../utils/practiceFlow";
 import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
+import {
+  getHandwritingSupplement, isHandwritingCorrect, setHandwritingSupplement,
+} from "../../services/handwritingLevelService";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingResult">;
   route: RouteProp<RootStackParamList, "HandwritingResult">;
 };
 
-const RISK_CONFIG = {
-  low:             { label: "Low Indicator",      sublabel: "Handwriting activity completed. No strong difficulty detected.", color: "#059669", gradColors: ["#059669", "#047857"] as [string,string], icon: "checkmark-circle" as const },
-  medium:          { label: "Moderate Indicator", sublabel: "Some handwriting difficulty shown. Continue the full assessment.", color: "#D97706", gradColors: ["#F59E0B", "#D97706"] as [string,string], icon: "alert-circle" as const },
-  high:            { label: "High Indicator",     sublabel: "Higher handwriting difficulty shown. Please review with other modules.", color: "#EF4444", gradColors: ["#EF4444", "#DC2626"] as [string,string], icon: "warning" as const },
-  requires_review: { label: "Needs Review",       sublabel: "Could not analyse clearly. Please retake or rewrite if possible.", color: "#64748B", gradColors: ["#94A3B8", "#64748B"] as [string,string], icon: "refresh-circle" as const },
+// Child-facing: encouragement only. Risk levels and scores live on the adult summary.
+const FEEDBACK = {
+  great: { label: "Great writing!", sublabel: "You did it. Keep it up!",              icon: "star" as const },
+  again: { label: "Nice try!",      sublabel: "Let's practise one more like this.",   icon: "sparkles" as const },
+  tried: { label: "Nice try!",      sublabel: "Good effort. Let's keep going!",       icon: "thumbs-up" as const },
+  done:  { label: "All done!",      sublabel: "Thanks for writing. Let's keep going!", icon: "checkmark-circle" as const },
 };
-
-function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <View style={scoreBarStyles.row}>
-      <Text style={scoreBarStyles.label}>{label}</Text>
-      <View style={scoreBarStyles.track}>
-        <View style={[scoreBarStyles.fill, { width: `${Math.round(value * 100)}%` as any, backgroundColor: color }]} />
-      </View>
-      <Text style={[scoreBarStyles.value, { color }]}>{Math.round(value * 100)}%</Text>
-    </View>
-  );
-}
-
-const scoreBarStyles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
-  label: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#64748B", width: 90 },
-  track: { flex: 1, height: 6, backgroundColor: "#E2E8F0", borderRadius: 3, overflow: "hidden" },
-  fill: { height: 6, borderRadius: 3 },
-  value: { fontSize: 12, fontFamily: theme.fonts.bold, width: 36, textAlign: "right" },
-});
 
 export default function HandwritingResultScreen({ navigation, route }: Props) {
   const { taskIndex, retryCount, durationSec, result, error, practice } = route.params;
   const task = HANDWRITING_TASKS[taskIndex];
   const level = getHandwritingLevel(task.level);
-  const nextIndex = handwritingNextIndexInLevel(taskIndex);
+  // AETA: after an incorrect original the pending supplement comes next; after
+  // the supplement itself the level resumes from the original that triggered it.
+  const supplement = practice ? null : getHandwritingSupplement();
+  const isSupplement = supplement?.taskIndex === taskIndex;
+  const nextIndex = isSupplement
+    ? handwritingNextIndexInLevel(supplement!.parentTaskIndex)
+    : supplement?.parentTaskIndex === taskIndex ? supplement.taskIndex
+    : handwritingNextIndexInLevel(taskIndex);
   // "Last" now means last within this level — the level-complete screen handles
   // unlocking the next one (or sending the child to the full summary).
   const isLevelEnd = nextIndex === null;
+  const position = handwritingPositionInLevel(taskIndex);
 
-  const riskLevel: keyof typeof RISK_CONFIG =
-    error === "Skipped" || !result ? "requires_review"
-    : result?.prediction?.risk_level ?? "requires_review";
-
-  const config = RISK_CONFIG[riskLevel];
-  const probability: number | null = result?.prediction?.risk_probability ?? null;
-  const features = result?.features ?? null;
+  const config =
+    error === "Skipped" || !result ? FEEDBACK.done
+    : supplement?.parentTaskIndex === taskIndex ? FEEDBACK.again
+    : isHandwritingCorrect(result) ? FEEDBACK.great
+    : FEEDBACK.tried;
   const validation = result?.validation ?? null;
   const quality = result?.quality ?? null;
 
   // Reliability warning
   const reliabilityLow = quality?.prediction_reliability === "low";
-  const validationWarnings: string[] = validation?.warnings ?? [];
   const ocrMismatch = validation?.ocr_target_match === false && validation?.ocr_available === true;
 
   // Encouragement on arrival. These screens are reached only after the
@@ -100,6 +89,7 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
       }
       return;
     }
+    if (isSupplement) setHandwritingSupplement(null);
     if (isLevelEnd) {
       navigation.replace("HandwritingLevelComplete", { level: task.level });
     } else {
@@ -117,26 +107,21 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
         <Text style={styles.headerTitle}>Activity Result</Text>
         <View style={[styles.levelPill, { backgroundColor: level.bg }]}>
           <Text style={[styles.levelPillText, { color: level.color }]}>
-            L{level.id} · {handwritingPositionInLevel(taskIndex)}/{handwritingLevelTaskCount(level.id)}
+            {position ? `L${level.id} · ${position}/${handwritingLevelTaskCount(level.id)}` : "Bonus"}
           </Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Risk card */}
-        <LinearGradient colors={config.gradColors} style={styles.riskCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        {/* Encouragement card */}
+        <LinearGradient colors={level.gradColors} style={styles.riskCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={styles.decoCircle} />
           <View style={styles.riskIconWrap}>
             <Ionicons name={config.icon} size={48} color="#fff" />
           </View>
           <Text style={styles.riskLabel}>{config.label}</Text>
           <Text style={styles.riskSub}>{config.sublabel}</Text>
-          {probability !== null && (
-            <View style={styles.probBadge}>
-              <Text style={styles.probText}>Risk score: {Math.round(probability * 100)}%</Text>
-            </View>
-          )}
         </LinearGradient>
 
         {/* Reliability / validation warnings */}
@@ -156,13 +141,6 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
             </Text>
           </View>
         )}
-        {validationWarnings.length > 0 && !ocrMismatch && (
-          <View style={[styles.alertCard, { backgroundColor: "#FFF5F5", borderColor: "#FECACA" }]}>
-            <Ionicons name="warning-outline" size={18} color="#EF4444" />
-            <Text style={[styles.alertText, { color: "#991B1B" }]}>{validationWarnings[0]}</Text>
-          </View>
-        )}
-
         {/* Activity stats */}
         <View style={styles.statsCard}>
           <Text style={styles.sectionLabel}>Activity Stats</Text>
@@ -181,37 +159,6 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
             </View>
           ))}
         </View>
-
-        {/* Feature scores */}
-        {features && (
-          <View style={styles.scoresCard}>
-            <Text style={styles.sectionLabel}>Handwriting Scores</Text>
-            {features.shape_similarity_score !== undefined && (
-              <ScoreBar label="Shape Match" value={features.shape_similarity_score} color="#2563EB" />
-            )}
-            {features.alignment_score !== undefined && (
-              <ScoreBar label="Alignment" value={features.alignment_score} color="#0891B2" />
-            )}
-            {features.writing_quality_score !== undefined && (
-              <ScoreBar label="Writing Quality" value={features.writing_quality_score} color="#059669" />
-            )}
-            {features.spacing_variance !== undefined && (
-              <View style={scoreBarStyles.row}>
-                <Text style={scoreBarStyles.label}>Spacing Var.</Text>
-                <View style={scoreBarStyles.track}>
-                  <View style={[scoreBarStyles.fill, { width: `${Math.min(features.spacing_variance * 20, 100)}%` as any, backgroundColor: "#D97706" }]} />
-                </View>
-                <Text style={[scoreBarStyles.value, { color: "#D97706" }]}>{features.spacing_variance.toFixed(1)}</Text>
-              </View>
-            )}
-            {features.reversal_flag === 1 && (
-              <View style={[styles.alertCard, { backgroundColor: "#FFF5F5", borderColor: "#FECACA", marginTop: 6 }]}>
-                <Ionicons name="swap-horizontal-outline" size={16} color="#EF4444" />
-                <Text style={[styles.alertText, { color: "#991B1B" }]}>Letter reversal pattern detected in this task.</Text>
-              </View>
-            )}
-          </View>
-        )}
 
         {error && error !== "Skipped" && (
           <View style={styles.errorCard}>
@@ -267,11 +214,6 @@ const styles = StyleSheet.create({
   },
   riskLabel: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 4 },
   riskSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 14 },
-  probBadge: {
-    backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)",
-    paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20,
-  },
-  probText: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#fff" },
 
   alertCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
@@ -290,12 +232,6 @@ const styles = StyleSheet.create({
   statsIcon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   statsLabel: { flex: 1, fontSize: 14, fontFamily: theme.fonts.medium, color: "#1E293B" },
   statsValue: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#64748B" },
-
-  scoresCard: {
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
-    borderRadius: 20, padding: 16, marginBottom: 14,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
-  },
 
   errorCard: {
     flexDirection: "row", alignItems: "center", gap: 10,

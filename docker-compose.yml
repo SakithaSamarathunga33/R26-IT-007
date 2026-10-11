@@ -13,7 +13,9 @@ services:
   behavioral_api:
     image: lexiscan/behavioral-api
     container_name: lexiscan-behavioral-api
-    build: ./backend/behavioral_attention/api
+    build:
+      context: ./backend/behavioral_attention
+      dockerfile: api/Dockerfile
     ports:
       - "8012:8000"
     volumes:

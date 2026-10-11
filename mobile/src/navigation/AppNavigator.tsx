@@ -84,11 +84,14 @@ export type RootStackParamList = {
   SpeechLevels: undefined;
   SpeechActivity: { taskIndex: number; practice?: PracticeParams };
   SpeechListen: { taskIndex: number; practice?: PracticeParams };
-  SpeechRecording: { taskIndex: number; practice?: PracticeParams };
+  /** heardCount/promptEndTs come from the listen step, for response-timing capture. */
+  SpeechRecording: { taskIndex: number; practice?: PracticeParams; heardCount?: number; promptEndTs?: number };
   SpeechLevelComplete: { level: LevelId };
   SpeechReview: {
     taskIndex: number; elapsed: number; retryCount: number; audioUri: string;
     practice?: PracticeParams;
+    /** Prompt replays and recording start/stop in ms after the prompt ended. */
+    promptReplayCount?: number; responseStartMs?: number; responseEndMs?: number;
   };
   SpeechResult: {
     taskIndex: number;
@@ -144,7 +147,7 @@ export type RootStackParamList = {
   HandwritingSummary: undefined;
   FusionProgress: undefined;
   FusionLoading: undefined;
-  FusionRiskSummary: { response: any };
+  FusionRiskSummary: { response: any; saveFailed?: boolean };
   FusionDifficulty: { response: any };
   /**
    * `reportId` is the assessment_history doc id — it identifies which plan the

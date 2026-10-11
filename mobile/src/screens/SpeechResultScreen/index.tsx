@@ -16,11 +16,13 @@ type Props = {
   route: RouteProp<RootStackParamList, "SpeechResult">;
 };
 
-const RISK_CONFIG = {
-  low: { label: "Low Indicator", sublabel: "Response looks good — keep it up!", color: "#059669", bg: "#ECFDF5", border: "#BBF7D0", icon: "checkmark-circle" as const, gradColors: ["#059669", "#047857"] as [string, string] },
-  medium: { label: "Moderate Indicator", sublabel: "Some patterns noted — a review may help.", color: "#D97706", bg: "#FFFBEB", border: "#FDE68A", icon: "alert-circle" as const, gradColors: ["#F59E0B", "#D97706"] as [string, string] },
-  high: { label: "High Indicator", sublabel: "A specialist review is recommended.", color: "#EF4444", bg: "#FFF5F5", border: "#FECACA", icon: "warning" as const, gradColors: ["#EF4444", "#DC2626"] as [string, string] },
-  requires_review: { label: "Needs Review", sublabel: "Audio quality was low — please re-record.", color: "#64748B", bg: "#F8FAFC", border: "#E2E8F0", icon: "refresh-circle" as const, gradColors: ["#94A3B8", "#64748B"] as [string, string] },
+// Child-facing: encouragement only. The real risk values are saved with the
+// prediction for the adult summary and never shown here.
+const CHEER = {
+  done:     { label: "Great job!",                 sublabel: "You said it — keep it up!",                           icon: "star" as const,          gradColors: ["#059669", "#047857"] as [string, string] },
+  mismatch: { label: "Let's try that word again!", sublabel: "Listen once more, then say it nice and clear.",       icon: "repeat" as const,        gradColors: ["#3B72F6", "#2563EB"] as [string, string] },
+  audio:    { label: "Let's record that again!",   sublabel: "Speak a little louder, close to the phone.",          icon: "mic" as const,           gradColors: ["#94A3B8", "#64748B"] as [string, string] },
+  error:    { label: "Nice try!",                  sublabel: "We couldn't check this one — that's okay, keep going!", icon: "happy-outline" as const, gradColors: ["#94A3B8", "#64748B"] as [string, string] },
 };
 
 export default function SpeechResultScreen({ navigation, route }: Props) {
@@ -32,15 +34,15 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
   // unlocking the next one (or sending the child to the full summary).
   const isLevelEnd = nextIndex === null;
 
-  const riskLevel: keyof typeof RISK_CONFIG = error || !result ? "requires_review" : result?.prediction?.risk_level ?? "requires_review";
-  const config = RISK_CONFIG[riskLevel];
-  const probability: number = result?.prediction?.risk_probability ?? null;
-  const qualityWarnings: string[] = result?.quality?.warnings ?? [];
-  const reliability: string = result?.quality?.prediction_reliability ?? "—";
-  const isLowQuality = reliability === "low" || riskLevel === "requires_review";
-
-  const reliabilityColor = reliability === "high" ? "#059669" : reliability === "medium" ? "#D97706" : "#EF4444";
-  const reliabilityBg = reliability === "high" ? "#ECFDF5" : reliability === "medium" ? "#FFFBEB" : "#FFF5F5";
+  // requires_review has two causes: the spoken word didn't match, or the audio was poor.
+  const needsRetry =
+    result?.prediction?.risk_level === "requires_review" || result?.quality?.prediction_reliability === "low";
+  const cheer =
+    error || !result ? CHEER.error
+    : result.transcript_match === false ? CHEER.mismatch
+    : needsRetry ? CHEER.audio
+    : CHEER.done;
+  const isLowQuality = !!error || !result || needsRetry;
 
   // Encouragement on arrival. These screens are reached only after the
   // response is submitted, so speaking the outcome cannot change it.
@@ -83,7 +85,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
 
       <View style={styles.header}>
         <View style={{ width: 40 }} />
-        <Text style={styles.headerTitle}>Screening Result</Text>
+        <Text style={styles.headerTitle}>All Done!</Text>
         <View style={[styles.levelPill, { backgroundColor: level.bg }]}>
           <Text style={[styles.levelPillText, { color: level.color }]}>
             L{level.id} · {positionInLevel(taskIndex)}/{levelTaskCount(level.id)}
@@ -92,75 +94,28 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Risk card */}
-        <LinearGradient colors={config.gradColors} style={styles.riskCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        {/* Encouragement card */}
+        <LinearGradient colors={cheer.gradColors} style={styles.riskCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={styles.decoCircle} />
           <View style={styles.riskIconWrap}>
-            <Ionicons name={config.icon} size={48} color="#fff" />
+            <Ionicons name={cheer.icon} size={48} color="#fff" />
           </View>
-          <Text style={styles.riskLabel}>{config.label}</Text>
-          <Text style={styles.riskSubLabel}>{config.sublabel}</Text>
+          <Text style={styles.riskLabel}>{cheer.label}</Text>
+          <Text style={styles.riskSubLabel}>{cheer.sublabel}</Text>
         </LinearGradient>
-
-        {/* Disclaimer */}
-        <View style={styles.disclaimerCard}>
-          <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
-          <Text style={styles.disclaimerText}>
-            This is a <Text style={styles.disclaimerBold}>screening indicator only</Text>, not a clinical diagnosis. Always consult a qualified specialist.
-          </Text>
-        </View>
-
-        {/* Probability bar */}
-        {probability !== null && (
-          <View style={[styles.probCard, { borderColor: config.border }]}>
-            <View style={styles.probHeader}>
-              <Text style={styles.probTitle}>Risk Probability</Text>
-              <Text style={[styles.probValue, { color: config.color }]}>{(probability * 100).toFixed(1)}%</Text>
-            </View>
-            <View style={styles.probTrack}>
-              <LinearGradient
-                colors={config.gradColors}
-                style={[styles.probFill, { width: `${probability * 100}%` }]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              />
-            </View>
-          </View>
-        )}
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <StatCard icon="shield-checkmark-outline" label="Reliability" value={reliability} accent={reliabilityColor} bg={reliabilityBg} />
-          <StatCard icon="refresh-outline" label="Retries" value={String(retryCount)} accent="#2563EB" bg="#EFF6FF" />
+          <StatCard icon="refresh-outline" label="Tries" value={String(retryCount + 1)} accent="#2563EB" bg="#EFF6FF" />
           <StatCard icon="text-outline" label="Word" value={task.target_word} accent="#7C3AED" bg="#F5F3FF" />
         </View>
-
-        {/* Warnings */}
-        {qualityWarnings.length > 0 && (
-          <View style={styles.warningsCard}>
-            <View style={styles.warningsHeader}>
-              <Ionicons name="warning-outline" size={16} color="#D97706" />
-              <Text style={styles.warningsTitle}>Audio Warnings</Text>
-            </View>
-            {qualityWarnings.map((w, i) => (
-              <Text key={i} style={styles.warningItem}>• {w}</Text>
-            ))}
-          </View>
-        )}
-
-        {/* Error state */}
-        {error && (
-          <View style={styles.errorCard}>
-            <Ionicons name="cloud-offline-outline" size={18} color="#EF4444" />
-            <Text style={styles.errorText}>Analysis failed: {error}. Result saved as requires review.</Text>
-          </View>
-        )}
 
         <View style={{ height: 20 }} />
 
         {isLowQuality && (
           <TouchableOpacity style={styles.reRecordBtn} onPress={() => navigation.replace("SpeechRecording", { taskIndex, practice })} activeOpacity={0.8}>
             <Ionicons name="mic-outline" size={18} color="#64748B" />
-            <Text style={styles.reRecordBtnText}>Re-record This Activity</Text>
+            <Text style={styles.reRecordBtnText}>Try Again</Text>
           </TouchableOpacity>
         )}
 
@@ -222,25 +177,6 @@ const styles = StyleSheet.create({
   riskLabel: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 6 },
   riskSubLabel: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.82)", textAlign: "center", lineHeight: 19 },
 
-  disclaimerCard: {
-    width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
-    borderRadius: 16, padding: 14, marginBottom: 14,
-  },
-  disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
-  disclaimerBold: { fontFamily: theme.fonts.semiBold, color: "#1E40AF" },
-
-  probCard: {
-    width: "100%", backgroundColor: "#fff",
-    borderWidth: 1, borderRadius: 20, padding: 18, marginBottom: 14,
-    shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
-  },
-  probHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  probTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
-  probValue: { fontSize: 20, fontFamily: theme.fonts.extraBold },
-  probTrack: { height: 8, backgroundColor: "#F1F5F9", borderRadius: 4, overflow: "hidden" },
-  probFill: { height: 8, borderRadius: 4 },
-
   statsRow: { flexDirection: "row", gap: 10, width: "100%", marginBottom: 14 },
   statCard: {
     flex: 1, backgroundColor: "#fff", borderWidth: 1, borderRadius: 16,
@@ -250,21 +186,6 @@ const styles = StyleSheet.create({
   statIconWrap: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   statValue: { fontSize: 14, fontFamily: theme.fonts.bold },
   statLabel: { fontSize: 10, fontFamily: theme.fonts.regular, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5 },
-
-  warningsCard: {
-    width: "100%", backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
-    borderRadius: 16, padding: 14, marginBottom: 10, gap: 6,
-  },
-  warningsHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  warningsTitle: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#D97706" },
-  warningItem: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E", lineHeight: 18 },
-
-  errorCard: {
-    width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: "#FFF5F5", borderWidth: 1, borderColor: "#FECACA",
-    borderRadius: 16, padding: 14, marginBottom: 10,
-  },
-  errorText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#EF4444", lineHeight: 18 },
 
   reRecordBtn: {
     width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,

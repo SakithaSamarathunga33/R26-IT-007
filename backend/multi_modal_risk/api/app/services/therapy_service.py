@@ -1,3 +1,5 @@
+from app.utils.risk_utils import final_risk_level
+
 THERAPY_LIBRARY = {
     'phonological_processing': {
         'primary_focus': 'Speech and phonological awareness',
@@ -31,8 +33,9 @@ def sessions_per_week(risk_level):
 def recommendation_intensity(risk_level):
     return 'intensive' if risk_level == 'high' else 'moderate' if risk_level == 'medium' else 'light'
 
-def build_therapy_recommendation(final_prediction, primary_difficulty, secondary_difficulty_label):
-    risk_level = final_prediction['final_dyslexia_risk_level']
+def build_therapy_recommendation(final_prediction, primary_difficulty, secondary_difficulty_label, primary_score=None):
+    # dosage follows the weakest (primary) area's own band; overall band only if that score is unknown
+    risk_level = final_risk_level(primary_score) if primary_score is not None else final_prediction['final_dyslexia_risk_level']
     primary_label = primary_difficulty['primary_difficulty_label']
     primary_plan = THERAPY_LIBRARY.get(primary_label, THERAPY_LIBRARY['phonological_processing'])
     secondary_plan = None

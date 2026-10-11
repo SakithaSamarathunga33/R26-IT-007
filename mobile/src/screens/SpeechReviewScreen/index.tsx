@@ -12,6 +12,7 @@ import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
 import { SPEECH_TASKS, TASK_TYPE_LABELS } from "../../config/speechTasks";
 import { auth, db } from "../../config/firebase";
+import { getChildAge } from "../../services/childProfile";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechReview">;
@@ -34,7 +35,7 @@ const STEP_LABELS: Record<SubmitStep, string> = {
 };
 
 export default function SpeechReviewScreen({ navigation, route }: Props) {
-  const { taskIndex, elapsed, retryCount, audioUri, practice } = route.params;
+  const { taskIndex, elapsed, retryCount, audioUri, practice, promptReplayCount, responseStartMs, responseEndMs } = route.params;
   const task = SPEECH_TASKS[taskIndex];
   // Practice runs come from a therapy plan — they must never write predictions,
   // or rehearsing would move the risk score the plan was based on.
@@ -78,6 +79,9 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
       target_phoneme_seq: task.target_phoneme_seq, difficulty_level: task.difficulty_level,
       linguistic_focus: task.linguistic_focus, elapsed_sec: elapsed,
       retry_count: retryCount, time_of_day: getTimeOfDay(), submitted_at: serverTimestamp(),
+      // Timing is stored for research only; it is not sent to the speech model.
+      prompt_replay_count: promptReplayCount ?? null,
+      response_start_ms: responseStartMs ?? null, response_end_ms: responseEndMs ?? null,
     });
     return docRef.id;
   };
@@ -88,7 +92,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     formData.append("audio", new File(audioUri));
     formData.append("task_type", task.task_type); formData.append("target_word", task.target_word);
     formData.append("target_phoneme_seq", task.target_phoneme_seq); formData.append("difficulty_level", task.difficulty_level);
-    formData.append("linguistic_focus", task.linguistic_focus); formData.append("age", "6");
+    formData.append("linguistic_focus", task.linguistic_focus); formData.append("age", String(await getChildAge()));
     formData.append("gender", "M"); formData.append("native_language", "Sinhala");
     formData.append("assessment_language", "English"); formData.append("recording_device_type", "mobile_mic");
     formData.append("environment_noise_level", "0.12"); formData.append("time_of_day", getTimeOfDay());
@@ -116,6 +120,8 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
       validation: result.validation ?? null, quality: result.quality ?? null,
       features: result.features ?? null, risk_probability: result.prediction?.risk_probability ?? null,
       risk_level: result.prediction?.risk_level ?? null, risk_label_binary: result.prediction?.risk_label_binary ?? null,
+      transcript: result.transcript ?? null, transcript_match: result.transcript_match ?? null,
+      model_version: result.model_version ?? null, quality_status: result.quality_status ?? null,
       saved_at: serverTimestamp(),
     });
   };

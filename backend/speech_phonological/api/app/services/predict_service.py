@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from app.services.model_loader import get_model
+from app.services.model_loader import get_model, MODEL_PATH
 from app.services.feature_extraction_service import extract_speech_features
 
 def predict_speech_from_audio(
@@ -22,7 +22,7 @@ def predict_speech_from_audio(
     if model is None:
         raise HTTPException(
             status_code=503,
-            detail="Speech model not loaded. Place speech_logistic_regression.pkl in the project root."
+            detail=f"Speech model not loaded. Expected it at {MODEL_PATH} (override with SPEECH_MODEL_PATH)."
         )
     feature_df, feature_row, quality = extract_speech_features(
         file_bytes,

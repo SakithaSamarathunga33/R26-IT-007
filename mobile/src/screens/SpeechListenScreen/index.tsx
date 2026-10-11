@@ -26,6 +26,8 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
   const waveAnim = useRef(new Animated.Value(0)).current;
   const waveLoopRef = useRef<Animated.CompositeAnimation | null>(null);
   const autoPlayedRef = useRef(false);
+  // When the prompt last finished playing — response timing is measured from here.
+  const promptEndRef = useRef<number | null>(null);
 
   // Animate the speaker while TTS is talking.
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
       onStart: () => setSpeaking(true),
       onDone: () => {
         setSpeaking(false);
+        promptEndRef.current = Date.now();
         setHeardCount((c) => c + 1);
       },
       onError: () => setSpeaking(false),
@@ -70,7 +73,9 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
   const goRecord = () => {
     stopSpeaking();
     setSpeaking(false);
-    navigation.navigate("SpeechRecording", { taskIndex, practice });
+    navigation.navigate("SpeechRecording", {
+      taskIndex, practice, heardCount, promptEndTs: promptEndRef.current ?? Date.now(),
+    });
   };
 
   const waveScale = waveAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.22] });

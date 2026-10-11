@@ -15,6 +15,7 @@ import { auth } from "../../config/firebase";
 import { markModuleDone } from "../../services/sessionService";
 import { fetchModuleSummary, ModuleSummary, RiskLevel, SummaryRow } from "../../services/summaryService";
 import { HandwritingLevelProgress, fetchHandwritingLevelProgress } from "../../services/handwritingLevelService";
+import { riskLevelFromScore } from "../../config/riskThresholds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingSummary">;
@@ -126,8 +127,11 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
     );
   }
 
-  const { rows, count, avgProb } = summary;
-  const overallLevel: RiskLevel = summary.overallLevel;
+  // AETA supplementary attempts are practice, never part of the screening result.
+  const rows = summary.rows.filter((r) => r.features.attempt_type !== "supplementary");
+  const count = rows.length;
+  const avgProb = count ? rows.reduce((s, r) => s + r.risk_probability, 0) / count : 0;
+  const overallLevel: RiskLevel = count ? riskLevelFromScore(avgProb) : "requires_review";
   const completedCount = count;
   const groups = groupRowsByLevel(rows);
   // Only count levels the child actually has results for, so a single-level run

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { auth, db } from "../config/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
+import { riskLevelFromScore } from "../config/riskThresholds";
 
 export type RiskLevel = "low" | "medium" | "high" | "requires_review";
 
@@ -20,7 +21,12 @@ export type ModuleSummary = {
 
 function toLevel(v: any, prob: number): RiskLevel {
   if (v === "low" || v === "medium" || v === "high" || v === "requires_review") return v;
-  return prob >= 0.6 ? "high" : prob >= 0.35 ? "medium" : "low";
+  return riskLevelFromScore(prob);
+}
+
+/** Supplementary handwriting attempts are extra practice data, never scored; docs without attempt_type are legacy originals. */
+export function isScored(d: Record<string, any>): boolean {
+  return d.attempt_type !== "supplementary";
 }
 
 function millis(saved: any): number {
@@ -51,6 +57,7 @@ export async function fetchModuleSummary(
 
   const rows: SummaryRow[] = snap.docs
     .map((d) => d.data())
+    .filter(isScored)
     .map((d) => {
       const prob = Number(d.risk_probability ?? 0);
       // Nested feature bag (speech: `features`, handwriting: `features_json`),
@@ -69,7 +76,7 @@ export async function fetchModuleSummary(
   const count = rows.length;
   const avgProb = count ? rows.reduce((s, r) => s + r.risk_probability, 0) / count : 0;
   const overallLevel: RiskLevel =
-    count === 0 ? "requires_review" : avgProb >= 0.6 ? "high" : avgProb >= 0.35 ? "medium" : "low";
+    count === 0 ? "requires_review" : riskLevelFromScore(avgProb);
 
   return { rows, count, avgProb, overallLevel };
 }
@@ -99,9 +106,9 @@ export async function fetchLevelScore(
     )
   );
 
-  const taskCount = snap.docs.length;
-  const lowRiskCount = snap.docs.reduce((n, d) => {
-    const data = d.data();
+  const scored = snap.docs.map((d) => d.data()).filter(isScored);
+  const taskCount = scored.length;
+  const lowRiskCount = scored.reduce((n, data) => {
     const prob = Number(data.risk_probability ?? 0);
     return toLevel(data.risk_level, prob) === "low" ? n + 1 : n;
   }, 0);

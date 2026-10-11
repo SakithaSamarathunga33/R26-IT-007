@@ -14,7 +14,8 @@ import {
   callFusionAPI,
   saveFusionResults,
 } from "../../services/fusionService";
-import { saveAssessmentToHistory, resetSession } from "../../services/sessionService";
+import { saveAssessmentToHistory, resetSession, getSessionId } from "../../services/sessionService";
+import { getChildAge } from "../../services/childProfile";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionLoading">;
@@ -25,14 +26,16 @@ const STEPS = [
   "Gathering handwriting module results…",
   "Gathering behaviour module results…",
   "Building fusion payload…",
-  "Running final dyslexia risk analysis…",
+  "Running final screening analysis…",
   "Saving results to your profile…",
   "Almost done…",
 ];
 
 export default function FusionLoadingScreen({ navigation }: Props) {
   const childId = auth.currentUser?.uid ?? "unknown";
-  const sessionId = `session_${childId}`;
+  // Module predictions and the assessment_sessions doc are keyed by the
+  // persistent session id; each fusion run gets its own id for the backend/record.
+  const sessionId = getSessionId(childId);
 
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +67,12 @@ export default function FusionLoadingScreen({ navigation }: Props) {
       const behavior = await buildBehaviorSummary(childId, sessionId);
       setStep(3);
 
-      const user = auth.currentUser;
+      // Missing modules are omitted, not zero-filled — a 0 would read as "no risk".
       const payload = {
         child_id: childId,
-        session_id: sessionId,
+        session_id: `${childId}_${Date.now()}`,
         metadata: {
-          age: 6,
+          age: await getChildAge(),
           native_language: "Sinhala",
           assessment_language: "English",
           school_type: "urban_public",
@@ -78,9 +81,9 @@ export default function FusionLoadingScreen({ navigation }: Props) {
           environment_noise_level: 0.12,
           time_of_day: new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening",
         },
-        speech: speech ?? { risk_probability: 0, features: {}, quality: { prediction_reliability: "low" } },
-        handwriting: handwriting ?? { risk_probability: 0, features: {}, quality: { prediction_reliability: "low" } },
-        behavior: behavior ?? { risk_probability: 0, features: {}, quality: { prediction_reliability: "low" } },
+        ...(speech ? { speech } : {}),
+        ...(handwriting ? { handwriting } : {}),
+        ...(behavior ? { behavior } : {}),
       };
 
       setStep(4);
@@ -90,19 +93,25 @@ export default function FusionLoadingScreen({ navigation }: Props) {
       // already read the module predictions into `payload` above, so clearing
       // them now is safe and guarantees the next screening starts clean —
       // regardless of whether the user later taps "Go Home".
-      await saveFusionResults(sessionId, response).catch((e) =>
-        console.warn("[FusionDB] Non-fatal save error:", e?.message)
-      );
-      await saveAssessmentToHistory(childId, response).catch((e) =>
-        console.warn("[History] Non-fatal save error:", e?.message)
-      );
-      await resetSession(childId).catch((e) =>
-        console.warn("[Session] reset failed (non-fatal):", e?.message)
-      );
+      // Save failures don't block the results, but the results screen says so.
+      let saveFailed = false;
+      await saveFusionResults(sessionId, response)
+        .then((r) => { saveFailed = r.failed; })
+        .catch((e) => { saveFailed = true; console.warn("[FusionDB] save error:", e?.message); });
+      await saveAssessmentToHistory(childId, response).catch((e) => {
+        saveFailed = true;
+        console.warn("[History] save error:", e?.message);
+      });
+      // Keep the module data when evidence was insufficient: the child is told to complete more activities, not start over.
+      if (response?.review_status !== "insufficient_evidence") {
+        await resetSession(childId).catch((e) =>
+          console.warn("[Session] reset failed (non-fatal):", e?.message)
+        );
+      }
       setStep(6);
 
       setTimeout(() => {
-        navigation.replace("FusionRiskSummary", { response });
+        navigation.replace("FusionRiskSummary", { response, saveFailed });
       }, 600);
     } catch (e: any) {
       setError(e?.message ?? "Something went wrong. Please try again.");

@@ -21,7 +21,8 @@ export interface HandwritingTask {
 }
 
 /**
- * Ordered easy → advanced and grouped into level blocks of 7. Progression is
+ * Ordered easy → advanced and grouped into level blocks of 7 (5 scored per level,
+ * see HANDWRITING_SCORED_TASK_IDS). Progression is
  * trace → copy letter → copy word → recall from memory, so motor support drops
  * away as the levels go up. The summary screen groups predictions by the `level`
  * stored on each doc, so tasks may be reordered within a block safely.
@@ -101,19 +102,61 @@ export const HANDWRITING_LEVELS: HandwritingLevel[] = [
   },
 ];
 
-/** Global indices into HANDWRITING_TASKS belonging to `level`, in task order. */
+// ── Mastery gate & AETA ───────────────────────────────────────────────────────
+
+/**
+ * The five ORIGINAL scored tasks each level plays, in play order. Each set keeps
+ * every mode family the level teaches and all reversal-sensitive targets
+ * (b/d/p/q, bed); the two tasks left out per level are the ones another level
+ * or task already covers (L1 traced capitals A/E are copied in L2; L2 E/dog
+ * repeat a capital/3-letter word; L3 school/bad repeat basket/bed). Those two
+ * stay in HANDWRITING_TASKS as the supplementary pool and for therapy practice.
+ */
+export const HANDWRITING_SCORED_TASK_IDS: Record<HandwritingLevelId, string[]> = {
+  1: ["lt_b", "lt_d", "lc_b", "lc_d", "lc_p"],
+  2: ["lc_q", "lc_A", "lc_B", "wc_cat", "sd_cat"],
+  3: ["lc_R", "wc_bsk", "wc_fly", "wm_bed", "sd_bag"],
+};
+
+/** A level is mastered when at least this many of its five originals are correct. */
+export const HANDWRITING_MASTERY_MIN_CORRECT = 4;
+
+/**
+ * AETA: original task id -> the ONE supplementary task given when that original
+ * is valid but incorrect. Same level, same mode family (trace/copy/dictation/
+ * memory), different target; the spare pool is used first, b/d pairs are kept
+ * together where possible. Originals with no same-family alternative in their
+ * level (the dictations, L3 lc_R) are absent and simply continue. A supplement
+ * must never be a scored task the child hasn't played yet (practice effect), so
+ * L1 lc_b has none: its only copy alternatives (lc_d, lc_p) are still to come.
+ */
+export const HANDWRITING_SUPPLEMENT_FOR: Record<string, string> = {
+  lt_b: "lt_E", lt_d: "lt_A",
+  lc_d: "lc_b", lc_p: "lc_d",
+  lc_q: "lc_E", lc_A: "lc_E", lc_B: "lc_A", wc_cat: "wc_dog",
+  wc_bsk: "wc_sch", wc_fly: "wc_sch", wm_bed: "wm_bad",
+};
+
+/** Global index of the supplementary task for `taskIndex`, or null when none is mapped. */
+export function handwritingSupplementIndex(taskIndex: number): number | null {
+  const id = HANDWRITING_SUPPLEMENT_FOR[HANDWRITING_TASKS[taskIndex].id];
+  const i = HANDWRITING_TASKS.findIndex((t) => t.id === id);
+  return i >= 0 ? i : null;
+}
+
+/** Global indices of the five scored tasks belonging to `level`, in task order. */
 export function handwritingTaskIndicesForLevel(level: HandwritingLevelId): number[] {
   return HANDWRITING_TASKS.reduce<number[]>((acc, t, i) => {
-    if (t.level === level) acc.push(i);
+    if (t.level === level && HANDWRITING_SCORED_TASK_IDS[level].includes(t.id)) acc.push(i);
     return acc;
   }, []);
 }
 
 export function handwritingLevelTaskCount(level: HandwritingLevelId): number {
-  return HANDWRITING_TASKS.filter((t) => t.level === level).length;
+  return HANDWRITING_SCORED_TASK_IDS[level].length;
 }
 
-/** 1-based position of a task inside its own level (for "Task 2 of 7"). */
+/** 1-based position of a task inside its own level (for "Task 2 of 5"); 0 for an unscored task. */
 export function handwritingPositionInLevel(taskIndex: number): number {
   const level = HANDWRITING_TASKS[taskIndex].level;
   return handwritingTaskIndicesForLevel(level).indexOf(taskIndex) + 1;
@@ -122,8 +165,8 @@ export function handwritingPositionInLevel(taskIndex: number): number {
 /** Next task index inside the same level, or null when the level is finished. */
 export function handwritingNextIndexInLevel(taskIndex: number): number | null {
   const indices = handwritingTaskIndicesForLevel(HANDWRITING_TASKS[taskIndex].level);
-  const next = indices[indices.indexOf(taskIndex) + 1];
-  return next ?? null;
+  const pos = indices.indexOf(taskIndex);
+  return pos < 0 ? null : indices[pos + 1] ?? null;
 }
 
 export function getHandwritingLevel(level: HandwritingLevelId): HandwritingLevel {

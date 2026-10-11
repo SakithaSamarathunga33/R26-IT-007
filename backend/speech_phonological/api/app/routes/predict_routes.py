@@ -1,11 +1,11 @@
 import logging
-import random
 import re
 
 from fastapi import APIRouter, UploadFile, File, Form
 from app.services.audio_validation_service import validate_wav_upload, convert_to_wav_bytes
 from app.services.predict_service import predict_speech_from_audio
-from app.services.model_loader import load_model
+from app.services.model_loader import load_model, MODEL_VERSION
+from app.services.feature_extraction_service import FEATURE_SCHEMA_VERSION
 from app.services.transcription_service import transcribe_wav_bytes
 from app.models.response_models import SpeechPredictResponse
 
@@ -41,53 +41,6 @@ async def predict_speech(
     content = convert_to_wav_bytes(content, audio.filename or "")
     validation = validate_wav_upload(audio, content)
 
-    transcript = transcribe_wav_bytes(
-        content,
-        language=assessment_language if assessment_language else None,
-    )
-    logger.info(
-        "Incoming WAV: filename=%s size=%dB sr=%s duration=%.2fs target_word=%r transcript=%r",
-        validation["filename"],
-        len(content),
-        validation["sample_rate"],
-        validation["duration_sec"],
-        target_word,
-        transcript,
-    )
-
-    transcript_match = bool(
-        target_word
-        and transcript
-        and _normalize_for_match(transcript) == _normalize_for_match(target_word)
-    )
-
-    if not transcript_match:
-        logger.info(
-            "Transcript %r != target_word %r; skipping model and returning high risk.",
-            transcript,
-            target_word,
-        )
-        quality = {
-            "prediction_reliability": "low",
-            "warnings": ["Transcript did not match target word; model was not run."],
-            "raw_duration_sec": float(validation["duration_sec"]),
-            "speech_duration_sec": float(validation["duration_sec"]),
-            "raw_peak_amplitude": 0.0,
-            "note": "Model skipped due to transcript/target_word mismatch.",
-        }
-        prediction = {
-            "risk_label_binary": 1,
-            "risk_probability": round(random.uniform(0.70, 0.95), 4),
-            "risk_level": "high",
-        }
-        return {
-            "validation": validation,
-            "quality": quality,
-            "features": {},
-            "prediction": prediction,
-        }
-
-    logger.info("Transcript matches target_word=%r; running model.", target_word)
     result = predict_speech_from_audio(
         content,
         task_type=task_type,
@@ -103,12 +56,45 @@ async def predict_speech(
         environment_noise_level=environment_noise_level,
         time_of_day=time_of_day,
     )
-    result["prediction"]["risk_label_binary"] = 0
-    result["prediction"]["risk_level"] = "low"
+    quality = result["quality"]
+    prediction = result["prediction"]
+
+    transcript = transcribe_wav_bytes(
+        content,
+        language=assessment_language if assessment_language else None,
+    )
+    logger.info(
+        "Incoming WAV: filename=%s size=%dB sr=%s duration=%.2fs target_word=%r transcript=%r",
+        validation["filename"],
+        len(content),
+        validation["sample_rate"],
+        validation["duration_sec"],
+        target_word,
+        transcript,
+    )
+
+    if transcript is None:
+        # Whisper unavailable or failed: the model result stands, the word match is unknown.
+        transcript_match = None
+        quality["warnings"].append("Transcription unavailable; word match not checked.")
+    else:
+        transcript_match = _normalize_for_match(transcript) == _normalize_for_match(target_word)
+        if not transcript_match:
+            prediction["risk_level"] = "requires_review"
+            quality["prediction_reliability"] = "low"
+            quality["warnings"].append("Spoken word did not match the target word.")
+
+    inconclusive = prediction["risk_level"] == "requires_review" or quality["prediction_reliability"] == "low"
 
     return {
+        "component": "speech_phonological",
+        "model_version": MODEL_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "quality_status": "inconclusive" if inconclusive else "valid",
+        "transcript": transcript,
+        "transcript_match": transcript_match,
         "validation": validation,
-        "quality": result["quality"],
+        "quality": quality,
         "features": result["features"],
-        "prediction": result["prediction"],
+        "prediction": prediction,
     }

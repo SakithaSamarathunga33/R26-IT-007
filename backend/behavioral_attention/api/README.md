@@ -23,7 +23,7 @@ Performance:
 Place the model file at:
 
 ```
-backend/behavioral_attention/api/behavior_logistic_regression.pkl
+backend/behavioral_attention/ml_models/behavior_logistic_regression.pkl
 ```
 
 ## Endpoint
@@ -78,6 +78,12 @@ Swagger UI: http://127.0.0.1:8002/docs
 
 ```bash
 docker compose up --build behavioral_api
+```
+
+The image copies `ml_models/` in, so its build context is `backend/behavioral_attention`:
+
+```bash
+docker build -f api/Dockerfile -t lexiscan/behavioral-api backend/behavioral_attention
 ```
 
 ## Note

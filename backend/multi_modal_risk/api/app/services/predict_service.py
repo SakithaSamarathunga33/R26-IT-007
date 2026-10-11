@@ -1,19 +1,36 @@
 from typing import Dict, Any
 from app.services.model_loader import load_models
 from app.services.feature_builder import build_fusion_features
-from app.services.fusion_service import load_rule_config, calculate_weighted_fusion, predict_primary_difficulty, predict_secondary_difficulty, fusion_quality
+from app.services.fusion_service import (
+    load_rule_config, component_statuses, usable_count, difficulty_scores, disagreement_indicator, review_status,
+    calculate_weighted_fusion, predict_primary_difficulty, predict_secondary_difficulty, fusion_quality
+)
 from app.services.therapy_service import build_therapy_recommendation
 
 load_models()
 
 def predict_fusion(payload: Dict[str, Any]):
     config = load_rule_config()
+    statuses = component_statuses(payload)
     feature_df, features = build_fusion_features(payload, config)
-    final_prediction = calculate_weighted_fusion(features, config)
-    primary_difficulty = predict_primary_difficulty(feature_df, features)
-    secondary_difficulty_label = predict_secondary_difficulty(features, primary_difficulty['primary_difficulty_label'])
-    therapy_recommendation = build_therapy_recommendation(final_prediction, primary_difficulty, secondary_difficulty_label)
-    quality = fusion_quality(payload)
+    disagreement = disagreement_indicator(statuses, config)
+    status = review_status(statuses, disagreement, config)
+    final_prediction = calculate_weighted_fusion(statuses, config, status)
+    primary_difficulty = secondary_difficulty_label = therapy_recommendation = None
+    if status != 'insufficient_evidence':
+        # XGBoost also needs each module's sub-features; empty feature dicts would reach it as zeros
+        features_complete = all((payload.get(name) or {}).get('features') for name in statuses)
+        primary_difficulty = predict_primary_difficulty(feature_df, statuses, features_complete)
+        primary_label = primary_difficulty['primary_difficulty_label']
+        secondary_difficulty_label = predict_secondary_difficulty(statuses, primary_label)
+        therapy_recommendation = build_therapy_recommendation(final_prediction, primary_difficulty, secondary_difficulty_label, difficulty_scores(statuses).get(primary_label))
+    quality = fusion_quality(payload, statuses)
+    review_fields = {
+        'component_statuses': statuses,
+        'evidence_completeness': round(usable_count(statuses) / len(statuses), 4),
+        'disagreement_indicator': disagreement,
+        'review_status': status
+    }
     child_id = payload.get('child_id')
     session_id = payload.get('session_id')
     database_save_payload = {
@@ -25,13 +42,14 @@ def predict_fusion(payload: Dict[str, Any]):
             'overall_risk_score': final_prediction['overall_risk_score'],
             'final_dyslexia_risk_label': final_prediction['final_dyslexia_risk_label'],
             'final_dyslexia_risk_level': final_prediction['final_dyslexia_risk_level'],
-            'primary_difficulty_label': primary_difficulty['primary_difficulty_label'],
+            'primary_difficulty_label': (primary_difficulty or {}).get('primary_difficulty_label'),
             'secondary_difficulty_label': secondary_difficulty_label,
-            'primary_difficulty_method': primary_difficulty['method'],
+            'primary_difficulty_method': (primary_difficulty or {}).get('method'),
             'fusion_features_json': features,
-            'quality_json': quality
+            'quality_json': quality,
+            **review_fields
         },
-        'therapy_recommendations': {
+        'therapy_recommendations': None if therapy_recommendation is None else {
             'child_id': child_id,
             'session_id': session_id,
             'risk_level': final_prediction['final_dyslexia_risk_level'],
@@ -50,5 +68,6 @@ def predict_fusion(payload: Dict[str, Any]):
         'therapy_recommendation': therapy_recommendation,
         'quality': quality,
         'fusion_features': features,
-        'database_save_payload': database_save_payload
+        'database_save_payload': database_save_payload,
+        **review_fields
     }

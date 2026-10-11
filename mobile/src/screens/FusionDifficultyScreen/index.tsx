@@ -78,8 +78,19 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Primary difficulty */}
+        {/* Primary difficulty — null when the screening had insufficient evidence */}
         <Text style={styles.sectionLabel}>Primary Area of Difficulty</Text>
+        {!primary ? (
+          <View style={[styles.secondaryCard, { borderColor: "#E2E8F0" }]}>
+            <View style={[styles.secondaryIconWrap, { backgroundColor: "#F1F5F9" }]}>
+              <Ionicons name="hourglass-outline" size={22} color="#64748B" />
+            </View>
+            <View style={styles.secondaryInfo}>
+              <Text style={styles.secondaryLabel}>Not enough evidence yet</Text>
+              <Text style={styles.secondaryDesc}>Complete more activities to see a difficulty breakdown.</Text>
+            </View>
+          </View>
+        ) : (
         <LinearGradient colors={primaryConfig.gradColors} style={styles.primaryCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={styles.decoCircle} />
           <View style={styles.primaryIconWrap}>
@@ -104,6 +115,7 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
             </View>
           </View>
         </LinearGradient>
+        )}
 
         {/* Secondary difficulty */}
         {secondaryConfig && (
@@ -196,6 +208,7 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
 
         <View style={{ height: 16 }} />
 
+        {!!response.therapy_recommendation && (
         <LinearGradient colors={["#1D4ED8", "#2563EB"]} style={styles.nextBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
           <TouchableOpacity
             style={styles.nextBtnInner}
@@ -206,6 +219,7 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
             <Text style={styles.nextBtnText}>View Therapy Plan</Text>
           </TouchableOpacity>
         </LinearGradient>
+        )}
 
         <View style={{ height: 50 }} />
       </ScrollView>

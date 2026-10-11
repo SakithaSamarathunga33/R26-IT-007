@@ -46,24 +46,38 @@ const RISK_CONFIG = {
     bgColor: "#FFF5F5",
     borderColor: "#FECACA",
   },
+  insufficient: {
+    title: "Not Enough Evidence Yet",
+    message:
+      "Not enough evidence yet — complete more activities so the screening can give a result.",
+    icon: "hourglass-outline" as const,
+    gradColors: ["#94A3B8", "#64748B"] as [string, string],
+    accentColor: "#64748B",
+    bgColor: "#F8FAFC",
+    borderColor: "#E2E8F0",
+  },
 };
 
 const RELIABILITY_COLORS = { high: "#059669", medium: "#D97706", low: "#EF4444" };
 
 export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
-  const { response } = route.params;
-  const fp = response.final_prediction;
+  const { response, saveFailed } = route.params;
+  const fp = response.final_prediction ?? {};
   const quality = response.quality;
+  // insufficient_evidence nulls the score, level, difficulty and therapy plan.
+  const insufficient = response.review_status === "insufficient_evidence" || fp.overall_risk_score == null;
+  const reviewRecommended = response.review_status === "review_recommended";
 
-  const level = (fp.final_dyslexia_risk_level as keyof typeof RISK_CONFIG) ?? "low";
+  const level = insufficient ? "insufficient" : ((fp.final_dyslexia_risk_level as keyof typeof RISK_CONFIG) ?? "low");
   const config = RISK_CONFIG[level] ?? RISK_CONFIG.low;
   const score = Math.round((fp.overall_risk_score ?? 0) * 100);
   const reliability = quality?.fusion_reliability ?? "medium";
+  const cs = response.component_statuses ?? {};
 
   const modules = [
-    { label: "Speech",      value: response.fusion_features?.speech_score, color: "#2563EB" },
-    { label: "Handwriting", value: response.fusion_features?.handwriting_score, color: "#7C3AED" },
-    { label: "Behaviour",   value: response.fusion_features?.behavior_score, color: "#0891B2" },
+    { label: "Speech",      value: response.fusion_features?.speech_score, color: "#2563EB", usable: cs.speech?.usable !== false },
+    { label: "Handwriting", value: response.fusion_features?.handwriting_score, color: "#7C3AED", usable: cs.handwriting?.usable !== false },
+    { label: "Behaviour",   value: response.fusion_features?.behavior_score, color: "#0891B2", usable: cs.behavior?.usable !== false },
   ];
 
   return (
@@ -93,11 +107,11 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           {/* Score row */}
           <View style={styles.scoreRow}>
             <View style={[styles.scoreStat, styles.scoreStatBorder]}>
-              <Text style={styles.scoreVal}>{score}%</Text>
+              <Text style={styles.scoreVal}>{insufficient ? "—" : `${score}%`}</Text>
               <Text style={styles.scoreLabel}>Risk Score</Text>
             </View>
             <View style={[styles.scoreStat, styles.scoreStatBorder]}>
-              <Text style={styles.scoreVal}>{level.charAt(0).toUpperCase() + level.slice(1)}</Text>
+              <Text style={styles.scoreVal}>{insufficient ? "—" : level.charAt(0).toUpperCase() + level.slice(1)}</Text>
               <Text style={styles.scoreLabel}>Risk Level</Text>
             </View>
             <View style={styles.scoreStat}>
@@ -107,7 +121,24 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           </View>
         </LinearGradient>
 
+        {saveFailed && (
+          <View style={styles.warningCard}>
+            <Ionicons name="cloud-offline-outline" size={18} color="#D97706" />
+            <Text style={styles.warningText}>These results could not be saved to your profile, so they won't appear in History.</Text>
+          </View>
+        )}
+
+        {reviewRecommended && (
+          <View style={styles.warningCard}>
+            <Ionicons name="eye-outline" size={18} color="#D97706" />
+            <Text style={styles.warningText}>
+              Review recommended{response.disagreement_indicator?.flagged ? " — the activities gave noticeably different results" : ""}. Please go over this screening with a teacher or specialist.
+            </Text>
+          </View>
+        )}
+
         {/* Risk score bar */}
+        {!insufficient && (
         <View style={styles.probCard}>
           <View style={styles.probHeader}>
             <Text style={styles.probTitle}>Overall Dyslexia Risk Score</Text>
@@ -121,6 +152,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
             <View style={styles.thresholdMark} />
           </View>
         </View>
+        )}
 
         {/* Module contributions */}
         <Text style={styles.sectionLabel}>Module Contributions</Text>
@@ -141,7 +173,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
                   />
                 </View>
                 <Text style={[styles.moduleVal, { color: m.color }]}>
-                  {Math.round((m.value ?? 0) * 100)}%
+                  {m.usable ? `${Math.round((m.value ?? 0) * 100)}%` : "—"}
                 </Text>
               </View>
             </View>
@@ -185,7 +217,20 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
 
         <View style={{ height: 16 }} />
 
-        {/* Actions */}
+        {/* Actions — no difficulty or therapy plan exists without enough evidence */}
+        {insufficient ? (
+          <LinearGradient colors={["#1D4ED8", "#2563EB"]} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <TouchableOpacity
+              style={styles.btnInner}
+              activeOpacity={0.85}
+              onPress={() => navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] })}
+            >
+              <Ionicons name="home-outline" size={20} color="#fff" />
+              <Text style={styles.primaryBtnText}>Back to Dashboard</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        ) : (
+        <>
         <LinearGradient colors={["#1D4ED8", "#2563EB"]} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
           <TouchableOpacity
             style={styles.btnInner}
@@ -205,6 +250,8 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
           <Ionicons name="fitness-outline" size={18} color="#2563EB" />
           <Text style={styles.secondaryBtnText}>View Therapy Plan</Text>
         </TouchableOpacity>
+        </>
+        )}
 
         <View style={{ height: 50 }} />
       </ScrollView>

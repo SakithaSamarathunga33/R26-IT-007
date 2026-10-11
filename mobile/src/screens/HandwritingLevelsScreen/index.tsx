@@ -20,6 +20,7 @@ import {
   clearHandwritingLevelPredictions,
   fetchHandwritingLevelProgress,
   isHandwritingLevelUnlocked,
+  setHandwritingSupplement,
 } from "../../services/handwritingLevelService";
 
 type Props = {
@@ -60,6 +61,7 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
         await clearHandwritingLevelPredictions(uid, level.id).catch(() => {});
       }
     }
+    setHandwritingSupplement(null); // drop any supplement left by an abandoned run
     const firstIndex = handwritingTaskIndicesForLevel(level.id)[0];
     navigation.navigate("HandwritingTask", { taskIndex: firstIndex });
   };

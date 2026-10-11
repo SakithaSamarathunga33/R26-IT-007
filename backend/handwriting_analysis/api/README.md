@@ -26,7 +26,7 @@ Performance:
 Place the model file at:
 
 ```
-backend/handwriting_analysis/api/handwriting_logistic_regression.pkl
+backend/handwriting_analysis/ml_models/handwriting_logistic_regression.pkl
 ```
 
 ## Endpoint
@@ -73,6 +73,13 @@ Request type: `multipart/form-data`
 | `quality.prediction_reliability` | `"low"` / `"medium"` / `"high"` |
 | `quality.warnings` | Validation warning messages |
 | `features` | Extracted handwriting feature values |
+| `component` | Always `"handwriting_analysis"` |
+| `model_version` / `feature_schema_version` / `preprocessing_version` | Version strings for traceability |
+| `quality_status` | `"valid"` / `"inconclusive"` (inconclusive when reliability is low) |
+| `warnings` | `[{code, message}]`, codes: `ocr_unavailable`, `ocr_no_match`, `faint_writing`, `noisy_image`, `possible_reversal` |
+| `target_match` | `{matched, confidence}` from OCR; both `null` when OCR is unavailable |
+
+Technically unusable images return **422** with `detail = {"code": "recapture_required", "reason": "blank" | "undecodable" | "sparse" | "cropped" | "too_large" | "unsupported_format", "message": "<child-friendly text>"}`.
 
 ## Image validation layers
 

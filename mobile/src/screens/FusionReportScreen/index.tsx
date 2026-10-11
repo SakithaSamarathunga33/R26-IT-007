@@ -9,19 +9,21 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { riskLevelFromScore } from "../../config/riskThresholds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionReport">;
   route: RouteProp<RootStackParamList, "FusionReport">;
 };
 
-const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444" };
-const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5" };
-const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA" };
+const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444", insufficient: "#64748B" };
+const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", insufficient: "#F8FAFC" };
+const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", insufficient: "#E2E8F0" };
 const RISK_GRAD: Record<string, [string, string]> = {
   low:    ["#059669", "#047857"],
   medium: ["#F59E0B", "#D97706"],
   high:   ["#EF4444", "#DC2626"],
+  insufficient: ["#94A3B8", "#64748B"],
 };
 
 const DIFFICULTY_LABELS: Record<string, string> = {
@@ -52,8 +54,11 @@ export default function FusionReportScreen({ navigation, route }: Props) {
   const therapy = response.therapy_recommendation ?? {};
   const quality = response.quality ?? {};
   const features = response.fusion_features ?? {};
+  const cs = response.component_statuses ?? {};
+  // insufficient_evidence nulls the score, level, difficulty and therapy plan.
+  const insufficient = response.review_status === "insufficient_evidence" || fp.overall_risk_score == null;
 
-  const level = (fp.final_dyslexia_risk_level as keyof typeof RISK_COLORS) ?? "low";
+  const level: keyof typeof RISK_COLORS = insufficient ? "insufficient" : (fp.final_dyslexia_risk_level ?? "low");
   const score = Math.round((fp.overall_risk_score ?? 0) * 100);
   const gradColors = RISK_GRAD[level] ?? RISK_GRAD.low;
 
@@ -107,22 +112,31 @@ export default function FusionReportScreen({ navigation, route }: Props) {
           <View style={styles.resultRow}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.resultLevel, { color: RISK_COLORS[level] }]}>
-                {level.charAt(0).toUpperCase() + level.slice(1)} Screening Risk
+                {insufficient ? "Not Enough Evidence Yet" : `${level.charAt(0).toUpperCase() + level.slice(1)} Screening Risk`}
               </Text>
-              <Text style={styles.resultScore}>Overall Risk Score: {score}%</Text>
-              <Text style={styles.resultMethod}>Method: {fp.fusion_strategy ?? "weighted_rule_based_fusion"}</Text>
+              <Text style={styles.resultScore}>
+                {insufficient ? "Complete more activities to get a screening result." : `Overall Risk Score: ${score}%`}
+              </Text>
+              <Text style={styles.resultMethod}>Method: reliability-weighted rule-based fusion</Text>
             </View>
             <View style={[styles.scoreCircle, { borderColor: RISK_COLORS[level] }]}>
-              <Text style={[styles.scoreCircleVal, { color: RISK_COLORS[level] }]}>{score}%</Text>
+              <Text style={[styles.scoreCircleVal, { color: RISK_COLORS[level] }]}>{insufficient ? "—" : `${score}%`}</Text>
             </View>
           </View>
           <View style={styles.resultTrack}>
-            <View style={[styles.resultFill, { width: `${score}%` as any, backgroundColor: RISK_COLORS[level] }]} />
+            <View style={[styles.resultFill, { width: `${insufficient ? 0 : score}%` as any, backgroundColor: RISK_COLORS[level] }]} />
           </View>
           <Text style={styles.resultThreshold}>Threshold: 35%  ·  Reliability: {quality.fusion_reliability ?? "medium"}</Text>
+          {response.review_status === "review_recommended" && (
+            <Text style={styles.resultThreshold}>
+              Review recommended{response.disagreement_indicator?.flagged ? " — module results disagree" : ""}. Please discuss with a teacher or specialist.
+            </Text>
+          )}
         </View>
 
         {/* Difficulty */}
+        {!insufficient && (
+        <>
         <Section title="Difficulty Areas" />
         <View style={styles.diffCard}>
           <View style={styles.diffRow}>
@@ -160,13 +174,16 @@ export default function FusionReportScreen({ navigation, route }: Props) {
             </View>
           )}
         </View>
+        </>
+        )}
 
         {/* Module summaries */}
         <Section title="Module Summaries" />
         <View style={styles.modulesCard}>
           {MODULE_META.map((m, i) => {
             const val = Number(features[m.scoreKey] ?? 0);
-            const mlevel = val >= 0.6 ? "high" : val >= 0.35 ? "medium" : "low";
+            const usable = cs[m.key === "behaviour" ? "behavior" : m.key]?.usable !== false;
+            const mlevel = usable ? riskLevelFromScore(val) : "insufficient";
             return (
               <View key={i} style={[styles.moduleRow, i < MODULE_META.length - 1 && styles.moduleBorder]}>
                 <View style={[styles.moduleIcon, { backgroundColor: m.iconBg }]}>
@@ -183,7 +200,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
                   </View>
                 </View>
                 <View style={[styles.moduleLevelPill, { backgroundColor: RISK_BG[mlevel], borderColor: RISK_BORDER[mlevel] }]}>
-                  <Text style={[styles.moduleLevelText, { color: RISK_COLORS[mlevel] }]}>{mlevel}</Text>
+                  <Text style={[styles.moduleLevelText, { color: RISK_COLORS[mlevel] }]}>{usable ? mlevel : "n/a"}</Text>
                 </View>
               </View>
             );
@@ -191,6 +208,8 @@ export default function FusionReportScreen({ navigation, route }: Props) {
         </View>
 
         {/* Therapy summary */}
+        {!insufficient && (
+        <>
         <Section title="Therapy Recommendation" />
         <View style={styles.therapyCard}>
           <View style={styles.therapyRow}>
@@ -214,6 +233,8 @@ export default function FusionReportScreen({ navigation, route }: Props) {
             <Text style={styles.therapyVal}>{(therapy.recommended_activities ?? []).length} recommended</Text>
           </View>
         </View>
+        </>
+        )}
 
         {/* Recommended activities */}
         {(therapy.recommended_activities ?? []).length > 0 && (
@@ -290,7 +311,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
         <View style={styles.disclaimerCard}>
           <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
           <Text style={styles.disclaimerText}>
-            This report contains <Text style={styles.disclaimerBold}>screening risk indicators only</Text> — not a clinical diagnosis. Results combine speech, handwriting, and behaviour module outputs using the weighted rule-based fusion method. Please consult a qualified teacher, therapist, or specialist for a full evaluation.
+            This report contains <Text style={styles.disclaimerBold}>screening risk indicators only</Text> — not a clinical diagnosis. Results combine speech, handwriting, and behaviour module outputs using reliability-weighted rule-based fusion. Please consult a qualified teacher, therapist, or specialist for a full evaluation.
           </Text>
         </View>
 

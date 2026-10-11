@@ -34,6 +34,7 @@ export default function HandwritingTaskScreen({ navigation, route }: Props) {
   const level = getHandwritingLevel(task.level);
   // Progress is scoped to the current level, not the whole 21-task set.
   const total = handwritingLevelTaskCount(task.level);
+  // 0 for an unscored (supplementary or practice-only) task.
   const position = handwritingPositionInLevel(taskIndex);
   const progress = position / total;
   const diff = DIFFICULTY_CONFIG[task.difficulty_level];
@@ -81,7 +82,7 @@ export default function HandwritingTaskScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Task {position} of {total}</Text>
+        <Text style={styles.headerTitle}>{position ? `Task ${position} of ${total}` : "Bonus Task"}</Text>
         <View style={[styles.diffBadge, { backgroundColor: diff.bg }]}>
           <View style={[styles.diffDot, { backgroundColor: diff.color }]} />
           <Text style={[styles.diffText, { color: diff.color }]}>{diff.label}</Text>

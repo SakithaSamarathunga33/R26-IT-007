@@ -142,18 +142,43 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
     );
   };
 
+  const header = (
+    <View style={styles.header}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Ionicons name="arrow-back" size={20} color="#1E293B" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>Therapy Plan</Text>
+      <View style={{ width: 40 }} />
+    </View>
+  );
+
+  // insufficient_evidence screenings come back without a plan.
+  if (!response.therapy_recommendation) {
+    return (
+      <View style={styles.container}>
+        <KidBackground variant="therapy" />
+        <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
+        {header}
+        <View style={styles.content}>
+          <View style={styles.safetyCard}>
+            <Ionicons name="hourglass-outline" size={16} color="#64748B" />
+            <Text style={styles.safetyText}>Not enough evidence yet — complete more activities to get a practice plan.</Text>
+          </View>
+          <TouchableOpacity style={styles.homeBtn} activeOpacity={0.8} onPress={() => navigation.navigate("MainTabs")}>
+            <Ionicons name="home-outline" size={18} color="#64748B" />
+            <Text style={styles.homeBtnText}>Back to Dashboard</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <KidBackground variant="therapy" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Therapy Plan</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      {header}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 

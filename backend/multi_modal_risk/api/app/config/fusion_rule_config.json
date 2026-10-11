@@ -1,9 +1,13 @@
 {
-  "model_name": "weighted_rule_based_fusion",
-  "model_version": "weighted_rule_v1",
+  "model_name": "reliability_weighted_rule_fusion",
+  "model_version": "reliability_weighted_rule_v2",
   "speech_weight": 0.40,
   "handwriting_weight": 0.35,
   "behavior_weight": 0.25,
+  "reliability_factors": { "high": 1.0, "medium": 0.85, "low": 0.6 },
+  "minimum_usable_modules": 2,
+  "disagreement_threshold": 0.5,
   "threshold": 0.35,
-  "formula": "0.40*speech_score + 0.35*handwriting_score + 0.25*behavior_score"
+  "formula": "sum(base_weight * reliability_factor * score) / sum(base_weight * reliability_factor) over usable modules only; missing reliability counts as medium",
+  "note": "Reliability factors, the disagreement threshold, the minimum-module rule, the risk bands (low < 0.35, medium < 0.70, high >= 0.70) and the 0.35 label threshold are software settings, not clinically validated cut-offs."
 }

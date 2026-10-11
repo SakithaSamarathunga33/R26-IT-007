@@ -61,10 +61,11 @@ def _get_model():
     return _model
 
 
-def transcribe_wav_bytes(file_bytes: bytes, language: str | None = None) -> str:
+def transcribe_wav_bytes(file_bytes: bytes, language: str | None = None) -> str | None:
+    """Spoken text ("" = nothing heard), or None when transcription is unavailable/failed."""
     model = _get_model()
     if model is None:
-        return ""
+        return None
     lang_code = _normalize_language(language)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp.write(file_bytes)
@@ -80,7 +81,7 @@ def transcribe_wav_bytes(file_bytes: bytes, language: str | None = None) -> str:
         return text
     except Exception as exc:
         logger.exception("Transcription failed: %s", exc)
-        return ""
+        return None
     finally:
         try:
             os.remove(tmp_path)

@@ -15,6 +15,7 @@ import { auth } from "../../config/firebase";
 import { markModuleDone } from "../../services/sessionService";
 import { fetchModuleSummary, ModuleSummary, RiskLevel, SummaryRow } from "../../services/summaryService";
 import { BehaviorLevelProgress, fetchBehaviorLevelProgress } from "../../services/behaviorLevelService";
+import { riskLevelFromScore } from "../../config/riskThresholds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorSummary">;
@@ -134,7 +135,8 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
   }
 
   const { rows, count, avgProb } = summary;
-  const overallLevel: RiskLevel = summary.overallLevel;
+  // Bands come from the shared thresholds so the card and pills match the backend.
+  const overallLevel: RiskLevel = count ? riskLevelFromScore(avgProb) : "requires_review";
   const groups = groupRowsByLevel(rows);
   const remainingLevels = BEHAVIOR_LEVELS.filter((l) => !levelProgress.completed.includes(l.id));
   const nextLevel = remainingLevels[0];
@@ -239,21 +241,22 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
                 const tc = taskType
                   ? BEHAVIOR_TASK_COLORS[taskType]
                   : { bg: "#F1F5F9", color: "#64748B", border: "#E2E8F0" };
-                const rc = RISK_COLORS[row.risk_level];
+                const rl: RiskLevel = row.risk_level === "requires_review" ? "requires_review" : riskLevelFromScore(row.risk_probability);
+                const rc = RISK_COLORS[rl];
                 const attention = num(row.features.attention_score);
                 return (
                   <View key={key} style={[styles.breakdownRow, i < group.items.length - 1 && styles.breakdownBorder]}>
                     <View style={[styles.breakdownIcon, { backgroundColor: tc.bg }]}>
-                      <Ionicons name={row.risk_level === "low" ? "checkmark" : "alert"} size={13} color={rc} />
+                      <Ionicons name={rl === "low" ? "checkmark" : "alert"} size={13} color={rc} />
                     </View>
                     <View style={styles.breakdownInfo}>
                       <Text style={styles.breakdownTask}>{typeLabel}</Text>
                       <Text style={styles.breakdownWord} numberOfLines={1}>{detail}</Text>
                       <MiniBar value={attention} color={tc.color} />
                     </View>
-                    <View style={[styles.riskPill, { backgroundColor: RISK_BG[row.risk_level], borderColor: RISK_BORDER[row.risk_level] }]}>
+                    <View style={[styles.riskPill, { backgroundColor: RISK_BG[rl], borderColor: RISK_BORDER[rl] }]}>
                       <Text style={[styles.riskPillText, { color: rc }]}>
-                        {row.risk_level === "requires_review" ? "review" : row.risk_level}
+                        {rl === "requires_review" ? "review" : rl}
                       </Text>
                     </View>
                   </View>

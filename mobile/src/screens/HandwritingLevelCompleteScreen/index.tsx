@@ -19,10 +19,14 @@ import {
   handwritingTaskIndicesForLevel,
 } from "../../config/handwritingTasks";
 import {
+  HandwritingLevelResult,
+  MAX_UNMASTERED_PASSES,
   clearHandwritingLevelPredictions,
+  countUnmasteredPass,
+  fetchHandwritingLevelResult,
   markHandwritingLevelComplete,
+  setHandwritingSupplement,
 } from "../../services/handwritingLevelService";
-import { useLevelScore } from "../../services/summaryService";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingLevelComplete">;
@@ -37,17 +41,32 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
 
   const [saving, setSaving] = useState(true);
   const [saveFailed, setSaveFailed] = useState(false);
-  const levelScore = useLevelScore("handwriting_predictions", level, "HandwritingLevels");
+  // Score + 4-of-5 mastery from the original attempts only (supplementary ones never count).
+  const [levelResult, setLevelResult] = useState<HandwritingLevelResult | null>(null);
+  // Mastered, or allowed on after MAX_UNMASTERED_PASSES tries so the screening can still finish.
+  const [canProceed, setCanProceed] = useState(false);
+  const passProceedRef = useRef<boolean | null>(null);
   const popAnim = useRef(new Animated.Value(0)).current;
 
-  // Persist the unlock before the child moves on. If this fails the level would
-  // silently re-lock on the next login, so surface it and offer a retry.
+  // Persist the unlock before the child moves on — only once the level is
+  // mastered. If this fails the level would silently re-lock on the next
+  // login, so surface it and offer a retry.
   const saveProgress = useCallback(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) { setSaving(false); return; }
     setSaving(true);
     setSaveFailed(false);
-    markHandwritingLevelComplete(uid, level)
+    fetchHandwritingLevelResult(uid, level)
+      .then(async (r) => {
+        setLevelResult(r);
+        // the save-retry card re-runs this; count the pass once and reuse the decision
+        if (!r.mastered && passProceedRef.current === null) {
+          passProceedRef.current = countUnmasteredPass(level) >= MAX_UNMASTERED_PASSES;
+        }
+        const proceed = r.mastered || !!passProceedRef.current;
+        setCanProceed(proceed);
+        if (proceed) await markHandwritingLevelComplete(uid, level);
+      })
       .then(() => setSaveFailed(false))
       .catch((err) => {
         console.warn("[HandwritingLevels] could not save unlock:", err?.message);
@@ -62,17 +81,18 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
   // a pre-reader needs to hear it, not read it.
   const praisedRef = useRef(false);
   useEffect(() => {
-    if (praisedRef.current) return;
+    if (saving || praisedRef.current) return;
     praisedRef.current = true;
     const t = setTimeout(
       () => speakFeedback("levelDone", {
         seed: level,
-        extra: isFinalLevel ? "All levels done!" : `Level ${level + 1} unlocked.`,
+        extra: !canProceed ? "Let's practise and try again!"
+          : isFinalLevel ? "All levels done!" : `Level ${level + 1} unlocked.`,
       }),
       800
     );
     return () => clearTimeout(t);
-  }, [level, isFinalLevel]);
+  }, [level, isFinalLevel, saving, canProceed]);
 
   useEffect(() => () => stopSpeaking(), []);
 
@@ -104,7 +124,17 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
     // Drop any rows this level left behind on an earlier run so a replay doesn't
     // stack duplicates in the summary.
     if (uid) await clearHandwritingLevelPredictions(uid, nextLevel.id).catch(() => {});
+    setHandwritingSupplement(null);
     navigation.replace("HandwritingTask", { taskIndex: handwritingTaskIndicesForLevel(nextLevel.id)[0] });
+  };
+
+  // Not mastered: replay this level from a clean slate so the new run is scored on its own.
+  const retryLevel = async () => {
+    stopSpeaking();
+    const uid = auth.currentUser?.uid;
+    if (uid) await clearHandwritingLevelPredictions(uid, level).catch(() => {});
+    setHandwritingSupplement(null);
+    navigation.replace("HandwritingTask", { taskIndex: handwritingTaskIndicesForLevel(level)[0] });
   };
 
   return (
@@ -141,18 +171,30 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
         </Animated.View>
 
         {/* Stat chips — score, tasks done, level number */}
-        {levelScore && (
+        {levelResult && (
           <StatChipRow
             chips={[
-              { icon: "star", label: "Score", value: `${levelScore.score}`, color: "#2563EB", bg: "#EFF6FF", border: "#DBEAFE" },
-              { icon: "checkmark-circle", label: "Done", value: `${levelScore.lowRiskCount}/${levelScore.taskCount}`, color: "#059669", bg: "#ECFDF5", border: "#BBF7D0" },
+              { icon: "star", label: "Score", value: `${levelResult.score}`, color: "#2563EB", bg: "#EFF6FF", border: "#DBEAFE" },
+              { icon: "checkmark-circle", label: "Correct", value: `${levelResult.correct}/${levelResult.total}`, color: "#059669", bg: "#ECFDF5", border: "#BBF7D0" },
               { icon: "flag", label: "Level", value: `${level}`, color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
             ]}
           />
         )}
 
-        {/* Unlock notice */}
-        {nextLevel ? (
+        {/* Unlock notice — or, when not yet mastered, a gentle invitation to practise */}
+        {saving || !levelResult ? null : !canProceed ? (
+          <View style={styles.unlockCard}>
+            <View style={[styles.unlockBadge, { backgroundColor: config.bg }]}>
+              <Ionicons name="refresh" size={20} color={config.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.unlockTitle}>Let's practise a little more!</Text>
+              <Text style={styles.unlockSub}>
+                Play Level {level} again to get even better{nextLevel ? ` and open Level ${nextLevel.id}` : ""}.
+              </Text>
+            </View>
+          </View>
+        ) : nextLevel ? (
           <View style={styles.unlockCard}>
             <LinearGradient
               colors={nextLevel.gradColors}
@@ -195,7 +237,19 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
         <View style={{ flex: 1 }} />
 
         {/* Primary action */}
-        {isFinalLevel ? (
+        {!levelResult ? null : !canProceed ? (
+          <LinearGradient colors={config.gradColors} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+            <TouchableOpacity
+              style={styles.primaryBtnInner}
+              activeOpacity={0.88}
+              onPress={retryLevel}
+              disabled={saving}
+            >
+              <Text style={styles.primaryBtnText}>Try Level {level} Again</Text>
+              <Ionicons name="refresh" size={18} color="#fff" />
+            </TouchableOpacity>
+          </LinearGradient>
+        ) : isFinalLevel ? (
           <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.primaryBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             <TouchableOpacity
               style={styles.primaryBtnInner}
@@ -221,7 +275,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
           </LinearGradient>
         )}
 
-        {!isFinalLevel && (
+        {(!isFinalLevel || !canProceed) && (
           <TouchableOpacity
             style={styles.secondaryBtn}
             activeOpacity={0.8}

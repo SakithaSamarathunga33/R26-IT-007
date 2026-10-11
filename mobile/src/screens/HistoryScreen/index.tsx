@@ -11,19 +11,32 @@ import { RootStackParamList } from "../../navigation/AppNavigator";
 import { auth } from "../../config/firebase";
 import { getAssessmentHistory, AssessmentRecord } from "../../services/sessionService";
 import { theme } from "../../theme";
+import { riskLevelFromScore } from "../../config/riskThresholds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "MainTabs">;
 };
 
-const RISK_COLOR  = { low: "#059669", medium: "#D97706", high: "#EF4444" };
-const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5" };
-const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA" };
+const RISK_COLOR  = { low: "#059669", medium: "#D97706", high: "#EF4444", insufficient: "#64748B" };
+const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", insufficient: "#F8FAFC" };
+const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", insufficient: "#E2E8F0" };
 const RISK_GRAD: Record<string, [string, string]> = {
   low:    ["#059669", "#047857"],
   medium: ["#F59E0B", "#D97706"],
   high:   ["#EF4444", "#DC2626"],
+  insufficient: ["#94A3B8", "#64748B"],
 };
+
+// History stores riskLevel "low" as a fallback when the fusion returned no level,
+// so read the report's own status to avoid showing "Low" for insufficient evidence.
+function recordLevel(r: AssessmentRecord): keyof typeof RISK_COLOR {
+  if (r.fullReport?.review_status === "insufficient_evidence") return "insufficient";
+  return (r.riskLevel ?? "low") as keyof typeof RISK_COLOR;
+}
+
+function levelLabel(level: keyof typeof RISK_COLOR): string {
+  return level === "insufficient" ? "Not enough evidence" : level.charAt(0).toUpperCase() + level.slice(1);
+}
 
 const DIFFICULTY_LABELS: Record<string, string> = {
   phonological_processing: "Phonological Processing",
@@ -98,7 +111,7 @@ export default function HistoryScreen({ navigation }: Props) {
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
           {history.map((record, i) => {
-            const level = (record.riskLevel ?? "low") as keyof typeof RISK_COLOR;
+            const level = recordLevel(record);
             const rc = RISK_COLOR[level] ?? RISK_COLOR.low;
             const rb = RISK_BG[level] ?? RISK_BG.low;
             const rbd = RISK_BORDER[level] ?? RISK_BORDER.low;
@@ -135,7 +148,7 @@ export default function HistoryScreen({ navigation }: Props) {
                   <View style={[styles.riskPill, { backgroundColor: rb, borderColor: rbd }]}>
                     <View style={[styles.riskDot, { backgroundColor: rc }]} />
                     <Text style={[styles.riskPillText, { color: rc }]}>
-                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                      {levelLabel(level)}
                     </Text>
                   </View>
                 </View>
@@ -143,7 +156,7 @@ export default function HistoryScreen({ navigation }: Props) {
                 {/* Score bar */}
                 <View style={styles.scoreRow}>
                   <Text style={styles.scoreLabel}>Overall Risk Score</Text>
-                  <Text style={[styles.scoreValue, { color: rc }]}>{score}%</Text>
+                  <Text style={[styles.scoreValue, { color: rc }]}>{level === "insufficient" ? "—" : `${score}%`}</Text>
                 </View>
                 <View style={styles.scoreTrack}>
                   <View style={[styles.scoreFill, { width: `${score}%` as any, backgroundColor: rc }]} />
@@ -186,7 +199,7 @@ export default function HistoryScreen({ navigation }: Props) {
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSelected(null)} />
           {selected && (() => {
-            const level = (selected.riskLevel ?? "low") as keyof typeof RISK_COLOR;
+            const level = recordLevel(selected);
             const rc    = RISK_COLOR[level] ?? RISK_COLOR.low;
             const rb    = RISK_BG[level] ?? RISK_BG.low;
             const score = Math.round((selected.overallScore ?? 0) * 100);
@@ -230,13 +243,20 @@ export default function HistoryScreen({ navigation }: Props) {
                     <View style={styles.modalResultRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.modalRiskLevel, { color: rc }]}>
-                          {level.charAt(0).toUpperCase() + level.slice(1)} Risk
+                          {level === "insufficient" ? "Not enough evidence yet" : `${levelLabel(level)} Risk`}
                         </Text>
-                        <Text style={styles.modalScoreText}>Score: {score}%</Text>
-                        <Text style={styles.modalMethod}>{fp.fusion_strategy ?? "weighted_rule_based_fusion"}</Text>
+                        <Text style={styles.modalScoreText}>
+                          {level === "insufficient" ? "Complete more activities for a result." : `Score: ${score}%`}
+                        </Text>
+                        <Text style={styles.modalMethod}>
+                          {fp.fusion_strategy === "reliability_weighted_rule_fusion" ? "Reliability-weighted rule-based fusion" : fp.fusion_strategy ?? "weighted_rule_based_fusion"}
+                        </Text>
+                        {selected.fullReport?.review_status === "review_recommended" && (
+                          <Text style={styles.modalMethod}>Review recommended</Text>
+                        )}
                       </View>
                       <View style={[styles.modalScoreCircle, { borderColor: rc }]}>
-                        <Text style={[styles.modalScoreCircleVal, { color: rc }]}>{score}%</Text>
+                        <Text style={[styles.modalScoreCircleVal, { color: rc }]}>{level === "insufficient" ? "—" : `${score}%`}</Text>
                       </View>
                     </View>
                     <View style={styles.modalTrack}>
@@ -247,7 +267,9 @@ export default function HistoryScreen({ navigation }: Props) {
                     </Text>
                   </View>
 
-                  {/* Difficulty */}
+                  {/* Difficulty — absent for insufficient evidence */}
+                  {level !== "insufficient" && (
+                  <>
                   <Text style={styles.modalSectionLabel}>Difficulty Areas</Text>
                   <View style={styles.modalInfoCard}>
                     <ModalRow icon="alert-circle" color="#2563EB" label="Primary" value={DIFFICULTY_LABELS[pd.primary_difficulty_label] ?? pd.primary_difficulty_label ?? "—"} />
@@ -256,13 +278,15 @@ export default function HistoryScreen({ navigation }: Props) {
                       <ModalRow icon="stats-chart" color="#7C3AED" label="Confidence" value={`${Math.round(pd.confidence * 100)}%`} border />
                     )}
                   </View>
+                  </>
+                  )}
 
                   {/* Module scores */}
                   <Text style={styles.modalSectionLabel}>Module Scores</Text>
                   <View style={styles.modalInfoCard}>
                     {MODULE_META.map((m, i) => {
                       const val = Math.round((Number(features[m.scoreKey] ?? 0)) * 100);
-                      const mlevel = val >= 60 ? "high" : val >= 35 ? "medium" : "low";
+                      const mlevel = riskLevelFromScore(val / 100);
                       return (
                         <View key={m.scoreKey} style={[styles.modalModuleRow, i > 0 && styles.modalBorder]}>
                           <View style={[styles.modalModuleIcon, { backgroundColor: m.iconBg }]}>
