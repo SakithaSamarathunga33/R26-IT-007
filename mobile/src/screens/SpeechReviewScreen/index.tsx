@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator,
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { AudioPlayer, createAudioPlayer } from "expo-audio";
+import { File } from "expo-file-system";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -83,9 +84,8 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
 
   const callApi = async () => {
     const formData = new FormData();
-    const audioExt = audioUri.split(".").pop() ?? "m4a";
-    const audioPayload = { uri: audioUri, name: `response.${audioExt}`, type: audioExt === "wav" ? "audio/wav" : "audio/m4a" };
-    formData.append("audio", audioPayload as any);
+    // Expo's fetch can't send RN-style { uri, name, type } parts; a File (a Blob) carries the name/extension the server checks.
+    formData.append("audio", new File(audioUri));
     formData.append("task_type", task.task_type); formData.append("target_word", task.target_word);
     formData.append("target_phoneme_seq", task.target_phoneme_seq); formData.append("difficulty_level", task.difficulty_level);
     formData.append("linguistic_focus", task.linguistic_focus); formData.append("age", "6");
@@ -134,7 +134,11 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
         setSubmitStep("saving");
         const attemptId = await saveAttemptToFirestore();
         setSubmitStep("analysing");
-        try { result = await callApi(); await savePredictionToFirestore(attemptId, result); } catch (apiErr: any) { apiError = apiErr.message; }
+        try { result = await callApi(); } catch (apiErr: any) { apiError = apiErr.message; }
+        if (result) {
+          try { await savePredictionToFirestore(attemptId, result); }
+          catch (dbErr: any) { apiError = `Could not save result: ${dbErr.message}`; }
+        }
       }
 
       setSubmitStep("done");

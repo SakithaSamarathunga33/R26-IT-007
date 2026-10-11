@@ -151,7 +151,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
         {error && (
           <View style={styles.errorCard}>
             <Ionicons name="cloud-offline-outline" size={18} color="#EF4444" />
-            <Text style={styles.errorText}>Could not reach the analysis server. Result saved as requires review.</Text>
+            <Text style={styles.errorText}>Analysis failed: {error}. Result saved as requires review.</Text>
           </View>
         )}
 

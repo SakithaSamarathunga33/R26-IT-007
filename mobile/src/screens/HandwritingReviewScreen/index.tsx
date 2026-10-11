@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { File } from "expo-file-system";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -51,10 +52,8 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
       const formData = new FormData();
 
       if (capturedUri) {
-        const filename = capturedUri.split("/").pop() ?? "handwriting.png";
-        const ext = filename.split(".").pop()?.toLowerCase() ?? "png";
-        const mimeMap: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
-        formData.append("image", { uri: capturedUri, name: filename, type: mimeMap[ext] ?? "image/png" } as any);
+        // Expo's fetch can't send RN-style { uri, name, type } parts; a File (a Blob) carries the name/extension the server checks.
+        formData.append("image", new File(capturedUri));
 
       } else {
         throw new Error("No image captured. Please rewrite and try again.");

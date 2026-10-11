@@ -4,7 +4,7 @@ import {
   StatusBar, ActivityIndicator, KeyboardAvoidingView,
   Platform, ScrollView,
 } from "react-native";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../../config/firebase";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
@@ -46,6 +46,21 @@ export default function LoginScreen({ navigation }: Props) {
         showToast(msg);
       }
     } finally { setLoading(false); }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) { showToast("Enter your email above, then tap Forgot Password."); return; }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      showToast("Password reset link sent. Check your email.", "success");
+    } catch (error: any) {
+      showToast(
+        error.code === "auth/invalid-email" ? "Please enter a valid email address."
+        : error.code === "auth/user-not-found" ? "No account found with this email."
+        : error.code === "auth/too-many-requests" ? "Too many attempts. Please try again later."
+        : error.message
+      );
+    }
   };
 
   return (
@@ -113,7 +128,7 @@ export default function LoginScreen({ navigation }: Props) {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.forgotRow}>
+            <TouchableOpacity style={styles.forgotRow} onPress={handleForgotPassword} disabled={loading}>
               <Text style={styles.forgotText}>Forgot Password?</Text>
             </TouchableOpacity>
 
