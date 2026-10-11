@@ -1,7 +1,9 @@
 import json
+import math
 from pathlib import Path
 from typing import Dict, Any
-from app.services.model_loader import get_difficulty_model, get_difficulty_encoder
+from app.services.model_loader import get_difficulty_model, get_difficulty_encoder, get_fusion_model
+from app.services.reliability_features import FEATURE_ORDER, build_features
 from app.utils.risk_utils import final_risk_level, binary_label_from_score, combined_reliability, module_score
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / 'config' / 'fusion_rule_config.json'
@@ -53,20 +55,37 @@ def review_status(statuses, disagreement, config):
         return 'review_recommended'
     return 'normal'
 
+def learned_fusion_probability(statuses, model):
+    """Calibrated P(at risk) from the reliability-aware logistic model, or None if the artifact doesn't match this code."""
+    if not model or model.get('feature_order') != FEATURE_ORDER:
+        return None
+    x = build_features({n: s['score'] for n, s in statuses.items()}, {n: s['reliability'] for n, s in statuses.items()})
+    z = model['intercept'] + sum(
+        c * (v - m) / sc for c, v, m, sc in zip(model['coefficients'], x, model['scaler_mean'], model['scaler_scale']))
+    return 1.0 / (1.0 + math.exp(-z))
+
 def calculate_weighted_fusion(statuses, config: Dict[str, Any], status: str):
     threshold = float(config.get('threshold', 0.35))
     weights = effective_weights(statuses, config)
-    score = None
+    rule_score = score = None
+    strategy = config.get('model_name', 'reliability_weighted_rule_fusion')
+    version = config.get('model_version', 'reliability_weighted_rule_v2')
     if status != 'insufficient_evidence':
-        score = sum(weights[name] * s['score'] for name, s in statuses.items() if s['usable'])
+        rule_score = score = sum(weights[name] * s['score'] for name, s in statuses.items() if s['usable'])
+        model = get_fusion_model()
+        prob = learned_fusion_probability(statuses, model)
+        if prob is not None:  # the trained model is preferred; the rule stays as fallback and is reported alongside
+            score, threshold = prob, float(model.get('decision_threshold', 0.5))
+            strategy, version = model['model_name'], model['model_version']
     return {
         'overall_risk_score': None if score is None else round(score, 4),
         'final_dyslexia_risk_label': None if score is None else binary_label_from_score(score, threshold),
         'final_dyslexia_risk_level': None if score is None else final_risk_level(score),
+        'rule_score': None if rule_score is None else round(rule_score, 4),
         'threshold': threshold,
         'weights': {f'{name}_weight': round(w, 4) for name, w in weights.items()},
-        'fusion_strategy': config.get('model_name', 'reliability_weighted_rule_fusion'),
-        'model_version': config.get('model_version', 'reliability_weighted_rule_v2'),
+        'fusion_strategy': strategy,
+        'model_version': version,
         'review_status': status
     }
 

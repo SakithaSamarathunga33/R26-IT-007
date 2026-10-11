@@ -1,4 +1,5 @@
 import React from "react";
+import { fusionMethodLabel } from "../../services/fusionService";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView,
 } from "react-native";
@@ -117,7 +118,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
               <Text style={styles.resultScore}>
                 {insufficient ? "Complete more activities to get a screening result." : `Overall Risk Score: ${score}%`}
               </Text>
-              <Text style={styles.resultMethod}>Method: reliability-weighted rule-based fusion</Text>
+              <Text style={styles.resultMethod}>Method: {fusionMethodLabel(fp.fusion_strategy)}</Text>
             </View>
             <View style={[styles.scoreCircle, { borderColor: RISK_COLORS[level] }]}>
               <Text style={[styles.scoreCircleVal, { color: RISK_COLORS[level] }]}>{insufficient ? "—" : `${score}%`}</Text>
@@ -311,7 +312,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
         <View style={styles.disclaimerCard}>
           <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
           <Text style={styles.disclaimerText}>
-            This report contains <Text style={styles.disclaimerBold}>screening risk indicators only</Text> — not a clinical diagnosis. Results combine speech, handwriting, and behaviour module outputs using reliability-weighted rule-based fusion. Please consult a qualified teacher, therapist, or specialist for a full evaluation.
+            This report contains <Text style={styles.disclaimerBold}>screening risk indicators only</Text> — not a clinical diagnosis. Results combine speech, handwriting, and behaviour module outputs using {fusionMethodLabel(fp.fusion_strategy)}. Please consult a qualified teacher, therapist, or specialist for a full evaluation.
           </Text>
         </View>
 

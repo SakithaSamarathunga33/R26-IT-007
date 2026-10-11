@@ -196,3 +196,10 @@ export async function saveFusionResults(
 
   return { fusionId, therapyId, failed };
 }
+
+/** Human-readable name for the server's fusion_strategy (the trained model, or the rule it falls back to). */
+export function fusionMethodLabel(strategy?: string | null): string {
+  if (strategy === "reliability_aware_logistic_fusion") return "reliability-aware logistic fusion (trained model)";
+  if (strategy === "reliability_weighted_rule_fusion") return "reliability-weighted rule-based fusion";
+  return strategy ?? "weighted rule-based fusion";
+}

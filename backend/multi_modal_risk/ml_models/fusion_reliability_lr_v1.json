@@ -1,0 +1,95 @@
+{
+  "model_name": "reliability_aware_logistic_fusion",
+  "model_version": "reliability_aware_lr_v1",
+  "feature_order": [
+    "speech_prob",
+    "handwriting_prob",
+    "behavior_prob",
+    "speech_missing",
+    "handwriting_missing",
+    "behavior_missing",
+    "speech_reliability",
+    "handwriting_reliability",
+    "behavior_reliability",
+    "speech_prob_x_reliability",
+    "handwriting_prob_x_reliability",
+    "behavior_prob_x_reliability",
+    "max_pairwise_gap",
+    "evidence_completeness"
+  ],
+  "scaler_mean": [
+    0.37280999,
+    0.32665797,
+    0.3241276,
+    0.12189512,
+    0.13132475,
+    0.13086477,
+    0.59694112,
+    0.58538408,
+    0.58889144,
+    0.22672002,
+    0.18805701,
+    0.18830294,
+    0.2633055,
+    0.87197179
+  ],
+  "scaler_scale": [
+    0.18418957,
+    0.17945337,
+    0.1540075,
+    0.32716464,
+    0.33775517,
+    0.3372524,
+    0.40263887,
+    0.40789871,
+    0.40810089,
+    0.19788564,
+    0.1816831,
+    0.16547175,
+    0.16190528,
+    0.16212602
+  ],
+  "coefficients": [
+    1.02628908,
+    0.89082761,
+    0.29265379,
+    0.16792308,
+    -0.07719179,
+    -0.01678869,
+    -1.50282603,
+    -0.91558416,
+    -0.78400434,
+    1.92230629,
+    1.34944654,
+    1.01046671,
+    -0.04148337,
+    -0.04770885
+  ],
+  "intercept": 0.00095473,
+  "decision_threshold": 0.5,
+  "training": {
+    "dataset": "fusion_training_dataset_synthetic.csv",
+    "dataset_sha256": "a6add57d5416ba0a2c669803de3ea7141969aba02b660eac6daaddbee6aaaa81",
+    "rows": 1087,
+    "children": 240,
+    "augmentation": {
+      "copies": 8,
+      "p_missing": 0.15,
+      "reliability_p": {
+        "high": 0.5,
+        "medium": 0.35,
+        "low": 0.15
+      },
+      "noise_sd": {
+        "high": 0.03,
+        "medium": 0.08,
+        "low": 0.18
+      }
+    },
+    "seed": 42,
+    "sklearn_version": "1.5.2",
+    "trained_on": "2026-10-11",
+    "evaluation": "child-disjoint 5-fold GroupKFold; see training/REPORT.md"
+  },
+  "note": "Trained on SYNTHETIC data whose label is a rule on clean module scores. Screening support only, not a diagnosis; not clinically validated."
+}

@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { fusionMethodLabel } from "../../services/fusionService";
 import {
   View, Text, StyleSheet, StatusBar, ScrollView,
   TouchableOpacity, ActivityIndicator, Modal,
@@ -249,7 +250,7 @@ export default function HistoryScreen({ navigation }: Props) {
                           {level === "insufficient" ? "Complete more activities for a result." : `Score: ${score}%`}
                         </Text>
                         <Text style={styles.modalMethod}>
-                          {fp.fusion_strategy === "reliability_weighted_rule_fusion" ? "Reliability-weighted rule-based fusion" : fp.fusion_strategy ?? "weighted_rule_based_fusion"}
+                          {fusionMethodLabel(fp.fusion_strategy)}
                         </Text>
                         {selected.fullReport?.review_status === "review_recommended" && (
                           <Text style={styles.modalMethod}>Review recommended</Text>
