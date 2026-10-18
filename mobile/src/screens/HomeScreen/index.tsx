@@ -21,7 +21,7 @@ import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
 import { auth } from "../../config/firebase";
 import { useFocusEffect } from "@react-navigation/native";
-import { getOrCreateSession, SessionProgress } from "../../services/sessionService";
+import { getOrCreateSession, getAssessmentHistory, SessionProgress } from "../../services/sessionService";
 import { ActiveTherapyPlan, fetchActiveTherapyPlan } from "../../services/therapySessionService";
 import { useT } from "../../i18n";
 
@@ -94,11 +94,14 @@ export default function HomeScreen({ navigation }: Props) {
   });
 
   const [therapyPlan, setTherapyPlan] = useState<ActiveTherapyPlan | null>(null);
+  // Latest saved fusion response, so a past report stays viewable while a new screening is in progress.
+  const [lastReport, setLastReport] = useState<any>(null);
 
   useFocusEffect(
     useCallback(() => {
       if (!user?.uid) return;
       getOrCreateSession(user.uid).then(setSession).catch(() => {});
+      getAssessmentHistory(user.uid).then((h) => setLastReport(h[0]?.fullReport ?? null)).catch(() => setLastReport(null));
       // Re-read on focus so finishing a practice session updates the card.
       fetchActiveTherapyPlan(user.uid).then(setTherapyPlan).catch(() => setTherapyPlan(null));
     }, [user?.uid])
@@ -417,6 +420,17 @@ export default function HomeScreen({ navigation }: Props) {
               </Text>
             </LinearGradient>
           </TouchableOpacity>
+
+          {lastReport && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.lastReportBtn}
+              onPress={() => navigation.navigate("FusionRiskSummary", { response: lastReport })}
+            >
+              <Ionicons name="document-text-outline" size={14} color="#2563EB" />
+              <Text style={styles.lastReportBtnText}>{t("View Last Report")}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={{ height: 110 }} />
@@ -870,5 +884,22 @@ const styles = StyleSheet.create({
   },
   unlockBtnTextActive: {
     color: "#fff",
+  },
+  lastReportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
+  },
+  lastReportBtnText: {
+    fontSize: 15,
+    fontFamily: theme.fonts.semiBold,
+    color: "#2563EB",
   },
 });

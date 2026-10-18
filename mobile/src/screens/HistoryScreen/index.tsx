@@ -336,6 +336,22 @@ export default function HistoryScreen({ navigation }: Props) {
                     </Text>
                   </View>
 
+                  {selected.fullReport && (
+                    <TouchableOpacity
+                      style={styles.emptyBtn}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setSelected(null);
+                        navigation.navigate("FusionRiskSummary", { response: selected.fullReport });
+                      }}
+                    >
+                      <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.emptyBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                        <Ionicons name="document-text-outline" size={16} color="#fff" />
+                        <Text style={styles.emptyBtnText}>{t("Open Full Report")}</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
+
                   <View style={{ height: 24 }} />
                 </ScrollView>
               </View>

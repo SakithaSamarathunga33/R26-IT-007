@@ -134,6 +134,11 @@ export const auth: Record<string, Entry> = {
   // Profile
   "Profile": { si: "පැතිකඩ", ta: "சுயவிவரம்" },
   "Edit Name": { si: "නම සංස්කරණය", ta: "பெயரைத் திருத்து" },
+  "Edit Profile": { si: "පැතිකඩ සංස්කරණය", ta: "சுயவிவரத்தைத் திருத்து" },
+  "Enter a valid date of birth (YYYY-MM-DD).": {
+    si: "වලංගු උපන් දිනයක් ඇතුළත් කරන්න (YYYY-MM-DD).",
+    ta: "சரியான பிறந்த தேதியை உள்ளிடவும் (YYYY-MM-DD).",
+  },
   "Sessions": { si: "සැසි", ta: "அமர்வுகள்" },
   "Reports": { si: "වාර්තා", ta: "அறிக்கைகள்" },
   "Status": { si: "තත්ත්වය", ta: "நிலை" },
