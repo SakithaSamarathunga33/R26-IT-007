@@ -107,6 +107,14 @@ export default function BehaviorLevelsScreen({ navigation }: Props) {
           </View>
         </View>
 
+        {/* Finished levels keep their results until the screening resets, so they stay viewable after leaving the module. */}
+        {!loading && completedCount > 0 && (
+          <TouchableOpacity style={styles.resultsBtn} activeOpacity={0.85} onPress={() => navigation.navigate("BehaviorSummary")}>
+            <Ionicons name="stats-chart-outline" size={16} color="#0891B2" />
+            <Text style={styles.resultsBtnText}>{t("See results so far")}</Text>
+          </TouchableOpacity>
+        )}
+
         {loading ? (
           <ActivityIndicator size="large" color="#0891B2" style={{ marginTop: 40 }} />
         ) : (
@@ -220,6 +228,12 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
 
   content: { paddingHorizontal: 20, paddingTop: 8 },
+  resultsBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    borderRadius: 16, paddingVertical: 14, marginBottom: 16,
+    borderWidth: 1.5, borderColor: "#A5F3FC", backgroundColor: "#ECFEFF",
+  },
+  resultsBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#0891B2" },
 
   progressCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
