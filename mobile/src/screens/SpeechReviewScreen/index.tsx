@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { AudioPlayer, createAudioPlayer } from "expo-audio";
+import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { File } from "expo-file-system";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -58,10 +58,19 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     if (!audioUri) return;
     _destroyPlayer();
     try {
+      // The recording step left Android's audio session configured for capture; put it back to loudspeaker media playback.
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true, shouldRouteThroughEarpiece: false });
       const player = createAudioPlayer({ uri: audioUri });
       playerRef.current = player;
+      player.volume = 1;
       player.addListener("playbackStatusUpdate", (status) => {
         if (!mountedRef.current) return;
+        // Android reports decode/IO failures here, not as a thrown error — surface them instead of a silent "Playing…".
+        if (status.error) {
+          setPlaying(false); _destroyPlayer();
+          Alert.alert("Playback Error", String(status.error));
+          return;
+        }
         if (status.didJustFinish) { setPlaying(false); _destroyPlayer(); }
       });
       player.play();
