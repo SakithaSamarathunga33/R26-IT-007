@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert, AppState,
+  ScrollView, ActivityIndicator, Alert, AppState, Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,7 +15,7 @@ import ShapeGlyph from "../../components/ShapeGlyph";
 import { auth, db } from "../../config/firebase";
 import {
   BEHAVIOR_TASKS, BEHAVIOR_TASK_TYPE_LABELS, BEHAVIOR_TASK_TYPE_ICONS, BEHAVIOR_TASK_COLORS,
-  getBehaviorLevel, behaviorLevelTaskCount, behaviorPositionInLevel, maskedWord,
+  getBehaviorLevel, behaviorLevelTaskCount, behaviorPositionInLevel, maskedWord, wordImage,
 } from "../../config/behaviorTasks";
 import {
   calculateBehaviorFeatures, getTimeOfDay, BehaviorRawEvents,
@@ -46,6 +46,8 @@ const PATTERN_COLORS: Record<string, string> = {
 };
 
 function PictureGlyph({ value, size, color }: { value: string; size: number; color?: string }) {
+  const photo = wordImage(value);
+  if (photo) return <Image source={photo} style={{ width: size, height: size, borderRadius: size * 0.2 }} accessibilityLabel={value} />;
   const hex = PATTERN_COLORS[value.trim().toLowerCase()];
   return <ShapeGlyph shape={hex ? "circle" : value} size={size} color={hex ?? color} />;
 }
@@ -68,6 +70,9 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const isShapeMatching = task.task_type === "shape_matching";
   // Shape-matching and picture-pattern tasks both answer with drawn tiles, not words.
   const isPictureTask = isShapeMatching || !!task.sequence;
+  // Only pattern rows end in a "what comes next" blank; a memory row is just the items to remember.
+  const isPattern = task.task_type === "pattern_completion";
+  const wordPhoto = wordImage(task.word);
 
   const [activityState, setActivityState] = useState<ActivityState>("idle");
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -402,18 +407,21 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
             <View
               style={[styles.sequenceRow, { backgroundColor: taskColors.bg, borderColor: taskColors.border }]}
               accessible
-              accessibilityLabel={`${task.sequence.join(", ")}, what comes next?`}
+              accessibilityLabel={`${task.sequence.join(", ")}${isPattern ? ", what comes next?" : ""}`}
             >
-              {task.sequence.map((item, i) => <PictureGlyph key={i} value={item} size={36} />)}
-              <View style={[styles.sequenceBlank, { borderColor: taskColors.color }]}>
-                <Text style={[styles.sequenceBlankText, { color: taskColors.color }]}>?</Text>
-              </View>
+              {task.sequence.map((item, i) => <PictureGlyph key={i} value={item} size={isPattern ? 36 : 72} />)}
+              {isPattern && (
+                <View style={[styles.sequenceBlank, { borderColor: taskColors.color }]}>
+                  <Text style={[styles.sequenceBlankText, { color: taskColors.color }]}>?</Text>
+                </View>
+              )}
             </View>
           )}
 
           {/* Missing-letter word: the word with a gap where the letter belongs */}
           {isMissingLetter && task.word && (
             <View style={[styles.wordBox, { backgroundColor: taskColors.bg, borderColor: taskColors.border }]}>
+              {wordPhoto && <Image source={wordPhoto} style={styles.wordImage} accessibilityLabel={`Picture of a ${task.word}`} />}
               <Text style={[styles.maskedWordText, { color: taskColors.color }]}>{maskedWord(task)}</Text>
               <Text style={styles.wordHintText}>the word is “{task.word}”</Text>
             </View>
@@ -473,7 +481,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
           </View>
         ) : (
           <Text style={styles.optionsLabel}>
-            {isShapeMatching ? "Tap the matching shape" : task.sequence ? "Tap what comes next" : "Choose your answer"}
+            {isShapeMatching ? "Tap the matching shape" : isPattern && task.sequence ? "Tap what comes next" : "Choose your answer"}
           </Text>
         )}
         <View style={isMissingLetter ? styles.letterGrid : isPictureTask ? styles.shapeGrid : styles.optionsGrid}>
@@ -634,6 +642,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderRadius: 18, paddingVertical: 18, paddingHorizontal: 16,
     alignItems: "center", gap: 6, marginTop: 4,
   },
+  wordImage: { width: 120, height: 120, borderRadius: 16 },
   maskedWordText: { fontSize: 34, fontFamily: theme.fonts.extraBold, letterSpacing: 2, textAlign: "center" },
   wordHintText: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#94A3B8" },
 
