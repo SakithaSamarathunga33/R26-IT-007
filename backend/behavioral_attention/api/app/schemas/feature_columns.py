@@ -1,3 +1,5 @@
+FEATURE_SCHEMA_VERSION = "behavior_features_v1"
+
 FEATURE_COLUMNS = [
     "task_type",
     "difficulty_level",

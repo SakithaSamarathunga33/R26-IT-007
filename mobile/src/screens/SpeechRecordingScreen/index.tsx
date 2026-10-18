@@ -64,6 +64,13 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
   // stopped we freeze the last live reading instead of showing that reset.
   const elapsed = finalElapsed ?? liveElapsedRef.current;
 
+  // Response timing, in wall-clock ms: prompt end (from the listen step, moved
+  // forward by "Hear it again"), and start/stop of the take being submitted.
+  const promptEndRef = useRef(route.params?.promptEndTs ?? Date.now());
+  const hearAgainCountRef = useRef(0);
+  const recStartRef = useRef(0);
+  const recStopRef = useRef(0);
+
   const stopPulse = () => { pulseLoopRef.current?.stop(); pulseAnim.setValue(1); };
   const startPulse = () => {
     pulseLoopRef.current = Animated.loop(Animated.sequence([
@@ -100,7 +107,11 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
     if (hearing) { stopSpeaking(); setHearing(false); return; }
     speak(task.target_word, {
       onStart: () => setHearing(true),
-      onDone: () => setHearing(false),
+      onDone: () => {
+        setHearing(false);
+        promptEndRef.current = Date.now();
+        hearAgainCountRef.current += 1;
+      },
       onError: () => setHearing(false),
     });
   };
@@ -118,6 +129,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
       await AudioModule.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await audioRecorder.prepareToRecordAsync();
       audioRecorder.record();
+      recStartRef.current = Date.now();
       setAudioUri(null);
       setWaveLevels(Array(WAVE_BAR_COUNT).fill(0));
       setFinalElapsed(null);
@@ -137,6 +149,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
     try {
       if (!audioRecorder.isRecording) return;
       setFinalElapsed(liveElapsedRef.current);
+      recStopRef.current = Date.now();
       await audioRecorder.stop();
       const uri = audioRecorder.uri ?? null;
       await AudioModule.setAudioModeAsync({ allowsRecording: false });
@@ -267,7 +280,13 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 style={styles.nextBtnInner}
                 activeOpacity={0.88}
-                onPress={() => navigation.navigate("SpeechReview", { taskIndex, elapsed, retryCount, audioUri: audioUri ?? "", practice })}
+                onPress={() => navigation.navigate("SpeechReview", {
+                  taskIndex, elapsed, retryCount, audioUri: audioUri ?? "", practice,
+                  // The listen step auto-plays once; every play after that is a replay.
+                  promptReplayCount: Math.max(0, (route.params?.heardCount ?? 1) - 1) + hearAgainCountRef.current,
+                  responseStartMs: recStartRef.current - promptEndRef.current,
+                  responseEndMs: recStopRef.current - promptEndRef.current,
+                })}
               >
                 <Text style={styles.nextBtnText}>Review & Submit</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />

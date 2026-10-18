@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import { auth } from "../../config/firebase";
 import {
   buildSpeechSummary,
@@ -14,7 +15,8 @@ import {
   callFusionAPI,
   saveFusionResults,
 } from "../../services/fusionService";
-import { saveAssessmentToHistory, resetSession } from "../../services/sessionService";
+import { saveAssessmentToHistory, resetSession, getSessionId } from "../../services/sessionService";
+import { getChildAge } from "../../services/childProfile";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionLoading">;
@@ -25,14 +27,17 @@ const STEPS = [
   "Gathering handwriting module results…",
   "Gathering behaviour module results…",
   "Building fusion payload…",
-  "Running final dyslexia risk analysis…",
+  "Running final screening analysis…",
   "Saving results to your profile…",
   "Almost done…",
 ];
 
 export default function FusionLoadingScreen({ navigation }: Props) {
+  const { t } = useT();
   const childId = auth.currentUser?.uid ?? "unknown";
-  const sessionId = `session_${childId}`;
+  // Module predictions and the assessment_sessions doc are keyed by the
+  // persistent session id; each fusion run gets its own id for the backend/record.
+  const sessionId = getSessionId(childId);
 
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +69,12 @@ export default function FusionLoadingScreen({ navigation }: Props) {
       const behavior = await buildBehaviorSummary(childId, sessionId);
       setStep(3);
 
-      const user = auth.currentUser;
+      // Missing modules are omitted, not zero-filled — a 0 would read as "no risk".
       const payload = {
         child_id: childId,
-        session_id: sessionId,
+        session_id: `${childId}_${Date.now()}`,
         metadata: {
-          age: 6,
+          age: await getChildAge(),
           native_language: "Sinhala",
           assessment_language: "English",
           school_type: "urban_public",
@@ -78,9 +83,9 @@ export default function FusionLoadingScreen({ navigation }: Props) {
           environment_noise_level: 0.12,
           time_of_day: new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening",
         },
-        speech: speech ?? { risk_probability: 0, features: {}, quality: { prediction_reliability: "low" } },
-        handwriting: handwriting ?? { risk_probability: 0, features: {}, quality: { prediction_reliability: "low" } },
-        behavior: behavior ?? { risk_probability: 0, features: {}, quality: { prediction_reliability: "low" } },
+        ...(speech ? { speech } : {}),
+        ...(handwriting ? { handwriting } : {}),
+        ...(behavior ? { behavior } : {}),
       };
 
       setStep(4);
@@ -90,22 +95,28 @@ export default function FusionLoadingScreen({ navigation }: Props) {
       // already read the module predictions into `payload` above, so clearing
       // them now is safe and guarantees the next screening starts clean —
       // regardless of whether the user later taps "Go Home".
-      await saveFusionResults(sessionId, response).catch((e) =>
-        console.warn("[FusionDB] Non-fatal save error:", e?.message)
-      );
-      await saveAssessmentToHistory(childId, response).catch((e) =>
-        console.warn("[History] Non-fatal save error:", e?.message)
-      );
-      await resetSession(childId).catch((e) =>
-        console.warn("[Session] reset failed (non-fatal):", e?.message)
-      );
+      // Save failures don't block the results, but the results screen says so.
+      let saveFailed = false;
+      await saveFusionResults(sessionId, response)
+        .then((r) => { saveFailed = r.failed; })
+        .catch((e) => { saveFailed = true; console.warn("[FusionDB] save error:", e?.message); });
+      await saveAssessmentToHistory(childId, response).catch((e) => {
+        saveFailed = true;
+        console.warn("[History] save error:", e?.message);
+      });
+      // Keep the module data when evidence was insufficient: the child is told to complete more activities, not start over.
+      if (response?.review_status !== "insufficient_evidence") {
+        await resetSession(childId).catch((e) =>
+          console.warn("[Session] reset failed (non-fatal):", e?.message)
+        );
+      }
       setStep(6);
 
       setTimeout(() => {
-        navigation.replace("FusionRiskSummary", { response });
+        navigation.replace("FusionRiskSummary", { response, saveFailed });
       }, 600);
     } catch (e: any) {
-      setError(e?.message ?? "Something went wrong. Please try again.");
+      setError(e?.message ?? t("Something went wrong. Please try again."));
     }
   }
 
@@ -121,7 +132,7 @@ export default function FusionLoadingScreen({ navigation }: Props) {
             <View style={styles.errorIconWrap}>
               <Ionicons name="alert-circle" size={48} color="#EF4444" />
             </View>
-            <Text style={styles.errorTitle}>Analysis Failed</Text>
+            <Text style={styles.errorTitle}>{t("Analysis Failed")}</Text>
             <Text style={styles.errorMsg}>{error}</Text>
           </View>
         </LinearGradient>
@@ -154,8 +165,8 @@ export default function FusionLoadingScreen({ navigation }: Props) {
             <Ionicons name="git-merge" size={44} color="#fff" />
           </Animated.View>
 
-          <Text style={styles.title}>Analysing Results</Text>
-          <Text style={styles.subtitle}>Preparing your final screening summary</Text>
+          <Text style={styles.title}>{t("Analysing Results")}</Text>
+          <Text style={styles.subtitle}>{t("Preparing your final screening summary")}</Text>
 
           {/* Step progress */}
           <View style={styles.stepsWrap}>
@@ -163,7 +174,7 @@ export default function FusionLoadingScreen({ navigation }: Props) {
               <View key={i} style={[styles.stepRow, i > step && styles.stepRowFuture]}>
                 <View style={[styles.stepDot, i < step && styles.stepDotDone, i === step && styles.stepDotActive]} />
                 <Text style={[styles.stepText, i === step && styles.stepTextActive, i < step && styles.stepTextDone]}>
-                  {s}
+                  {t(s)}
                 </Text>
               </View>
             ))}

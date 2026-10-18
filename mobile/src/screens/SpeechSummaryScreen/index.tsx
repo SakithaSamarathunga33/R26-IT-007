@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import {
   SPEECH_LEVELS,
   SPEECH_TASKS,
@@ -34,6 +35,7 @@ const OVERALL_CONFIG = {
 };
 
 export default function SpeechSummaryScreen({ navigation }: Props) {
+  const { t } = useT();
   const markedRef = useRef(false);
   const [summary, setSummary] = useState<ModuleSummary | null>(null);
   const [levelProgress, setLevelProgress] = useState<SpeechLevelProgress>({ completed: [] });
@@ -70,7 +72,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
         {loading ? (
           <ActivityIndicator size="large" color="#2563EB" />
         ) : (
-          <Text style={{ fontFamily: theme.fonts.regular, color: "#64748B" }}>No results found for this session.</Text>
+          <Text style={{ fontFamily: theme.fonts.regular, color: "#64748B" }}>{t("No results found for this session.")}</Text>
         )}
       </View>
     );
@@ -95,7 +97,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Speech Summary</Text>
+        <Text style={styles.headerTitle}>{t("Speech Summary")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -107,8 +109,8 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
           <View style={styles.overallIconWrap}>
             <Ionicons name={config.icon} size={44} color="#fff" />
           </View>
-          <Text style={styles.overallLabel}>{config.label}</Text>
-          <Text style={styles.overallSub}>{config.sublabel}</Text>
+          <Text style={styles.overallLabel}>{t(config.label)}</Text>
+          <Text style={styles.overallSub}>{t(config.sublabel)}</Text>
         </LinearGradient>
 
         {/* Partial-run notice — the module isn't finished until every level is */}
@@ -119,10 +121,10 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.partialTitle}>
-                {remainingLevels.length} level{remainingLevels.length > 1 ? "s" : ""} still to go
+                {t(remainingLevels.length > 1 ? "{n} levels still to go" : "{n} level still to go", { n: remainingLevels.length })}
               </Text>
               <Text style={styles.partialSub}>
-                These results cover the levels played so far. Finish Level {nextLevel.id} to complete the speech module.
+                {t("These results cover the levels played so far. Finish Level {n} to complete the speech module.", { n: nextLevel.id })}
               </Text>
             </View>
           </View>
@@ -130,26 +132,26 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
 
         {/* Stats row */}
         <View style={styles.statsCard}>
-          <StatBox value={`${count}/${attemptedTaskTotal}`} label="Completed" accent="#2563EB" bg="#EFF6FF" />
+          <StatBox value={`${count}/${attemptedTaskTotal}`} label={t("Completed")} accent="#2563EB" bg="#EFF6FF" />
           <View style={styles.statDivider} />
-          <StatBox value={`${(avgProb * 100).toFixed(0)}%`} label="Avg Risk" accent={RISK_COLORS[overallLevel]} bg={RISK_BG[overallLevel]} />
+          <StatBox value={`${(avgProb * 100).toFixed(0)}%`} label={t("Avg Risk")} accent={RISK_COLORS[overallLevel]} bg={RISK_BG[overallLevel]} />
           <View style={styles.statDivider} />
-          <StatBox value={`${groups.length}/${SPEECH_LEVELS.length}`} label="Levels" accent="#7C3AED" bg="#F5F3FF" />
+          <StatBox value={`${groups.length}/${SPEECH_LEVELS.length}`} label={t("Levels")} accent="#7C3AED" bg="#F5F3FF" />
         </View>
 
         {/* Disclaimer */}
         <View style={styles.disclaimerCard}>
           <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
           <Text style={styles.disclaimerText}>
-            These are <Text style={styles.disclaimerBold}>screening indicators only</Text> — not a clinical diagnosis. Consult a qualified professional.
+            <Text style={styles.disclaimerBold}>{t("These are screening indicators only, not a clinical diagnosis.")}</Text>{" "}{t("Consult a qualified professional.")}
           </Text>
         </View>
 
         {/* Activity breakdown, grouped by level */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Activity Breakdown</Text>
+          <Text style={styles.sectionTitle}>{t("Activity Breakdown")}</Text>
           <View style={styles.sectionBadge}>
-            <Text style={styles.sectionBadgeText}>{count} tasks</Text>
+            <Text style={styles.sectionBadgeText}>{t("{n} tasks", { n: count })}</Text>
           </View>
         </View>
 
@@ -183,7 +185,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
                 <View style={styles.activityRight}>
                   <View style={[styles.riskPill, { backgroundColor: RISK_BG[row.risk_level] }]}>
                     <View style={[styles.riskDot, { backgroundColor: RISK_COLORS[row.risk_level] }]} />
-                    <Text style={[styles.riskPillText, { color: RISK_COLORS[row.risk_level] }]}>{row.risk_level}</Text>
+                    <Text style={[styles.riskPillText, { color: RISK_COLORS[row.risk_level] }]}>{t(row.risk_level.replace(/_/g, " "))}</Text>
                   </View>
                   <Text style={styles.activityProb}>{(row.risk_probability * 100).toFixed(0)}%</Text>
                 </View>
@@ -198,8 +200,8 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
             <Ionicons name="git-merge-outline" size={18} color="#2563EB" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.fusionTitle}>Fusion Score Saved</Text>
-            <Text style={styles.fusionSub}>Speech data forwarded to the full dyslexia risk assessment.</Text>
+            <Text style={styles.fusionTitle}>{t("Fusion Score Saved")}</Text>
+            <Text style={styles.fusionSub}>{t("Speech data forwarded to the full dyslexia risk assessment.")}</Text>
           </View>
         </View>
 
@@ -208,7 +210,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
         <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.doneBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
           <TouchableOpacity style={styles.doneBtnInner} activeOpacity={0.88} onPress={() => navigation.navigate("SpeechLevels")}>
             <Ionicons name="layers-outline" size={18} color="#fff" />
-            <Text style={styles.doneBtnText}>Back to Levels</Text>
+            <Text style={styles.doneBtnText}>{t("Back to Levels")}</Text>
           </TouchableOpacity>
         </LinearGradient>
 

@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import {
   BEHAVIOR_TASKS, BEHAVIOR_TASK_TYPE_LABELS, BEHAVIOR_TASK_COLORS,
   BEHAVIOR_LEVELS, BehaviorLevel, BehaviorLevelId,
@@ -15,6 +16,7 @@ import { auth } from "../../config/firebase";
 import { markModuleDone } from "../../services/sessionService";
 import { fetchModuleSummary, ModuleSummary, RiskLevel, SummaryRow } from "../../services/summaryService";
 import { BehaviorLevelProgress, fetchBehaviorLevelProgress } from "../../services/behaviorLevelService";
+import { riskLevelFromScore } from "../../config/riskThresholds";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorSummary">;
@@ -90,6 +92,7 @@ function MiniBar({ value, color }: { value: number; color: string }) {
 }
 
 export default function BehaviorSummaryScreen({ navigation }: Props) {
+  const { t } = useT();
   const markedRef = useRef(false);
   const [summary, setSummary] = useState<ModuleSummary | null>(null);
   const [levelProgress, setLevelProgress] = useState<BehaviorLevelProgress>({ completed: [] });
@@ -127,14 +130,15 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
         {loading ? (
           <ActivityIndicator size="large" color="#0891B2" />
         ) : (
-          <Text style={{ fontFamily: theme.fonts.regular, color: "#64748B" }}>No results found for this session.</Text>
+          <Text style={{ fontFamily: theme.fonts.regular, color: "#64748B" }}>{t("No results found for this session.")}</Text>
         )}
       </View>
     );
   }
 
   const { rows, count, avgProb } = summary;
-  const overallLevel: RiskLevel = summary.overallLevel;
+  // Bands come from the shared thresholds so the card and pills match the backend.
+  const overallLevel: RiskLevel = count ? riskLevelFromScore(avgProb) : "requires_review";
   const groups = groupRowsByLevel(rows);
   const remainingLevels = BEHAVIOR_LEVELS.filter((l) => !levelProgress.completed.includes(l.id));
   const nextLevel = remainingLevels[0];
@@ -151,7 +155,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Behaviour Summary</Text>
+        <Text style={styles.headerTitle}>{t("Behaviour Summary")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -163,13 +167,13 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
           <View style={styles.overallIconWrap}>
             <Ionicons name={config.icon} size={44} color="#fff" />
           </View>
-          <Text style={styles.overallLabel}>{config.label}</Text>
-          <Text style={styles.overallSub}>{config.sublabel}</Text>
+          <Text style={styles.overallLabel}>{t(config.label)}</Text>
+          <Text style={styles.overallSub}>{t(config.sublabel)}</Text>
           <View style={styles.overallStatsRow}>
             {[
-              { label: "Attention",   value: `${Math.round(avgAttention * 100)}%` },
-              { label: "Engagement",  value: `${Math.round(avgEngagement * 100)}%` },
-              { label: "Activities",  value: `${count}` },
+              { label: t("Attention"),   value: `${Math.round(avgAttention * 100)}%` },
+              { label: t("Engagement"),  value: `${Math.round(avgEngagement * 100)}%` },
+              { label: t("Activities"),  value: `${count}` },
             ].map((s, i) => (
               <View key={i} style={[styles.overallStat, i < 2 && styles.overallStatBorder]}>
                 <Text style={styles.overallStatVal}>{s.value}</Text>
@@ -187,10 +191,10 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.partialTitle}>
-                {remainingLevels.length} level{remainingLevels.length > 1 ? "s" : ""} still to go
+                {t(remainingLevels.length > 1 ? "{n} levels still to go" : "{n} level still to go", { n: remainingLevels.length })}
               </Text>
               <Text style={styles.partialSub}>
-                These results cover the levels played so far. Finish Level {nextLevel.id} to complete the behaviour module.
+                {t("These results cover the levels played so far. Finish Level {n} to complete the behaviour module.", { n: nextLevel.id })}
               </Text>
             </View>
           </View>
@@ -199,7 +203,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
         {/* Risk probability bar */}
         <View style={styles.probCard}>
           <View style={styles.probHeader}>
-            <Text style={styles.probTitle}>Overall Risk Score</Text>
+            <Text style={styles.probTitle}>{t("Overall Risk Score")}</Text>
             <Text style={[styles.probValue, { color: RISK_COLORS[overallLevel] }]}>
               {Math.round(avgProb * 100)}%
             </Text>
@@ -211,11 +215,11 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             />
           </View>
-          <Text style={styles.probNote}>Based on {count} completed activities</Text>
+          <Text style={styles.probNote}>{t("Based on {n} completed activities", { n: count })}</Text>
         </View>
 
         {/* Activity breakdown, grouped by level */}
-        <Text style={styles.sectionLabel}>Activity Breakdown</Text>
+        <Text style={styles.sectionLabel}>{t("Activity Breakdown")}</Text>
         {groups.map((group) => (
           <View key={group.level.id} style={styles.levelGroup}>
             <View style={styles.levelGroupHeader}>
@@ -239,21 +243,22 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
                 const tc = taskType
                   ? BEHAVIOR_TASK_COLORS[taskType]
                   : { bg: "#F1F5F9", color: "#64748B", border: "#E2E8F0" };
-                const rc = RISK_COLORS[row.risk_level];
+                const rl: RiskLevel = row.risk_level === "requires_review" ? "requires_review" : riskLevelFromScore(row.risk_probability);
+                const rc = RISK_COLORS[rl];
                 const attention = num(row.features.attention_score);
                 return (
                   <View key={key} style={[styles.breakdownRow, i < group.items.length - 1 && styles.breakdownBorder]}>
                     <View style={[styles.breakdownIcon, { backgroundColor: tc.bg }]}>
-                      <Ionicons name={row.risk_level === "low" ? "checkmark" : "alert"} size={13} color={rc} />
+                      <Ionicons name={rl === "low" ? "checkmark" : "alert"} size={13} color={rc} />
                     </View>
                     <View style={styles.breakdownInfo}>
                       <Text style={styles.breakdownTask}>{typeLabel}</Text>
                       <Text style={styles.breakdownWord} numberOfLines={1}>{detail}</Text>
                       <MiniBar value={attention} color={tc.color} />
                     </View>
-                    <View style={[styles.riskPill, { backgroundColor: RISK_BG[row.risk_level], borderColor: RISK_BORDER[row.risk_level] }]}>
+                    <View style={[styles.riskPill, { backgroundColor: RISK_BG[rl], borderColor: RISK_BORDER[rl] }]}>
                       <Text style={[styles.riskPillText, { color: rc }]}>
-                        {row.risk_level === "requires_review" ? "review" : row.risk_level}
+                        {t(rl === "requires_review" ? "review" : rl)}
                       </Text>
                     </View>
                   </View>
@@ -267,7 +272,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
         <View style={styles.disclaimerCard}>
           <Ionicons name="shield-checkmark-outline" size={16} color="#0891B2" />
           <Text style={styles.disclaimerText}>
-            These results are screening indicators only. They are not a diagnosis. Please consult a qualified professional for a full evaluation.
+            {t("These results are screening indicators only. They are not a diagnosis. Please consult a qualified professional for a full evaluation.")}
           </Text>
         </View>
 
@@ -282,7 +287,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
               onPress={() => navigation.navigate("BehaviorLevels")}
             >
               <Ionicons name="layers-outline" size={20} color="#fff" />
-              <Text style={styles.doneBtnText}>Continue to Level {nextLevel.id}</Text>
+              <Text style={styles.doneBtnText}>{t("Continue to Level {n}", { n: nextLevel.id })}</Text>
             </TouchableOpacity>
           </LinearGradient>
         )}
@@ -298,7 +303,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
             onPress={() => navigation.navigate("MainTabs")}
           >
             <Ionicons name="home-outline" size={20} color="#fff" />
-            <Text style={styles.doneBtnText}>Back to Dashboard</Text>
+            <Text style={styles.doneBtnText}>{t("Back to Dashboard")}</Text>
           </TouchableOpacity>
         </LinearGradient>
 

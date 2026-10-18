@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Body
-from typing import Dict, Any
+from fastapi import APIRouter
 
 from app.services.model_loader import load_model
 from app.services.predict_service import predict_behavior
 from app.schemas.feature_columns import FEATURE_COLUMNS
+from app.schemas.behavior_request import BehaviorRequest
 
 router = APIRouter(prefix="/predict", tags=["Behavior Prediction"])
 
@@ -17,5 +17,5 @@ def get_behavior_schema():
     }
 
 @router.post("/behavior")
-def predict_behavior_endpoint(payload: Dict[str, Any] = Body(...)):
-    return predict_behavior(payload)
+def predict_behavior_endpoint(payload: BehaviorRequest):
+    return predict_behavior(payload.model_dump())

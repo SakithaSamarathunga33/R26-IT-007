@@ -1,3 +1,4 @@
+// All *_ts / pause times are monotonic milliseconds (performance.now()), not wall-clock.
 export interface BehaviorRawEvents {
   task_start_ts: number;
   task_end_ts: number;
@@ -73,7 +74,7 @@ export function calculateBehaviorFeatures(
   totalAttempts: number,
 ): BehaviorFeatures {
   const task_duration_sec = (events.task_end_ts - events.task_start_ts) / 1000;
-  const response_latency_sec = events.first_tap_ts
+  const response_latency_sec = events.first_tap_ts !== null
     ? (events.first_tap_ts - events.task_start_ts) / 1000
     : task_duration_sec;
 

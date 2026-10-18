@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Body
-from typing import Dict, Any
+from fastapi import APIRouter
 from app.schemas.feature_columns import FEATURE_COLUMNS
+from app.schemas.fusion_request import FusionRequest
 from app.services.model_loader import load_models, model_status
 from app.services.predict_service import predict_fusion
 
@@ -16,5 +16,5 @@ def fusion_schema():
     }
 
 @router.post('/fusion')
-def predict_fusion_endpoint(payload: Dict[str, Any] = Body(...)):
-    return predict_fusion(payload)
+def predict_fusion_endpoint(payload: FusionRequest):
+    return predict_fusion(payload.model_dump())

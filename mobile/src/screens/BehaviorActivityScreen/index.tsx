@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert,
+  ScrollView, ActivityIndicator, Alert, AppState,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
@@ -21,6 +21,7 @@ import {
   calculateBehaviorFeatures, getTimeOfDay, BehaviorRawEvents,
 } from "../../utils/behaviorFeatures";
 import { speak, stopSpeaking } from "../../services/ttsService";
+import { getChildAge } from "../../services/childProfile";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorActivity">;
@@ -38,6 +39,17 @@ const DIFFICULTY_CONFIG = {
 
 type ActivityState = "idle" | "active" | "submitting" | "done";
 
+// Pattern tasks name colours as well as shapes; a colour is drawn as a circle of
+// that colour and keeps it under feedback, or the answer itself would change.
+const PATTERN_COLORS: Record<string, string> = {
+  red: "#EF4444", blue: "#2563EB", green: "#16A34A", yellow: "#EAB308",
+};
+
+function PictureGlyph({ value, size, color }: { value: string; size: number; color?: string }) {
+  const hex = PATTERN_COLORS[value.trim().toLowerCase()];
+  return <ShapeGlyph shape={hex ? "circle" : value} size={size} color={hex ?? color} />;
+}
+
 export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const taskIndex = route.params?.taskIndex ?? 0;
   const practice = route.params?.practice;
@@ -54,6 +66,8 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const taskColors = BEHAVIOR_TASK_COLORS[task.task_type];
   const isMissingLetter = task.task_type === "missing_letter";
   const isShapeMatching = task.task_type === "shape_matching";
+  // Shape-matching and picture-pattern tasks both answer with drawn tiles, not words.
+  const isPictureTask = isShapeMatching || !!task.sequence;
 
   const [activityState, setActivityState] = useState<ActivityState>("idle");
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -64,7 +78,10 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
+  // Durations use the monotonic performance.now(); Date.now() can jump with clock changes.
   const taskStartRef = useRef<number>(0);
+  const attemptStartWallRef = useRef<number>(0);
+  const submittedRef = useRef(false);
   const firstTapRef = useRef<number | null>(null);
   const tapsRef = useRef<{ ts: number; correct: boolean }[]>([]);
   const pausesRef = useRef<{ start: number; end: number }[]>([]);
@@ -77,7 +94,9 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const autoSpokeRef = useRef(false);
 
   useEffect(() => {
-    taskStartRef.current = Date.now();
+    taskStartRef.current = performance.now();
+    attemptStartWallRef.current = Date.now();
+    submittedRef.current = false;
     firstTapRef.current = null;
     tapsRef.current = [];
     pausesRef.current = [];
@@ -87,6 +106,17 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
     setActivityState("active");
     timerRef.current = setInterval(() => setElapsed((p) => p + 1), 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [taskIndex]);
+
+  // Leaving the app (background/inactive) mid-task is a focus loss. Only the
+  // transition out of "active" counts, so iOS's inactive->background is one loss.
+  useEffect(() => {
+    let prev = AppState.currentState;
+    const sub = AppState.addEventListener("change", (next) => {
+      if (prev === "active" && next !== "active" && !submittedRef.current) focusLossRef.current += 1;
+      prev = next;
+    });
+    return () => sub.remove();
   }, [taskIndex]);
 
   /** Reads the question aloud. `isReplay` distinguishes the auto-read on arrival. */
@@ -113,8 +143,8 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
   const handleOptionTap = (option: string) => {
     if (activityState !== "active" || submitting) return;
-    const now = Date.now();
-    if (!firstTapRef.current) firstTapRef.current = now;
+    const now = performance.now();
+    if (firstTapRef.current === null) firstTapRef.current = now;
     const isCorrect = option === task.correct_answer;
     tapsRef.current.push({ ts: now, correct: isCorrect });
     setAttemptCount((c) => c + 1);
@@ -133,7 +163,8 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const handleShowHint = () => {
     setHintVisible(true);
     setHintCount((c) => c + 1);
-    if (pauseStartRef.current === null) pauseStartRef.current = Date.now();
+    // ponytail: hint-open time is the only "pause" signal the task has, so pause_count == hints read; add real idle detection if the model needs to tell them apart.
+    if (pauseStartRef.current === null) pauseStartRef.current = performance.now();
     speak(task.hint, {
       onStart: () => setSpeaking(true),
       onDone: () => setSpeaking(false),
@@ -144,19 +175,21 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const handleDismissHint = () => {
     setHintVisible(false);
     if (pauseStartRef.current !== null) {
-      pausesRef.current.push({ start: pauseStartRef.current, end: Date.now() });
+      pausesRef.current.push({ start: pauseStartRef.current, end: performance.now() });
       pauseStartRef.current = null;
     }
   };
 
   const handleSubmit = async () => {
-    if (!selectedOption || submitting) return;
+    // The ref blocks a double-tap that lands before the `submitting` state re-renders.
+    if (!selectedOption || submitting || submittedRef.current) return;
+    submittedRef.current = true;
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     stopSpeaking();
     setSpeaking(false);
     setSubmitting(true);
 
-    const taskEndTs = Date.now();
+    const taskEndTs = performance.now();
     const isCorrect = selectedOption === task.correct_answer;
 
     const rawEvents: BehaviorRawEvents = {
@@ -191,7 +224,8 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
       task_description: task.task_description,
       cognitive_focus: task.cognitive_focus,
       attention_load: task.attention_load,
-      age: 6,
+      age: await getChildAge(),
+      // Placeholders: the child profile doesn't collect gender, native language or school type yet.
       gender: "M",
       native_language: "Sinhala",
       assessment_language: "English",
@@ -205,36 +239,51 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
     let result: any = null;
     let apiError: string | undefined;
+    const uid = auth.currentUser?.uid ?? "anonymous";
+    // Deterministic id: a repeated submit of the same attempt can't create a second doc.
+    const attemptId = `${uid}_${task.id}_${attemptStartWallRef.current}`;
 
     try {
-      const uid = auth.currentUser?.uid ?? "anonymous";
-      const attemptRef = isPractice
-        ? null
-        : await addDoc(collection(db, "behavior_attempts"), {
-            user_id: uid,
-            task_type: task.task_type,
-            task_id: task.id,
-            level: task.level,
-            difficulty_level: task.difficulty_level,
-            selected_answer: selectedOption,
-            correct_answer: task.correct_answer,
-            is_correct: isCorrect,
-            raw_events: rawEvents,
-            submitted_at: serverTimestamp(),
-          });
-
       const response = await fetch(BEHAVIOR_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const responseText = await response.text();
-
-      if (!response.ok) throw new Error(`Server error: ${response.status} — ${responseText}`);
+      // 422 = payload failed backend validation, 503 = model unavailable.
+      if (!response.ok) {
+        console.warn(`[BehaviorAPI] ${response.status}:`, responseText);
+        throw new Error(`Server error: ${response.status}`);
+      }
       result = JSON.parse(responseText);
+    } catch (err: any) {
+      apiError = err.message;
+      console.warn("[BehaviorAPI] Error:", err.message);
+    }
 
-      if (!isPractice) await addDoc(collection(db, "behavior_predictions"), {
-        attempt_id: attemptRef!.id,
+    try {
+      // Practice runs never write; failed predictions keep the raw attempt plus
+      // an error marker, and no prediction doc, so summaries never see a fake score.
+      if (!isPractice) {
+        await setDoc(doc(db, "behavior_attempts", attemptId), {
+          user_id: uid,
+          task_type: task.task_type,
+          task_id: task.id,
+          level: task.level,
+          difficulty_level: task.difficulty_level,
+          selected_answer: selectedOption,
+          correct_answer: task.correct_answer,
+          is_correct: isCorrect,
+          raw_events: rawEvents,
+          prediction_status: result ? "ok" : "error",
+          prediction_error: apiError ?? null,
+          started_at_ms: attemptStartWallRef.current,
+          submitted_at: serverTimestamp(),
+        });
+      }
+
+      if (!isPractice && result) await setDoc(doc(db, "behavior_predictions", attemptId), {
+        attempt_id: attemptId,
         child_id: uid,
         session_id: `session_${uid}`,
         // Task identity is denormalised onto the prediction so summaries can
@@ -249,6 +298,10 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
         // Keep the complete backend evidence needed by summaries and fusion.
         quality: result.quality ?? null,
+        quality_status: result.quality_status ?? null,
+        missing_features: result.missing_features ?? null,
+        model_version: result.model_version ?? null,
+        feature_schema_version: result.feature_schema_version ?? null,
         mapped_features: result.mapped_features ?? null,
         features,
 
@@ -265,8 +318,8 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
         saved_at: serverTimestamp(),
       });
     } catch (err: any) {
-      apiError = err.message;
-      console.warn("[BehaviorAPI] Error:", err.message);
+      apiError = apiError ?? err.message;
+      console.warn("[BehaviorSave] Error:", err.message);
     }
 
     setSubmitting(false);
@@ -344,6 +397,20 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
             </View>
           )}
 
+          {/* Picture pattern: the sequence drawn, then a blank for the answer */}
+          {task.sequence && (
+            <View
+              style={[styles.sequenceRow, { backgroundColor: taskColors.bg, borderColor: taskColors.border }]}
+              accessible
+              accessibilityLabel={`${task.sequence.join(", ")}, what comes next?`}
+            >
+              {task.sequence.map((item, i) => <PictureGlyph key={i} value={item} size={36} />)}
+              <View style={[styles.sequenceBlank, { borderColor: taskColors.color }]}>
+                <Text style={[styles.sequenceBlankText, { color: taskColors.color }]}>?</Text>
+              </View>
+            </View>
+          )}
+
           {/* Missing-letter word: the word with a gap where the letter belongs */}
           {isMissingLetter && task.word && (
             <View style={[styles.wordBox, { backgroundColor: taskColors.bg, borderColor: taskColors.border }]}>
@@ -405,15 +472,17 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
             <Text style={styles.letterPromptText}>Tap the missing letter</Text>
           </View>
         ) : (
-          <Text style={styles.optionsLabel}>{isShapeMatching ? "Tap the matching shape" : "Choose your answer"}</Text>
+          <Text style={styles.optionsLabel}>
+            {isShapeMatching ? "Tap the matching shape" : task.sequence ? "Tap what comes next" : "Choose your answer"}
+          </Text>
         )}
-        <View style={isMissingLetter ? styles.letterGrid : isShapeMatching ? styles.shapeGrid : styles.optionsGrid}>
+        <View style={isMissingLetter ? styles.letterGrid : isPictureTask ? styles.shapeGrid : styles.optionsGrid}>
           {task.options.map((option, i) => {
             const isSelected = selectedOption === option;
             const isCorrectOption = option === task.correct_answer;
             const showResult = selectedOption !== null;
 
-            let cardStyle = isMissingLetter ? styles.letterCard : isShapeMatching ? styles.shapeCard : styles.optionCard;
+            let cardStyle = isMissingLetter ? styles.letterCard : isPictureTask ? styles.shapeCard : styles.optionCard;
             // Tile chrome stays neutral so colour only appears where it carries
             // meaning — the child's selection, and right/wrong feedback. Shape
             // glyphs are the exception: they keep their own bright per-shape
@@ -438,9 +507,9 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
                 activeOpacity={0.75}
                 disabled={submitting}
               >
-                {isShapeMatching ? (
+                {isPictureTask ? (
                   <>
-                    <ShapeGlyph shape={option} size={56} color={showResult && isSelected ? textColor : undefined} />
+                    <PictureGlyph value={option} size={56} color={showResult && isSelected ? textColor : undefined} />
                     <Text style={[styles.shapeCardLabel, { color: textColor }]}>{option}</Text>
                     {showResult && isSelected && (
                       <Ionicons
@@ -582,6 +651,16 @@ const styles = StyleSheet.create({
     shadowColor: "#94A3B8", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 3 }, shadowRadius: 8, elevation: 3,
   },
   shapeCardLabel: { fontSize: 14, fontFamily: theme.fonts.semiBold },
+  /* Picture pattern — the drawn sequence with a dashed blank at the end */
+  sequenceRow: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 8,
+    borderWidth: 1.5, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 10, marginTop: 4,
+  },
+  sequenceBlank: {
+    width: 36, height: 36, borderRadius: 10, borderWidth: 2, borderStyle: "dashed",
+    alignItems: "center", justifyContent: "center",
+  },
+  sequenceBlankText: { fontSize: 20, fontFamily: theme.fonts.extraBold },
 
   /* Listen controls */
   listenRow: { flexDirection: "row", gap: 10, marginBottom: 16 },

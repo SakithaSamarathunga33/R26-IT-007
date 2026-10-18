@@ -21,8 +21,9 @@ import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
 import { auth } from "../../config/firebase";
 import { useFocusEffect } from "@react-navigation/native";
-import { getOrCreateSession, SessionProgress } from "../../services/sessionService";
+import { getOrCreateSession, getAssessmentHistory, SessionProgress } from "../../services/sessionService";
 import { ActiveTherapyPlan, fetchActiveTherapyPlan } from "../../services/therapySessionService";
+import { useT } from "../../i18n";
 
 
 type Props = {
@@ -85,18 +86,22 @@ const MODULES = [
 
 export default function HomeScreen({ navigation }: Props) {
   const user = auth.currentUser;
-  const firstName = user?.displayName?.split(" ")[0] ?? "there";
+  const { t } = useT();
+  const firstName = user?.displayName?.split(" ")[0] ?? t("there");
 
   const [session, setSession] = useState<SessionProgress>({
     speechDone: false, handwritingDone: false, behaviourDone: false, status: "in_progress",
   });
 
   const [therapyPlan, setTherapyPlan] = useState<ActiveTherapyPlan | null>(null);
+  // Latest saved fusion response, so a past report stays viewable while a new screening is in progress.
+  const [lastReport, setLastReport] = useState<any>(null);
 
   useFocusEffect(
     useCallback(() => {
       if (!user?.uid) return;
       getOrCreateSession(user.uid).then(setSession).catch(() => {});
+      getAssessmentHistory(user.uid).then((h) => setLastReport(h[0]?.fullReport ?? null)).catch(() => setLastReport(null));
       // Re-read on focus so finishing a practice session updates the card.
       fetchActiveTherapyPlan(user.uid).then(setTherapyPlan).catch(() => setTherapyPlan(null));
     }, [user?.uid])
@@ -125,9 +130,9 @@ export default function HomeScreen({ navigation }: Props) {
         {/* ── Top bar ── */}
         <View style={styles.topBar}>
           <View style={styles.heroWrap}>
-            <Text style={styles.heroLine1}>Your Screening</Text>
+            <Text style={styles.heroLine1}>{t("Your Screening")}</Text>
             <View style={styles.heroLine2Row}>
-              <Text style={styles.heroLine2Bold}>Dashboard</Text>
+              <Text style={styles.heroLine2Bold}>{t("Dashboard")}</Text>
               <View style={styles.heroBadge}>
                 <Ionicons name="sparkles" size={13} color="#2563EB" />
               </View>
@@ -150,7 +155,7 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
         <Text style={styles.heroSub}>
-          Hi {firstName}, track your child's dyslexia screening progress.
+          {t("Hi {name}, track your child's dyslexia screening progress.", { name: firstName })}
         </Text>
 
         {/* ── Progress card (blue, full width) ── */}
@@ -166,16 +171,16 @@ export default function HomeScreen({ navigation }: Props) {
 
           <View style={styles.progressTop}>
             <View>
-              <Text style={styles.progressLabel}>Overall Progress</Text>
+              <Text style={styles.progressLabel}>{t("Overall Progress")}</Text>
               <Text style={styles.progressName}>{firstName}</Text>
             </View>
           </View>
 
           <View style={styles.progressGrid}>
             {[
-              { label: "Completed", value: `${completedCount}`, sub: "modules" },
-              { label: "Remaining", value: `${3 - completedCount}`, sub: "modules" },
-              { label: "Progress", value: `${Math.round((completedCount / 3) * 100)}%`, sub: "done" },
+              { label: t("Completed"), value: `${completedCount}`, sub: t("modules") },
+              { label: t("Remaining"), value: `${3 - completedCount}`, sub: t("modules") },
+              { label: t("Progress"), value: `${Math.round((completedCount / 3) * 100)}%`, sub: t("done") },
             ].map((item, i) => (
               <View key={i} style={styles.progressGridItem}>
                 <Text style={styles.progressGridVal}>{item.value}</Text>
@@ -223,7 +228,7 @@ export default function HomeScreen({ navigation }: Props) {
                   <Ionicons name="barbell-outline" size={20} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.tcTitle}>Your Practice Plan</Text>
+                  <Text style={styles.tcTitle}>{t("Your Practice Plan")}</Text>
                   <Text style={styles.tcSub} numberOfLines={1}>
                     {therapyPlan.primaryFocus}
                   </Text>
@@ -241,7 +246,7 @@ export default function HomeScreen({ navigation }: Props) {
                 />
               </View>
               <Text style={styles.tcHint}>
-                {therapyPlan.target - therapyPlan.doneCount} sessions left · tap to practise
+                {t("{n} sessions left · tap to practise", { n: therapyPlan.target - therapyPlan.doneCount })}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -249,9 +254,9 @@ export default function HomeScreen({ navigation }: Props) {
 
         {/* ── Modules grid ── */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Assessment Modules</Text>
+          <Text style={styles.sectionTitle}>{t("Assessment Modules")}</Text>
           <View style={styles.sectionPill}>
-            <Text style={styles.sectionPillText}>{modulesLocked ? "Locked" : "3 total"}</Text>
+            <Text style={styles.sectionPillText}>{modulesLocked ? t("Locked") : t("3 total")}</Text>
           </View>
         </View>
 
@@ -259,7 +264,7 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.lockNotice}>
             <Ionicons name="lock-closed" size={16} color="#7C3AED" />
             <Text style={styles.lockNoticeText}>
-              Finish your practice plan before screening again.
+              {t("Finish your practice plan before screening again.")}
             </Text>
           </View>
         )}
@@ -302,26 +307,26 @@ export default function HomeScreen({ navigation }: Props) {
                     {isDone ? (
                       <View style={styles.mcDoneBadge}>
                         <Ionicons name="checkmark-circle" size={11} color="#4ADE80" />
-                        <Text style={styles.mcDoneText}>Done</Text>
+                        <Text style={styles.mcDoneText}>{t("Done")}</Text>
                       </View>
                     ) : (
                       <View style={[styles.mcActiveBadge, { backgroundColor: mod.badgeBg }]}>
                         <View style={styles.mcDot} />
-                        <Text style={[styles.mcActiveText, { color: mod.badgeColor }]}>Active</Text>
+                        <Text style={[styles.mcActiveText, { color: mod.badgeColor }]}>{t("Active")}</Text>
                       </View>
                     )}
                   </View>
 
                   {/* Label */}
-                  <Text style={[styles.mcLabel, { color: mod.textColor }]}>{mod.label}</Text>
-                  <Text style={[styles.mcSub, { color: mod.subColor }]}>{mod.sublabel}</Text>
+                  <Text style={[styles.mcLabel, { color: mod.textColor }]}>{t(mod.label)}</Text>
+                  <Text style={[styles.mcSub, { color: mod.subColor }]}>{t(mod.sublabel)}</Text>
 
                   {/* Bottom row: duration + arrow */}
                   <View style={styles.mcBottom}>
                     <View style={[styles.mcDurationPill, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
                       <Ionicons name="time-outline" size={10} color="rgba(255,255,255,0.85)" />
                       <Text style={[styles.mcDuration, { color: "rgba(255,255,255,0.85)" }]}>
-                        {mod.duration}
+                        {t(mod.duration)}
                       </Text>
                     </View>
                     <View style={[styles.mcArrow, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
@@ -335,7 +340,7 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
 
         {/* ── AI Report card ── */}
-        <Text style={styles.sectionTitle2}>AI Risk Report</Text>
+        <Text style={styles.sectionTitle2}>{t("AI Risk Report")}</Text>
 
         <View style={styles.reportCard}>
           <View style={styles.reportLeft}>
@@ -343,9 +348,9 @@ export default function HomeScreen({ navigation }: Props) {
               <Ionicons name="analytics" size={24} color="#2563EB" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.reportTitle}>Dyslexia Risk{"\n"}Assessment</Text>
+              <Text style={styles.reportTitle}>{t("Dyslexia Risk Assessment")}</Text>
               <Text style={styles.reportDesc}>
-                Complete all 3 modules to generate your personalised AI report.
+                {t("Complete all 3 modules to generate your personalised AI report.")}
               </Text>
             </View>
           </View>
@@ -375,7 +380,7 @@ export default function HomeScreen({ navigation }: Props) {
                         done && styles.reportStepLabelDone,
                       ]}
                     >
-                      {m.label}
+                      {t(m.label)}
                     </Text>
                   </View>
                   {i < MODULES.length - 1 && (
@@ -411,10 +416,21 @@ export default function HomeScreen({ navigation }: Props) {
                 color={completedCount === 3 ? "#fff" : "#94A3B8"}
               />
               <Text style={[styles.unlockBtnText, completedCount === 3 && styles.unlockBtnTextActive]}>
-                {completedCount === 3 ? "Run Final Analysis" : `${completedCount}/3 Modules Done`}
+                {completedCount === 3 ? t("Run Final Analysis") : t("{n}/3 Modules Done", { n: completedCount })}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
+
+          {lastReport && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.lastReportBtn}
+              onPress={() => navigation.navigate("FusionRiskSummary", { response: lastReport })}
+            >
+              <Ionicons name="document-text-outline" size={14} color="#2563EB" />
+              <Text style={styles.lastReportBtnText}>{t("View Last Report")}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={{ height: 110 }} />
@@ -868,5 +884,22 @@ const styles = StyleSheet.create({
   },
   unlockBtnTextActive: {
     color: "#fff",
+  },
+  lastReportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
+  },
+  lastReportBtnText: {
+    fontSize: 15,
+    fontFamily: theme.fonts.semiBold,
+    color: "#2563EB",
   },
 });

@@ -71,6 +71,23 @@ export async function markComplete(
   return next;
 }
 
+/**
+ * Speech and behaviour mastery gate: a level unlocks the next one only when at
+ * least this percent of its tasks came back low-risk (the same level score the
+ * level-complete screen shows). 60% = 3 of 5, 2 of 3, 3 of 4.
+ */
+export const MASTERY_MIN_SCORE = 60;
+
+// A screening must always be finishable: after this many unmastered passes the level
+// unlocks anyway (the low score is still what the summary and fusion see).
+export const MAX_UNMASTERED_PASSES = 2;
+// ponytail: in-memory, resets on app reload; persist per level if the cap must survive restarts.
+const unmasteredPasses: Record<string, number> = {};
+export function countUnmasteredPass(cfg: LevelModuleConfig, level: LevelNumber): number {
+  const key = `${cfg.progressCollection}:${level}`;
+  return (unmasteredPasses[key] = (unmasteredPasses[key] ?? 0) + 1);
+}
+
 /** Level 1 is always open; every later level needs the one before it done. */
 export function isUnlocked(level: LevelNumber, progress: LevelProgress): boolean {
   if (level === 1) return true;

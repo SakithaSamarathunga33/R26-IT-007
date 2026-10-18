@@ -9,6 +9,7 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionDifficulty">;
@@ -55,6 +56,7 @@ const ALL_MODULES = [
 ];
 
 export default function FusionDifficultyScreen({ navigation, route }: Props) {
+  const { t } = useT();
   const { response } = route.params;
   const primary = response.primary_difficulty;
   const secondary = response.secondary_difficulty_label;
@@ -72,60 +74,72 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Difficulty Breakdown</Text>
+        <Text style={styles.headerTitle}>{t("Difficulty Breakdown")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Primary difficulty */}
-        <Text style={styles.sectionLabel}>Primary Area of Difficulty</Text>
+        {/* Primary difficulty — null when the screening had insufficient evidence */}
+        <Text style={styles.sectionLabel}>{t("Primary Area of Difficulty")}</Text>
+        {!primary ? (
+          <View style={[styles.secondaryCard, { borderColor: "#E2E8F0" }]}>
+            <View style={[styles.secondaryIconWrap, { backgroundColor: "#F1F5F9" }]}>
+              <Ionicons name="hourglass-outline" size={22} color="#64748B" />
+            </View>
+            <View style={styles.secondaryInfo}>
+              <Text style={styles.secondaryLabel}>{t("Not enough evidence yet")}</Text>
+              <Text style={styles.secondaryDesc}>{t("Complete more activities to see a difficulty breakdown.")}</Text>
+            </View>
+          </View>
+        ) : (
         <LinearGradient colors={primaryConfig.gradColors} style={styles.primaryCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={styles.decoCircle} />
           <View style={styles.primaryIconWrap}>
             <Ionicons name={primaryConfig.icon} size={36} color="#fff" />
           </View>
           <View style={styles.primaryInfo}>
-            <Text style={styles.primaryLabel}>{primaryConfig.label}</Text>
-            <Text style={styles.primaryDesc}>{primaryConfig.description}</Text>
+            <Text style={styles.primaryLabel}>{t(primaryConfig.label)}</Text>
+            <Text style={styles.primaryDesc}>{t(primaryConfig.description)}</Text>
             <View style={styles.confidenceRow}>
               {primary?.confidence != null && (
                 <View style={styles.confidencePill}>
                   <Text style={styles.confidenceText}>
-                    {Math.round(primary.confidence * 100)}% confidence
+                    {t("{pct}% confidence", { pct: Math.round(primary.confidence * 100) })}
                   </Text>
                 </View>
               )}
               <View style={styles.methodPill}>
                 <Text style={styles.methodText}>
-                  {primary?.method === "xgboost_primary_difficulty_model" ? "AI Model" : "Rule-based"}
+                  {primary?.method === "xgboost_primary_difficulty_model" ? t("AI Model") : t("Rule-based")}
                 </Text>
               </View>
             </View>
           </View>
         </LinearGradient>
+        )}
 
         {/* Secondary difficulty */}
         {secondaryConfig && (
           <>
-            <Text style={styles.sectionLabel}>Secondary Area</Text>
+            <Text style={styles.sectionLabel}>{t("Secondary Area")}</Text>
             <View style={[styles.secondaryCard, { borderColor: secondaryConfig.color + "30" }]}>
               <View style={[styles.secondaryIconWrap, { backgroundColor: secondaryConfig.iconBg }]}>
                 <Ionicons name={secondaryConfig.icon} size={22} color={secondaryConfig.color} />
               </View>
               <View style={styles.secondaryInfo}>
-                <Text style={styles.secondaryLabel}>{secondaryConfig.label}</Text>
-                <Text style={styles.secondaryDesc}>{secondaryConfig.description}</Text>
+                <Text style={styles.secondaryLabel}>{t(secondaryConfig.label)}</Text>
+                <Text style={styles.secondaryDesc}>{t(secondaryConfig.description)}</Text>
               </View>
               <View style={[styles.secondaryBadge, { backgroundColor: secondaryConfig.bg }]}>
-                <Text style={[styles.secondaryBadgeText, { color: secondaryConfig.color }]}>Secondary</Text>
+                <Text style={[styles.secondaryBadgeText, { color: secondaryConfig.color }]}>{t("Secondary")}</Text>
               </View>
             </View>
           </>
         )}
 
         {/* Module score bars */}
-        <Text style={styles.sectionLabel}>Module Score Comparison</Text>
+        <Text style={styles.sectionLabel}>{t("Module Score Comparison")}</Text>
         <View style={styles.scoresCard}>
           {ALL_MODULES.map((m, i) => {
             const val = Number(features[m.key] ?? 0);
@@ -139,10 +153,10 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
                 </View>
                 <View style={styles.scoreInfo}>
                   <View style={styles.scoreLabelRow}>
-                    <Text style={styles.scoreModuleName}>{m.label}</Text>
+                    <Text style={styles.scoreModuleName}>{t(m.label)}</Text>
                     {isPrimary && (
                       <View style={[styles.primaryBadge, { backgroundColor: m.color + "20" }]}>
-                        <Text style={[styles.primaryBadgeText, { color: m.color }]}>Primary</Text>
+                        <Text style={[styles.primaryBadgeText, { color: m.color }]}>{t("Primary")}</Text>
                       </View>
                     )}
                   </View>
@@ -164,7 +178,7 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
         </View>
 
         {/* Feature details */}
-        <Text style={styles.sectionLabel}>Key Feature Signals</Text>
+        <Text style={styles.sectionLabel}>{t("Key Feature Signals")}</Text>
         <View style={styles.featuresCard}>
           {[
             { label: "Phoneme Error Rate",   val: features.phoneme_error_rate, high: 0.5 },
@@ -180,7 +194,7 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
             const isRisk = f.invert ? val < f.high : val > f.high;
             return (
               <View key={i} style={[styles.featureRow, i < arr.length - 1 && styles.featureBorder]}>
-                <Text style={styles.featureLabel}>{f.label}</Text>
+                <Text style={styles.featureLabel}>{t(f.label)}</Text>
                 <View style={styles.featureRight}>
                   <View style={styles.featureTrack}>
                     <View style={[styles.featureFill, { width: `${Math.round(val * 100)}%` as any, backgroundColor: isRisk ? "#EF4444" : "#059669" }]} />
@@ -196,6 +210,7 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
 
         <View style={{ height: 16 }} />
 
+        {!!response.therapy_recommendation && (
         <LinearGradient colors={["#1D4ED8", "#2563EB"]} style={styles.nextBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
           <TouchableOpacity
             style={styles.nextBtnInner}
@@ -203,9 +218,10 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
             onPress={() => navigation.navigate("FusionTherapy", { response })}
           >
             <Ionicons name="fitness-outline" size={20} color="#fff" />
-            <Text style={styles.nextBtnText}>View Therapy Plan</Text>
+            <Text style={styles.nextBtnText}>{t("View Therapy Plan")}</Text>
           </TouchableOpacity>
         </LinearGradient>
+        )}
 
         <View style={{ height: 50 }} />
       </ScrollView>

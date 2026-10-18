@@ -1,4 +1,5 @@
 import React from "react";
+import { fusionMethodLabel } from "../../services/fusionService";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView,
 } from "react-native";
@@ -9,19 +10,22 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { riskLevelFromScore } from "../../config/riskThresholds";
+import { useT } from "../../i18n";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionReport">;
   route: RouteProp<RootStackParamList, "FusionReport">;
 };
 
-const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444" };
-const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5" };
-const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA" };
+const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444", insufficient: "#64748B" };
+const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", insufficient: "#F8FAFC" };
+const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", insufficient: "#E2E8F0" };
 const RISK_GRAD: Record<string, [string, string]> = {
   low:    ["#059669", "#047857"],
   medium: ["#F59E0B", "#D97706"],
   high:   ["#EF4444", "#DC2626"],
+  insufficient: ["#94A3B8", "#64748B"],
 };
 
 const DIFFICULTY_LABELS: Record<string, string> = {
@@ -37,14 +41,16 @@ const MODULE_META = [
 ];
 
 function Section({ title }: { title: string }) {
+  const { t } = useT();
   return (
     <View style={styles.sectionHeaderRow}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionTitle}>{t(title)}</Text>
     </View>
   );
 }
 
 export default function FusionReportScreen({ navigation, route }: Props) {
+  const { t } = useT();
   const { response } = route.params;
   const fp     = response.final_prediction ?? {};
   const pd     = response.primary_difficulty ?? {};
@@ -52,8 +58,11 @@ export default function FusionReportScreen({ navigation, route }: Props) {
   const therapy = response.therapy_recommendation ?? {};
   const quality = response.quality ?? {};
   const features = response.fusion_features ?? {};
+  const cs = response.component_statuses ?? {};
+  // insufficient_evidence nulls the score, level, difficulty and therapy plan.
+  const insufficient = response.review_status === "insufficient_evidence" || fp.overall_risk_score == null;
 
-  const level = (fp.final_dyslexia_risk_level as keyof typeof RISK_COLORS) ?? "low";
+  const level: keyof typeof RISK_COLORS = insufficient ? "insufficient" : (fp.final_dyslexia_risk_level ?? "low");
   const score = Math.round((fp.overall_risk_score ?? 0) * 100);
   const gradColors = RISK_GRAD[level] ?? RISK_GRAD.low;
 
@@ -76,7 +85,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Full Assessment Report</Text>
+        <Text style={styles.headerTitle}>{t("Full Assessment Report")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -89,11 +98,11 @@ export default function FusionReportScreen({ navigation, route }: Props) {
           <View style={styles.bannerIconWrap}>
             <Ionicons name="document-text-outline" size={34} color="#fff" />
           </View>
-          <Text style={styles.bannerTitle}>Dyslexia Screening Report</Text>
-          <Text style={styles.bannerDate}>Generated {generatedDate}</Text>
+          <Text style={styles.bannerTitle}>{t("Dyslexia Screening Report")}</Text>
+          <Text style={styles.bannerDate}>{t("Generated {date}", { date: generatedDate })}</Text>
           <View style={styles.bannerBadgeRow}>
             <View style={styles.bannerBadge}>
-              <Text style={styles.bannerBadgeText}>Multi-Modal Fusion</Text>
+              <Text style={styles.bannerBadgeText}>{t("Multi-Modal Fusion")}</Text>
             </View>
             <View style={styles.bannerBadge}>
               <Text style={styles.bannerBadgeText}>v{fp.model_version ?? "1.0"}</Text>
@@ -107,36 +116,50 @@ export default function FusionReportScreen({ navigation, route }: Props) {
           <View style={styles.resultRow}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.resultLevel, { color: RISK_COLORS[level] }]}>
-                {level.charAt(0).toUpperCase() + level.slice(1)} Screening Risk
+                {insufficient ? t("Not Enough Evidence Yet") : t("{level} Screening Risk", { level: t(level.charAt(0).toUpperCase() + level.slice(1)) })}
               </Text>
-              <Text style={styles.resultScore}>Overall Risk Score: {score}%</Text>
-              <Text style={styles.resultMethod}>Method: {fp.fusion_strategy ?? "weighted_rule_based_fusion"}</Text>
+              <Text style={styles.resultScore}>
+                {insufficient ? t("Complete more activities to get a screening result.") : t("Overall Risk Score: {score}%", { score })}
+              </Text>
+              <Text style={styles.resultMethod}>{t("Method: {method}", { method: fusionMethodLabel(fp.fusion_strategy) })}</Text>
+              {!insufficient && typeof fp.risk_probability === "number" && (
+                <Text style={styles.resultMethod}>{t("Model confidence of risk: {pct}%", { pct: Math.round(fp.risk_probability * 100) })}{fp.borderline ? " " + t("(borderline — review advised)") : ""}</Text>
+              )}
             </View>
             <View style={[styles.scoreCircle, { borderColor: RISK_COLORS[level] }]}>
-              <Text style={[styles.scoreCircleVal, { color: RISK_COLORS[level] }]}>{score}%</Text>
+              <Text style={[styles.scoreCircleVal, { color: RISK_COLORS[level] }]}>{insufficient ? "—" : `${score}%`}</Text>
             </View>
           </View>
           <View style={styles.resultTrack}>
-            <View style={[styles.resultFill, { width: `${score}%` as any, backgroundColor: RISK_COLORS[level] }]} />
+            <View style={[styles.resultFill, { width: `${insufficient ? 0 : score}%` as any, backgroundColor: RISK_COLORS[level] }]} />
           </View>
-          <Text style={styles.resultThreshold}>Threshold: 35%  ·  Reliability: {quality.fusion_reliability ?? "medium"}</Text>
+          <Text style={styles.resultThreshold}>{t("Threshold: 35%  ·  Reliability: {level}", { level: t(quality.fusion_reliability ?? "medium") })}</Text>
+          {response.review_status === "review_recommended" && (
+            <Text style={styles.resultThreshold}>
+              {response.disagreement_indicator?.flagged
+                ? t("Review recommended — module results disagree. Please discuss with a teacher or specialist.")
+                : t("Review recommended. Please discuss with a teacher or specialist.")}
+            </Text>
+          )}
         </View>
 
         {/* Difficulty */}
+        {!insufficient && (
+        <>
         <Section title="Difficulty Areas" />
         <View style={styles.diffCard}>
           <View style={styles.diffRow}>
             <View style={styles.diffLabel}>
               <Ionicons name="alert-circle" size={14} color="#2563EB" />
-              <Text style={styles.diffKey}>Primary Difficulty</Text>
+              <Text style={styles.diffKey}>{t("Primary Difficulty")}</Text>
             </View>
-            <Text style={styles.diffVal}>{DIFFICULTY_LABELS[pd.primary_difficulty_label] ?? pd.primary_difficulty_label}</Text>
+            <Text style={styles.diffVal}>{DIFFICULTY_LABELS[pd.primary_difficulty_label] ? t(DIFFICULTY_LABELS[pd.primary_difficulty_label]) : pd.primary_difficulty_label}</Text>
           </View>
           {pd.confidence != null && (
             <View style={[styles.diffRow, styles.diffBorder]}>
               <View style={styles.diffLabel}>
                 <Ionicons name="stats-chart" size={14} color="#7C3AED" />
-                <Text style={styles.diffKey}>Model Confidence</Text>
+                <Text style={styles.diffKey}>{t("Model Confidence")}</Text>
               </View>
               <Text style={styles.diffVal}>{Math.round(pd.confidence * 100)}%</Text>
             </View>
@@ -144,37 +167,40 @@ export default function FusionReportScreen({ navigation, route }: Props) {
           <View style={[styles.diffRow, styles.diffBorder]}>
             <View style={styles.diffLabel}>
               <Ionicons name="git-branch" size={14} color="#0891B2" />
-              <Text style={styles.diffKey}>Method</Text>
+              <Text style={styles.diffKey}>{t("Method")}</Text>
             </View>
             <Text style={styles.diffVal}>
-              {pd.method === "xgboost_primary_difficulty_model" ? "AI Model" : "Rule-based"}
+              {pd.method === "xgboost_primary_difficulty_model" ? t("AI Model") : t("Rule-based")}
             </Text>
           </View>
           {sec && (
             <View style={[styles.diffRow, styles.diffBorder]}>
               <View style={styles.diffLabel}>
                 <Ionicons name="layers" size={14} color="#64748B" />
-                <Text style={styles.diffKey}>Secondary Difficulty</Text>
+                <Text style={styles.diffKey}>{t("Secondary Difficulty")}</Text>
               </View>
-              <Text style={styles.diffVal}>{DIFFICULTY_LABELS[sec] ?? sec}</Text>
+              <Text style={styles.diffVal}>{DIFFICULTY_LABELS[sec] ? t(DIFFICULTY_LABELS[sec]) : sec}</Text>
             </View>
           )}
         </View>
+        </>
+        )}
 
         {/* Module summaries */}
         <Section title="Module Summaries" />
         <View style={styles.modulesCard}>
           {MODULE_META.map((m, i) => {
             const val = Number(features[m.scoreKey] ?? 0);
-            const mlevel = val >= 0.6 ? "high" : val >= 0.35 ? "medium" : "low";
+            const usable = cs[m.key === "behaviour" ? "behavior" : m.key]?.usable !== false;
+            const mlevel = usable ? riskLevelFromScore(val) : "insufficient";
             return (
               <View key={i} style={[styles.moduleRow, i < MODULE_META.length - 1 && styles.moduleBorder]}>
                 <View style={[styles.moduleIcon, { backgroundColor: m.iconBg }]}>
                   <Ionicons name={m.icon} size={18} color={m.color} />
                 </View>
                 <View style={styles.moduleInfo}>
-                  <Text style={styles.moduleName}>{m.label}</Text>
-                  <Text style={styles.moduleSub}>{m.sublabel}</Text>
+                  <Text style={styles.moduleName}>{t(m.label)}</Text>
+                  <Text style={styles.moduleSub}>{t(m.sublabel)}</Text>
                   <View style={styles.moduleBarRow}>
                     <View style={styles.moduleTrack}>
                       <View style={[styles.moduleBarFill, { width: `${Math.round(val * 100)}%` as any, backgroundColor: m.color }]} />
@@ -183,7 +209,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
                   </View>
                 </View>
                 <View style={[styles.moduleLevelPill, { backgroundColor: RISK_BG[mlevel], borderColor: RISK_BORDER[mlevel] }]}>
-                  <Text style={[styles.moduleLevelText, { color: RISK_COLORS[mlevel] }]}>{mlevel}</Text>
+                  <Text style={[styles.moduleLevelText, { color: RISK_COLORS[mlevel] }]}>{usable ? t(mlevel.charAt(0).toUpperCase() + mlevel.slice(1)) : t("n/a")}</Text>
                 </View>
               </View>
             );
@@ -191,29 +217,33 @@ export default function FusionReportScreen({ navigation, route }: Props) {
         </View>
 
         {/* Therapy summary */}
+        {!insufficient && (
+        <>
         <Section title="Therapy Recommendation" />
         <View style={styles.therapyCard}>
           <View style={styles.therapyRow}>
             <Ionicons name="fitness-outline" size={16} color="#2563EB" />
-            <Text style={styles.therapyLabel}>Primary Focus</Text>
+            <Text style={styles.therapyLabel}>{t("Primary Focus")}</Text>
             <Text style={styles.therapyVal}>{therapy.primary_focus}</Text>
           </View>
           <View style={[styles.therapyRow, styles.therapyBorder]}>
             <Ionicons name="calendar-outline" size={16} color="#7C3AED" />
-            <Text style={styles.therapyLabel}>Sessions / Week</Text>
+            <Text style={styles.therapyLabel}>{t("Sessions / Week")}</Text>
             <Text style={styles.therapyVal}>{therapy.recommended_sessions_per_week}</Text>
           </View>
           <View style={[styles.therapyRow, styles.therapyBorder]}>
             <Ionicons name="flame-outline" size={16} color="#D97706" />
-            <Text style={styles.therapyLabel}>Intensity</Text>
+            <Text style={styles.therapyLabel}>{t("Intensity")}</Text>
             <Text style={styles.therapyVal}>{therapy.recommendation_intensity}</Text>
           </View>
           <View style={[styles.therapyRow, styles.therapyBorder]}>
             <Ionicons name="list-outline" size={16} color="#0891B2" />
-            <Text style={styles.therapyLabel}>Activities</Text>
-            <Text style={styles.therapyVal}>{(therapy.recommended_activities ?? []).length} recommended</Text>
+            <Text style={styles.therapyLabel}>{t("Activities")}</Text>
+            <Text style={styles.therapyVal}>{t("{n} recommended", { n: (therapy.recommended_activities ?? []).length })}</Text>
           </View>
         </View>
+        </>
+        )}
 
         {/* Recommended activities */}
         {(therapy.recommended_activities ?? []).length > 0 && (
@@ -230,7 +260,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
                     {!!act.description && <Text style={styles.actDesc}>{act.description}</Text>}
                     <View style={styles.actMeta}>
                       <Ionicons name="time-outline" size={12} color="#94A3B8" />
-                      <Text style={styles.actMetaText}>{act.duration_minutes} min</Text>
+                      <Text style={styles.actMetaText}>{t("{n} min", { n: act.duration_minutes })}</Text>
                       {!!act.target_skill && (
                         <>
                           <View style={styles.actMetaDot} />
@@ -290,7 +320,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
         <View style={styles.disclaimerCard}>
           <Ionicons name="shield-checkmark-outline" size={16} color="#2563EB" />
           <Text style={styles.disclaimerText}>
-            This report contains <Text style={styles.disclaimerBold}>screening risk indicators only</Text> — not a clinical diagnosis. Results combine speech, handwriting, and behaviour module outputs using the weighted rule-based fusion method. Please consult a qualified teacher, therapist, or specialist for a full evaluation.
+            <Text style={styles.disclaimerBold}>{t("This report contains screening risk indicators only, not a clinical diagnosis.")}</Text>{" "}{t("Results combine speech, handwriting, and behaviour module outputs using {method}. Please consult a qualified teacher, therapist, or specialist for a full evaluation.", { method: fusionMethodLabel(fp.fusion_strategy) })}
           </Text>
         </View>
 
@@ -303,7 +333,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
         >
           <LinearGradient colors={["#1D4ED8", "#2563EB"]} style={styles.homeBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
             <Ionicons name="home-outline" size={20} color="#fff" />
-            <Text style={styles.homeBtnText}>Back to Dashboard</Text>
+            <Text style={styles.homeBtnText}>{t("Back to Dashboard")}</Text>
           </LinearGradient>
         </TouchableOpacity>
 

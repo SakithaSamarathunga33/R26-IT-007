@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { fusionMethodLabel } from "../../services/fusionService";
 import {
   View, Text, StyleSheet, StatusBar, ScrollView,
   TouchableOpacity, ActivityIndicator, Modal,
@@ -11,19 +12,33 @@ import { RootStackParamList } from "../../navigation/AppNavigator";
 import { auth } from "../../config/firebase";
 import { getAssessmentHistory, AssessmentRecord } from "../../services/sessionService";
 import { theme } from "../../theme";
+import { riskLevelFromScore } from "../../config/riskThresholds";
+import { useT } from "../../i18n";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "MainTabs">;
 };
 
-const RISK_COLOR  = { low: "#059669", medium: "#D97706", high: "#EF4444" };
-const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5" };
-const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA" };
+const RISK_COLOR  = { low: "#059669", medium: "#D97706", high: "#EF4444", insufficient: "#64748B" };
+const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", insufficient: "#F8FAFC" };
+const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", insufficient: "#E2E8F0" };
 const RISK_GRAD: Record<string, [string, string]> = {
   low:    ["#059669", "#047857"],
   medium: ["#F59E0B", "#D97706"],
   high:   ["#EF4444", "#DC2626"],
+  insufficient: ["#94A3B8", "#64748B"],
 };
+
+// History stores riskLevel "low" as a fallback when the fusion returned no level,
+// so read the report's own status to avoid showing "Low" for insufficient evidence.
+function recordLevel(r: AssessmentRecord): keyof typeof RISK_COLOR {
+  if (r.fullReport?.review_status === "insufficient_evidence") return "insufficient";
+  return (r.riskLevel ?? "low") as keyof typeof RISK_COLOR;
+}
+
+function levelLabel(level: keyof typeof RISK_COLOR, t: (en: string) => string): string {
+  return t(level === "insufficient" ? "Not enough evidence" : level.charAt(0).toUpperCase() + level.slice(1));
+}
 
 const DIFFICULTY_LABELS: Record<string, string> = {
   phonological_processing: "Phonological Processing",
@@ -39,6 +54,7 @@ const MODULE_META = [
 
 export default function HistoryScreen({ navigation }: Props) {
   const user = auth.currentUser;
+  const { t } = useT();
   const [history, setHistory] = useState<AssessmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AssessmentRecord | null>(null);
@@ -61,28 +77,28 @@ export default function HistoryScreen({ navigation }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>History</Text>
-          <Text style={styles.headerSub}>Past assessment reports</Text>
+          <Text style={styles.headerTitle}>{t("History")}</Text>
+          <Text style={styles.headerSub}>{t("Past assessment reports")}</Text>
         </View>
         <View style={styles.headerBadge}>
           <Ionicons name="time-outline" size={14} color="#2563EB" />
-          <Text style={styles.headerBadgeText}>{history.length} total</Text>
+          <Text style={styles.headerBadgeText}>{t("{n} total", { n: history.length })}</Text>
         </View>
       </View>
 
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={styles.loadingText}>Loading history…</Text>
+          <Text style={styles.loadingText}>{t("Loading history…")}</Text>
         </View>
       ) : history.length === 0 ? (
         <View style={styles.centered}>
           <View style={styles.emptyIconWrap}>
             <Ionicons name="document-text-outline" size={40} color="#CBD5E1" />
           </View>
-          <Text style={styles.emptyTitle}>No assessments yet</Text>
+          <Text style={styles.emptyTitle}>{t("No assessments yet")}</Text>
           <Text style={styles.emptySub}>
-            Complete all 3 modules (Speech, Handwriting, Behaviour) and run the Final Analysis to generate a report.
+            {t("Complete all 3 modules (Speech, Handwriting, Behaviour) and run the Final Analysis to generate a report.")}
           </Text>
           <TouchableOpacity
             style={styles.emptyBtn}
@@ -91,14 +107,14 @@ export default function HistoryScreen({ navigation }: Props) {
           >
             <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.emptyBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
               <Ionicons name="analytics" size={16} color="#fff" />
-              <Text style={styles.emptyBtnText}>Go to Final Analysis</Text>
+              <Text style={styles.emptyBtnText}>{t("Go to Final Analysis")}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
           {history.map((record, i) => {
-            const level = (record.riskLevel ?? "low") as keyof typeof RISK_COLOR;
+            const level = recordLevel(record);
             const rc = RISK_COLOR[level] ?? RISK_COLOR.low;
             const rb = RISK_BG[level] ?? RISK_BG.low;
             const rbd = RISK_BORDER[level] ?? RISK_BORDER.low;
@@ -135,15 +151,15 @@ export default function HistoryScreen({ navigation }: Props) {
                   <View style={[styles.riskPill, { backgroundColor: rb, borderColor: rbd }]}>
                     <View style={[styles.riskDot, { backgroundColor: rc }]} />
                     <Text style={[styles.riskPillText, { color: rc }]}>
-                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                      {levelLabel(level, t)}
                     </Text>
                   </View>
                 </View>
 
                 {/* Score bar */}
                 <View style={styles.scoreRow}>
-                  <Text style={styles.scoreLabel}>Overall Risk Score</Text>
-                  <Text style={[styles.scoreValue, { color: rc }]}>{score}%</Text>
+                  <Text style={styles.scoreLabel}>{t("Overall Risk Score")}</Text>
+                  <Text style={[styles.scoreValue, { color: rc }]}>{level === "insufficient" ? "—" : `${score}%`}</Text>
                 </View>
                 <View style={styles.scoreTrack}>
                   <View style={[styles.scoreFill, { width: `${score}%` as any, backgroundColor: rc }]} />
@@ -152,8 +168,8 @@ export default function HistoryScreen({ navigation }: Props) {
                 {/* Primary difficulty */}
                 <View style={styles.diffRow}>
                   <Ionicons name="alert-circle-outline" size={13} color="#94A3B8" />
-                  <Text style={styles.diffLabel}>Primary Difficulty:</Text>
-                  <Text style={styles.diffValue} numberOfLines={1}>{diffLabel}</Text>
+                  <Text style={styles.diffLabel}>{t("Primary Difficulty:")}</Text>
+                  <Text style={styles.diffValue} numberOfLines={1}>{t(diffLabel)}</Text>
                 </View>
 
                 {/* Module mini-bars */}
@@ -170,7 +186,7 @@ export default function HistoryScreen({ navigation }: Props) {
                     );
                   })}
                   <View style={styles.viewDetailChip}>
-                    <Text style={styles.viewDetailText}>View full</Text>
+                    <Text style={styles.viewDetailText}>{t("View full")}</Text>
                     <Ionicons name="chevron-forward" size={11} color="#2563EB" />
                   </View>
                 </View>
@@ -186,7 +202,7 @@ export default function HistoryScreen({ navigation }: Props) {
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSelected(null)} />
           {selected && (() => {
-            const level = (selected.riskLevel ?? "low") as keyof typeof RISK_COLOR;
+            const level = recordLevel(selected);
             const rc    = RISK_COLOR[level] ?? RISK_COLOR.low;
             const rb    = RISK_BG[level] ?? RISK_BG.low;
             const score = Math.round((selected.overallScore ?? 0) * 100);
@@ -208,7 +224,7 @@ export default function HistoryScreen({ navigation }: Props) {
 
                 {/* Modal header */}
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Full Report</Text>
+                  <Text style={styles.modalTitle}>{t("Full Report")}</Text>
                   <TouchableOpacity onPress={() => setSelected(null)} style={styles.modalCloseBtn}>
                     <Ionicons name="close" size={18} color="#64748B" />
                   </TouchableOpacity>
@@ -221,7 +237,7 @@ export default function HistoryScreen({ navigation }: Props) {
                     <View style={styles.modalBannerDeco1} />
                     <View style={styles.modalBannerDeco2} />
                     <Ionicons name="document-text-outline" size={28} color="#fff" />
-                    <Text style={styles.modalBannerTitle}>Dyslexia Screening Report</Text>
+                    <Text style={styles.modalBannerTitle}>{t("Dyslexia Screening Report")}</Text>
                     <Text style={styles.modalBannerDate}>{dateStr}</Text>
                   </LinearGradient>
 
@@ -230,46 +246,57 @@ export default function HistoryScreen({ navigation }: Props) {
                     <View style={styles.modalResultRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.modalRiskLevel, { color: rc }]}>
-                          {level.charAt(0).toUpperCase() + level.slice(1)} Risk
+                          {level === "insufficient" ? t("Not enough evidence yet") : t("{level} Risk", { level: levelLabel(level, t) })}
                         </Text>
-                        <Text style={styles.modalScoreText}>Score: {score}%</Text>
-                        <Text style={styles.modalMethod}>{fp.fusion_strategy ?? "weighted_rule_based_fusion"}</Text>
+                        <Text style={styles.modalScoreText}>
+                          {level === "insufficient" ? t("Complete more activities for a result.") : t("Score: {n}%", { n: score })}
+                        </Text>
+                        <Text style={styles.modalMethod}>
+                          {fusionMethodLabel(fp.fusion_strategy)}
+                        </Text>
+                        {selected.fullReport?.review_status === "review_recommended" && (
+                          <Text style={styles.modalMethod}>{t("Review recommended")}</Text>
+                        )}
                       </View>
                       <View style={[styles.modalScoreCircle, { borderColor: rc }]}>
-                        <Text style={[styles.modalScoreCircleVal, { color: rc }]}>{score}%</Text>
+                        <Text style={[styles.modalScoreCircleVal, { color: rc }]}>{level === "insufficient" ? "—" : `${score}%`}</Text>
                       </View>
                     </View>
                     <View style={styles.modalTrack}>
                       <View style={[styles.modalFill, { width: `${score}%` as any, backgroundColor: rc }]} />
                     </View>
                     <Text style={styles.modalReliability}>
-                      Reliability: {quality.fusion_reliability ?? "medium"}
+                      {t("Reliability: {level}", { level: t(String(quality.fusion_reliability ?? "medium")) })}
                     </Text>
                   </View>
 
-                  {/* Difficulty */}
-                  <Text style={styles.modalSectionLabel}>Difficulty Areas</Text>
+                  {/* Difficulty — absent for insufficient evidence */}
+                  {level !== "insufficient" && (
+                  <>
+                  <Text style={styles.modalSectionLabel}>{t("Difficulty Areas")}</Text>
                   <View style={styles.modalInfoCard}>
-                    <ModalRow icon="alert-circle" color="#2563EB" label="Primary" value={DIFFICULTY_LABELS[pd.primary_difficulty_label] ?? pd.primary_difficulty_label ?? "—"} />
-                    {sec && <ModalRow icon="layers" color="#64748B" label="Secondary" value={DIFFICULTY_LABELS[sec] ?? sec} border />}
+                    <ModalRow icon="alert-circle" color="#2563EB" label={t("Primary")} value={t(DIFFICULTY_LABELS[pd.primary_difficulty_label] ?? pd.primary_difficulty_label ?? "—")} />
+                    {sec && <ModalRow icon="layers" color="#64748B" label={t("Secondary")} value={t(DIFFICULTY_LABELS[sec] ?? sec)} border />}
                     {pd.confidence != null && (
-                      <ModalRow icon="stats-chart" color="#7C3AED" label="Confidence" value={`${Math.round(pd.confidence * 100)}%`} border />
+                      <ModalRow icon="stats-chart" color="#7C3AED" label={t("Confidence")} value={`${Math.round(pd.confidence * 100)}%`} border />
                     )}
                   </View>
+                  </>
+                  )}
 
                   {/* Module scores */}
-                  <Text style={styles.modalSectionLabel}>Module Scores</Text>
+                  <Text style={styles.modalSectionLabel}>{t("Module Scores")}</Text>
                   <View style={styles.modalInfoCard}>
                     {MODULE_META.map((m, i) => {
                       const val = Math.round((Number(features[m.scoreKey] ?? 0)) * 100);
-                      const mlevel = val >= 60 ? "high" : val >= 35 ? "medium" : "low";
+                      const mlevel = riskLevelFromScore(val / 100);
                       return (
                         <View key={m.scoreKey} style={[styles.modalModuleRow, i > 0 && styles.modalBorder]}>
                           <View style={[styles.modalModuleIcon, { backgroundColor: m.iconBg }]}>
                             <Ionicons name={m.icon} size={16} color={m.color} />
                           </View>
                           <View style={styles.modalModuleInfo}>
-                            <Text style={styles.modalModuleName}>{m.label}</Text>
+                            <Text style={styles.modalModuleName}>{t(m.label)}</Text>
                             <View style={styles.modalModuleBarRow}>
                               <View style={styles.modalModuleTrack}>
                                 <View style={[styles.modalModuleFill, { width: `${val}%` as any, backgroundColor: m.color }]} />
@@ -278,7 +305,7 @@ export default function HistoryScreen({ navigation }: Props) {
                             </View>
                           </View>
                           <View style={[styles.modalLevelPill, { backgroundColor: RISK_BG[mlevel as keyof typeof RISK_BG], borderColor: RISK_BORDER[mlevel as keyof typeof RISK_BORDER] }]}>
-                            <Text style={[styles.modalLevelText, { color: RISK_COLOR[mlevel as keyof typeof RISK_COLOR] }]}>{mlevel}</Text>
+                            <Text style={[styles.modalLevelText, { color: RISK_COLOR[mlevel as keyof typeof RISK_COLOR] }]}>{t(String(mlevel))}</Text>
                           </View>
                         </View>
                       );
@@ -288,14 +315,14 @@ export default function HistoryScreen({ navigation }: Props) {
                   {/* Therapy */}
                   {therapy.primary_focus && (
                     <>
-                      <Text style={styles.modalSectionLabel}>Therapy Recommendation</Text>
+                      <Text style={styles.modalSectionLabel}>{t("Therapy Recommendation")}</Text>
                       <View style={styles.modalInfoCard}>
-                        <ModalRow icon="fitness-outline" color="#2563EB" label="Primary Focus" value={therapy.primary_focus} />
+                        <ModalRow icon="fitness-outline" color="#2563EB" label={t("Primary Focus")} value={therapy.primary_focus} />
                         {therapy.recommended_sessions_per_week && (
-                          <ModalRow icon="calendar-outline" color="#7C3AED" label="Sessions / Week" value={String(therapy.recommended_sessions_per_week)} border />
+                          <ModalRow icon="calendar-outline" color="#7C3AED" label={t("Sessions / Week")} value={String(therapy.recommended_sessions_per_week)} border />
                         )}
                         {therapy.recommendation_intensity && (
-                          <ModalRow icon="flame-outline" color="#D97706" label="Intensity" value={therapy.recommendation_intensity} border />
+                          <ModalRow icon="flame-outline" color="#D97706" label={t("Intensity")} value={therapy.recommendation_intensity} border />
                         )}
                       </View>
                     </>
@@ -305,9 +332,25 @@ export default function HistoryScreen({ navigation }: Props) {
                   <View style={styles.modalDisclaimer}>
                     <Ionicons name="shield-checkmark-outline" size={14} color="#2563EB" />
                     <Text style={styles.modalDisclaimerText}>
-                      Screening indicators only — not a clinical diagnosis. Consult a qualified professional.
+                      {t("Screening indicators only — not a clinical diagnosis. Consult a qualified professional.")}
                     </Text>
                   </View>
+
+                  {selected.fullReport && (
+                    <TouchableOpacity
+                      style={styles.emptyBtn}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setSelected(null);
+                        navigation.navigate("FusionRiskSummary", { response: selected.fullReport });
+                      }}
+                    >
+                      <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.emptyBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                        <Ionicons name="document-text-outline" size={16} color="#fff" />
+                        <Text style={styles.emptyBtnText}>{t("Open Full Report")}</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
 
                   <View style={{ height: 24 }} />
                 </ScrollView>

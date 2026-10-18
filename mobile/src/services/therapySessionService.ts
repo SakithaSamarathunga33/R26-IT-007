@@ -163,10 +163,9 @@ export async function fetchActiveTherapyPlan(uid: string): Promise<ActiveTherapy
     const activities: any[] = therapy.recommended_activities ?? [];
     const sessionsPerWeek = Number(therapy.recommended_sessions_per_week) || 1;
     const target = sessionsFor(activities.length, sessionsPerWeek);
-    // The history doc id is the only per-report unique value available: the
-    // fusion response carries no report id, and its session_id is a constant
-    // `session_<uid>` — using that would make every report look like the same
-    // one, so a finished plan's progress would carry into the next plan.
+    // The history doc id identifies the report: older reports carry the constant
+    // `session_<uid>` as session_id, so keying on that would make every report
+    // look like the same one and carry a finished plan's progress into the next.
     const reportId = latest.id;
 
     const progress = await fetchTherapyProgress(uid, reportId, target);

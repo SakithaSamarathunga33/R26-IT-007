@@ -1,7 +1,7 @@
 import pandas as pd
 from typing import Dict, Any
 from app.schemas.feature_columns import FEATURE_COLUMNS
-from app.utils.risk_utils import severity_from_score, status_from_score
+from app.utils.risk_utils import severity_from_score, status_from_score, module_score
 
 def _safe_get(data: Dict[str, Any], path: str, default=None):
     current = data
@@ -28,14 +28,15 @@ def _safe_int(value, default=0):
         return default
 
 def build_fusion_features(payload: Dict[str, Any], rule_config: Dict[str, Any]):
-    metadata = payload.get('metadata', {})
-    speech = payload.get('speech', {})
-    handwriting = payload.get('handwriting', {})
-    behavior = payload.get('behavior', {})
+    metadata = payload.get('metadata') or {}
+    speech = payload.get('speech') or {}
+    handwriting = payload.get('handwriting') or {}
+    behavior = payload.get('behavior') or {}
 
-    speech_score = _safe_float(speech.get('score', speech.get('risk_probability')), 0.0)
-    handwriting_score = _safe_float(handwriting.get('score', handwriting.get('risk_probability')), 0.0)
-    behavior_score = _safe_float(behavior.get('score', behavior.get('risk_probability')), 0.0)
+    # unusable modules stay None so they are excluded from fusion, not scored as 0
+    speech_score = module_score(speech)
+    handwriting_score = module_score(handwriting)
+    behavior_score = module_score(behavior)
 
     phoneme_error_rate = _safe_float(_safe_get(speech, 'features.phoneme_error_rate'), 0.0)
     speech_hesitation_score = _safe_float(_safe_get(speech, 'features.speech_hesitation_score', _safe_get(speech, 'features.hesitation_score')), 0.0)
@@ -72,19 +73,19 @@ def build_fusion_features(payload: Dict[str, Any], rule_config: Dict[str, Any]):
         'environment_noise_level': _safe_float(metadata.get('environment_noise_level'), 0.12),
         'time_of_day': metadata.get('time_of_day', 'morning'),
         'speech_score': speech_score,
-        'speech_risk_probability': _safe_float(speech.get('risk_probability'), speech_score),
+        'speech_risk_probability': speech_score,
         'phoneme_error_rate': phoneme_error_rate,
         'speech_hesitation_score': speech_hesitation_score,
         'pronunciation_score': pronunciation_score,
         'rhyme_accuracy': rhyme_accuracy,
         'handwriting_score': handwriting_score,
-        'handwriting_risk_probability': _safe_float(handwriting.get('risk_probability'), handwriting_score),
+        'handwriting_risk_probability': handwriting_score,
         'reversal_risk': reversal_risk,
         'spacing_variance': spacing_variance,
         'alignment_score': alignment_score,
         'writing_quality_score': writing_quality_score,
         'behavior_score': behavior_score,
-        'behavior_risk_probability': _safe_float(behavior.get('risk_probability'), behavior_score),
+        'behavior_risk_probability': behavior_score,
         'attention_score': attention_score,
         'engagement_score': engagement_score,
         'response_latency': response_latency,

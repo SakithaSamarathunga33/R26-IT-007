@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 
+import { useT } from "../../i18n";
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Onboarding">;
 };
@@ -74,6 +75,7 @@ const SLIDES = [
 ] as const;
 
 export default function OnboardingScreen({ navigation }: Props) {
+  const { t } = useT();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -99,7 +101,7 @@ export default function OnboardingScreen({ navigation }: Props) {
       {/* Skip */}
       <View style={styles.topRow}>
         <TouchableOpacity onPress={skip} activeOpacity={0.7} style={styles.skipBtn}>
-          <Text style={styles.skipText}>Skip</Text>
+          <Text style={styles.skipText}>{t("Skip")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -133,8 +135,8 @@ export default function OnboardingScreen({ navigation }: Props) {
 
             {/* Text */}
             <View style={styles.textBlock}>
-              <Text style={[styles.slideTitle, { color: item.color }]}>{item.title}</Text>
-              <Text style={styles.slideDesc}>{item.description}</Text>
+              <Text style={[styles.slideTitle, { color: item.color }]}>{t(item.title)}</Text>
+              <Text style={styles.slideDesc}>{t(item.description)}</Text>
             </View>
           </View>
         )}
@@ -175,7 +177,7 @@ export default function OnboardingScreen({ navigation }: Props) {
             end={{ x: 1, y: 0 }}
           >
             <Text style={styles.nextBtnText}>
-              {isLast ? "Get Started" : "Next"}
+              {isLast ? t("Get Started") : t("Next")}
             </Text>
             <Ionicons
               name={isLast ? "checkmark" : "arrow-forward"}
@@ -188,9 +190,9 @@ export default function OnboardingScreen({ navigation }: Props) {
 
         {/* Sign in link */}
         <View style={styles.signinRow}>
-          <Text style={styles.signinText}>Already have an account? </Text>
+          <Text style={styles.signinText}>{t("Already have an account?")} </Text>
           <TouchableOpacity onPress={() => navigation.navigate("Login")} activeOpacity={0.75}>
-            <Text style={[styles.signinLink, { color: SLIDES[activeIndex].color }]}>Sign In</Text>
+            <Text style={[styles.signinLink, { color: SLIDES[activeIndex].color }]}>{t("Sign In")}</Text>
           </TouchableOpacity>
         </View>
       </View>

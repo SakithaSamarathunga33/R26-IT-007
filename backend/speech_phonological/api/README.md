@@ -18,7 +18,7 @@ FastAPI service for speech-based dyslexia risk prediction. Runs on **port 8001**
 Place the model file at:
 
 ```
-backend/speech_phonological/api/speech_logistic_regression.pkl
+backend/speech_phonological/ml_models/speech_logistic_regression.pkl (or set SPEECH_MODEL_PATH)
 ```
 
 ## Endpoint

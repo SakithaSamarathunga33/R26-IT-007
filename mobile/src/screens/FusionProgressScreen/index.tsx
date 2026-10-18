@@ -8,6 +8,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import { auth } from "../../config/firebase";
 import {
   buildSpeechSummary,
@@ -43,6 +44,7 @@ const MODULE_CONFIG = [
 ];
 
 export default function FusionProgressScreen({ navigation }: Props) {
+  const { t } = useT();
   const childId = auth.currentUser?.uid ?? "unknown";
   const sessionId = `session_${childId}`;
 
@@ -122,12 +124,12 @@ export default function FusionProgressScreen({ navigation }: Props) {
   }
 
   function statusLabel(state: ModuleState) {
-    if (state.status === "loading")     return "Checking…";
-    if (state.status === "ready")       return "Ready";
-    if (state.status === "low_quality") return "Low quality";
+    if (state.status === "loading")     return t("Checking…");
+    if (state.status === "ready")       return t("Ready");
+    if (state.status === "low_quality") return t("Low quality");
     if (state.status === "partial")
-      return `${state.levelsDone}/${state.levelsTotal} levels`;
-    return "Not started";
+      return t("{done}/{total} levels", { done: state.levelsDone!, total: state.levelsTotal! });
+    return t("Not started");
   }
 
   function statusColor(status: ModuleStatus) {
@@ -147,7 +149,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Final Assessment</Text>
+        <Text style={styles.headerTitle}>{t("Final Assessment")}</Text>
         <TouchableOpacity style={styles.refreshBtn} onPress={checkModules}>
           <Ionicons name="refresh" size={18} color="#2563EB" />
         </TouchableOpacity>
@@ -162,14 +164,14 @@ export default function FusionProgressScreen({ navigation }: Props) {
           <View style={styles.heroIconWrap}>
             <Ionicons name="git-merge-outline" size={34} color="#fff" />
           </View>
-          <Text style={styles.heroTitle}>Multi-Modal Fusion</Text>
+          <Text style={styles.heroTitle}>{t("Multi-Modal Fusion")}</Text>
           <Text style={styles.heroSub}>
-            All three modules — and every level inside them — must be completed before the final dyslexia risk analysis can run.
+            {t("All three modules — and every level inside them — must be completed before the final screening analysis can run.")}
           </Text>
         </LinearGradient>
 
         {/* Module status cards */}
-        <Text style={styles.sectionLabel}>Module Completion Status</Text>
+        <Text style={styles.sectionLabel}>{t("Module Completion Status")}</Text>
 
         {MODULE_CONFIG.map((mod) => {
           const state = modules[mod.key];
@@ -179,20 +181,19 @@ export default function FusionProgressScreen({ navigation }: Props) {
                 <Ionicons name={mod.icon} size={20} color={mod.color} />
               </View>
               <View style={styles.moduleInfo}>
-                <Text style={styles.moduleName}>{mod.label}</Text>
-                <Text style={styles.moduleSub}>{mod.sublabel}</Text>
+                <Text style={styles.moduleName}>{t(mod.label)}</Text>
+                <Text style={styles.moduleSub}>{t(mod.sublabel)}</Text>
                 {/* Only show a risk figure once the module is complete — a
                     percentage from one level would read as a trustworthy score. */}
                 {state.risk_probability !== undefined && state.status !== "partial" && (
                   <Text style={[styles.moduleProb, { color: mod.color }]}>
-                    Risk: {Math.round(state.risk_probability * 100)}%
-                    {state.reliability ? `  ·  ${state.reliability} reliability` : ""}
+                    {t("Risk: {pct}%", { pct: Math.round(state.risk_probability * 100) })}
+                    {state.reliability ? `  ·  ${t("{level} reliability", { level: t(state.reliability) })}` : ""}
                   </Text>
                 )}
                 {state.status === "partial" && (
                   <Text style={styles.moduleProbPartial}>
-                    {state.levelsTotal! - state.levelsDone!} more level
-                    {state.levelsTotal! - state.levelsDone! > 1 ? "s" : ""} to finish
+                    {t(state.levelsTotal! - state.levelsDone! > 1 ? "{n} more levels to finish" : "{n} more level to finish", { n: state.levelsTotal! - state.levelsDone! })}
                   </Text>
                 )}
               </View>
@@ -212,8 +213,8 @@ export default function FusionProgressScreen({ navigation }: Props) {
             <Ionicons name="warning-outline" size={18} color="#D97706" />
             <Text style={styles.warningText}>
               {anyPartial && !anyMissing
-                ? "Some modules have levels still to go. Every level must be completed before the final analysis can run."
-                : "One or more modules are incomplete. Please finish all levels in every module before running the final analysis."}
+                ? t("Some modules have levels still to go. Every level must be completed before the final analysis can run.")
+                : t("One or more modules are incomplete. Please finish all levels in every module before running the final analysis.")}
             </Text>
           </View>
         )}
@@ -223,7 +224,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
           <View style={styles.cautionCard}>
             <Ionicons name="alert-circle-outline" size={18} color="#D97706" />
             <Text style={styles.cautionText}>
-              Some modules have low prediction reliability. You may repeat those activities for a more accurate result, or continue with a reliability warning saved.
+              {t("Some modules have low prediction reliability. You may repeat those activities for a more accurate result, or continue with a reliability warning saved.")}
             </Text>
           </View>
         )}
@@ -232,8 +233,8 @@ export default function FusionProgressScreen({ navigation }: Props) {
         <View style={styles.disclaimerCard}>
           <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
           <Text style={styles.disclaimerText}>
-            This screening combines speech, handwriting, and behaviour results. It is{" "}
-            <Text style={styles.disclaimerBold}>not a clinical diagnosis</Text>. Always consult a qualified professional.
+            {t("This screening combines speech, handwriting, and behaviour results.")}{" "}
+            <Text style={styles.disclaimerBold}>{t("It is not a clinical diagnosis.")}</Text>{" "}{t("Always consult a qualified professional.")}
           </Text>
         </View>
 
@@ -243,7 +244,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
         {checking ? (
           <View style={styles.checkingRow}>
             <ActivityIndicator size="small" color="#2563EB" />
-            <Text style={styles.checkingText}>Verifying module outputs…</Text>
+            <Text style={styles.checkingText}>{t("Verifying module outputs…")}</Text>
           </View>
         ) : (
           <LinearGradient
@@ -264,7 +265,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
                 color={allReady ? "#fff" : "#94A3B8"}
               />
               <Text style={[styles.ctaBtnText, !allReady && styles.ctaBtnTextDisabled]}>
-                {allReady ? "Run Final Analysis" : "Complete All Levels First"}
+                {allReady ? t("Run Final Analysis") : t("Complete All Levels First")}
               </Text>
             </TouchableOpacity>
           </LinearGradient>

@@ -5,6 +5,8 @@ import librosa
 
 from app.utils.task_utils import count_syllables_simple, safe_word_length
 
+FEATURE_SCHEMA_VERSION = "speech_features_v1"
+
 MODEL_FEATURE_COLUMNS = [
     "task_type", "target_word", "target_phoneme_seq", "word_length", "syllable_count",
     "difficulty_level", "linguistic_focus", "age", "gender", "native_language",
@@ -71,14 +73,16 @@ def _pause_features(y, sr):
     return len(lengths), float(np.mean(pauses)), float(np.max(pauses))
 
 def _pitch_features(y, sr):
+    """Returns (mean, std, min, max, pitch_missing). Fallback values keep the model input shape unchanged."""
+    fallback = (180.0, 20.0, 160.0, 220.0, True)
     try:
         f0, _, _ = librosa.pyin(y, fmin=librosa.note_to_hz("C2"), fmax=librosa.note_to_hz("C7"))
         vals = f0[~np.isnan(f0)]
         if len(vals) == 0:
-            return 180.0, 20.0, 160.0, 220.0
-        return float(np.mean(vals)), float(np.std(vals)), float(np.min(vals)), float(np.max(vals))
+            return fallback
+        return float(np.mean(vals)), float(np.std(vals)), float(np.min(vals)), float(np.max(vals)), False
     except Exception:
-        return 180.0, 20.0, 160.0, 220.0
+        return fallback
 
 def _mfcc_features(y, sr):
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
@@ -157,7 +161,7 @@ def extract_speech_features(
     zcr_mean = float(np.clip(np.mean(zcr), 0.01, 0.25))
     zcr_std = float(np.clip(np.std(zcr), 0.002, 0.08))
 
-    pitch_mean, pitch_std, pitch_min, pitch_max = _pitch_features(y, sr)
+    pitch_mean, pitch_std, pitch_min, pitch_max, pitch_missing = _pitch_features(y, sr)
     jitter = float(np.clip((pitch_std / max(pitch_mean, 1.0)) * 0.08, 0.002, 0.08))
     shimmer = float(np.clip((energy_std / max(energy_mean, 0.0001)) * 0.08, 0.005, 0.16))
     hnr = float(np.clip(25 - zcr_mean * 60, 5.0, 35.0))
@@ -286,12 +290,15 @@ def extract_speech_features(
         "phonological_deficit_score": phonological_deficit_score,
     }
     reliability, warnings = _quality_flags(raw_peak, speech_duration, raw_duration, energy_mean, features["mfcc_1_mean"])
+    if pitch_missing:
+        warnings.append("Pitch could not be detected; default pitch values were used.")
     quality = {
         "prediction_reliability": reliability,
         "warnings": warnings,
         "raw_duration_sec": round(float(raw_duration), 4),
         "speech_duration_sec": round(float(speech_duration), 4),
         "raw_peak_amplitude": round(float(raw_peak), 4),
+        "pitch_missing": pitch_missing,
         "note": "Prototype only: actual phoneme alignment is not implemented yet."
     }
     return pd.DataFrame([features], columns=MODEL_FEATURE_COLUMNS), features, quality

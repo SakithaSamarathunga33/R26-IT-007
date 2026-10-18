@@ -1,7 +1,8 @@
 from fastapi import HTTPException
 from typing import Dict, Any
 
-from app.services.model_loader import get_model
+from app.services.model_loader import get_model, MODEL_VERSION
+from app.schemas.feature_columns import FEATURE_SCHEMA_VERSION
 from app.services.feature_builder import build_feature_dataframe
 from app.utils.risk_utils import probability_to_risk_level, reliability_from_missing_count
 
@@ -11,7 +12,7 @@ def predict_behavior(payload: Dict[str, Any]):
     if model is None:
         raise HTTPException(
             status_code=503,
-            detail="Behavior model not loaded. Place behavior_logistic_regression.pkl in the project root."
+            detail="Behavior model not loaded. Place behavior_logistic_regression.pkl in backend/behavioral_attention/ml_models/ or set BEHAVIOR_MODEL_PATH."
         )
 
     feature_df, missing_columns = build_feature_dataframe(payload)
@@ -23,6 +24,11 @@ def predict_behavior(payload: Dict[str, Any]):
     reliability = reliability_from_missing_count(len(missing_columns))
 
     return {
+        "component": "behavioral_attention",
+        "model_version": MODEL_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "quality_status": "inconclusive" if reliability == "low" else "valid",
+        "missing_features": missing_columns,
         "prediction": {
             "behavior_risk_label_binary": prediction,
             "risk_probability": round(probability, 4),

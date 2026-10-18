@@ -8,6 +8,7 @@ import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
 import { auth } from "../../config/firebase";
+import { useT } from "../../i18n";
 import {
   HANDWRITING_LEVELS,
   HandwritingLevel,
@@ -20,6 +21,7 @@ import {
   clearHandwritingLevelPredictions,
   fetchHandwritingLevelProgress,
   isHandwritingLevelUnlocked,
+  setHandwritingSupplement,
 } from "../../services/handwritingLevelService";
 
 type Props = {
@@ -27,6 +29,7 @@ type Props = {
 };
 
 export default function HandwritingLevelsScreen({ navigation }: Props) {
+  const { t } = useT();
   const [progress, setProgress] = useState<HandwritingLevelProgress>({ completed: [] });
   const [loading, setLoading] = useState(true);
 
@@ -60,6 +63,7 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
         await clearHandwritingLevelPredictions(uid, level.id).catch(() => {});
       }
     }
+    setHandwritingSupplement(null); // drop any supplement left by an abandoned run
     const firstIndex = handwritingTaskIndicesForLevel(level.id)[0];
     navigation.navigate("HandwritingTask", { taskIndex: firstIndex });
   };
@@ -75,7 +79,7 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Choose a Level</Text>
+        <Text style={styles.headerTitle}>{t("Choose a Level")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -87,9 +91,9 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
               <Ionicons name="trophy-outline" size={20} color="#2563EB" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.progressTitle}>Your Progress</Text>
+              <Text style={styles.progressTitle}>{t("Your Progress")}</Text>
               <Text style={styles.progressSub}>
-                {completedCount} of {HANDWRITING_LEVELS.length} levels complete
+                {t("{done} of {total} levels complete", { done: completedCount, total: HANDWRITING_LEVELS.length })}
               </Text>
             </View>
             <Text style={styles.progressPct}>
@@ -104,6 +108,14 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
             />
           </View>
         </View>
+
+        {/* Finished levels keep their results until the screening resets, so they stay viewable after leaving the module. */}
+        {!loading && completedCount > 0 && (
+          <TouchableOpacity style={styles.resultsBtn} activeOpacity={0.85} onPress={() => navigation.navigate("HandwritingSummary")}>
+            <Ionicons name="stats-chart-outline" size={16} color="#2563EB" />
+            <Text style={styles.resultsBtnText}>{t("See results so far")}</Text>
+          </TouchableOpacity>
+        )}
 
         {loading ? (
           <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />
@@ -138,16 +150,16 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
 
                 <View style={styles.levelInfo}>
                   <View style={styles.levelTitleRow}>
-                    <Text style={[styles.levelTitle, !unlocked && styles.textMuted]}>{level.title}</Text>
+                    <Text style={[styles.levelTitle, !unlocked && styles.textMuted]}>{t(level.title)}</Text>
                     {done && (
                       <View style={styles.doneChip}>
                         <Ionicons name="checkmark" size={11} color="#059669" />
-                        <Text style={styles.doneChipText}>Done</Text>
+                        <Text style={styles.doneChipText}>{t("Done")}</Text>
                       </View>
                     )}
                   </View>
                   <Text style={[styles.levelDesc, !unlocked && styles.textMuted]}>
-                    {unlocked ? level.description : `Finish Level ${level.id - 1} to unlock this.`}
+                    {unlocked ? t(level.description) : t("Finish Level {n} to unlock this.", { n: level.id - 1 })}
                   </Text>
 
                   <View style={styles.metaRow}>
@@ -158,12 +170,12 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
                         color={unlocked ? level.color : "#94A3B8"}
                       />
                       <Text style={[styles.metaChipText, { color: unlocked ? level.color : "#94A3B8" }]}>
-                        {level.subtitle}
+                        {t("Level {n}", { n: level.id })}
                       </Text>
                     </View>
                     <View style={styles.metaChipPlain}>
                       <Ionicons name="list-outline" size={11} color="#94A3B8" />
-                      <Text style={styles.metaChipPlainText}>{count} tasks</Text>
+                      <Text style={styles.metaChipPlainText}>{t("{n} tasks", { n: count })}</Text>
                     </View>
                   </View>
                 </View>
@@ -193,7 +205,7 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
         <View style={styles.noteCard}>
           <Ionicons name="information-circle-outline" size={16} color="#2563EB" />
           <Text style={styles.noteText}>
-            Levels get harder as you go — from tracing single letters up to writing whole words from memory.
+            {t("Levels get harder as you go — from tracing single letters up to writing whole words from memory.")}
           </Text>
         </View>
 
@@ -218,6 +230,12 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
 
   content: { paddingHorizontal: 20, paddingTop: 8 },
+  resultsBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    borderRadius: 16, paddingVertical: 14, marginBottom: 16,
+    borderWidth: 1.5, borderColor: "#BFDBFE", backgroundColor: "#EFF6FF",
+  },
+  resultsBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
   progressCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",

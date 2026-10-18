@@ -2,6 +2,8 @@ import os
 import joblib
 
 MODEL_PATH = os.getenv("SPEECH_MODEL_PATH", "ml_models/speech_logistic_regression.pkl")
+# Version of the shipped ml_models/speech_logistic_regression.pkl.
+MODEL_VERSION = "speech_logistic_regression_v1"
 speech_model = None
 
 def load_model():

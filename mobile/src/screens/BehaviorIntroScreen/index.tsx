@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import {
   BEHAVIOR_TASKS, BEHAVIOR_LEVELS, behaviorLevelTaskCount,
 } from "../../config/behaviorTasks";
@@ -21,12 +22,13 @@ const STEPS = [
 ];
 
 const CHIPS = [
-  { icon: "layers-outline" as const, label: `${BEHAVIOR_LEVELS.length} levels` },
-  { icon: "list-outline" as const, label: `${BEHAVIOR_TASKS.length} activities` },
-  { icon: "volume-high-outline" as const, label: "Read aloud" },
+  { icon: "layers-outline" as const, label: "{n} levels", n: BEHAVIOR_LEVELS.length },
+  { icon: "list-outline" as const, label: "{n} activities", n: BEHAVIOR_TASKS.length },
+  { icon: "volume-high-outline" as const, label: "Read aloud", n: 0 },
 ];
 
 export default function BehaviorIntroScreen({ navigation }: Props) {
+  const { t } = useT();
   return (
     <View style={styles.container}>
       <KidBackground variant="behavior" />
@@ -36,7 +38,7 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Behaviour Screening</Text>
+        <Text style={styles.headerTitle}>{t("Behaviour Screening")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -48,24 +50,24 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
           <View style={styles.heroIconWrap}>
             <Ionicons name="happy-outline" size={48} color="#fff" />
           </View>
-          <Text style={styles.heroTitle}>Behaviour &{"\n"}Attention Activity</Text>
-          <Text style={styles.heroSub}>AI-powered attention & engagement screening</Text>
+          <Text style={styles.heroTitle}>{t("Behaviour & Attention Activity")}</Text>
+          <Text style={styles.heroSub}>{t("AI-powered attention & engagement screening")}</Text>
           <View style={styles.chipsRow}>
             {CHIPS.map((c, i) => (
               <View key={i} style={styles.chip}>
                 <Ionicons name={c.icon} size={12} color="#fff" />
-                <Text style={styles.chipText}>{c.label}</Text>
+                <Text style={styles.chipText}>{t(c.label, { n: c.n })}</Text>
               </View>
             ))}
           </View>
         </LinearGradient>
 
         <Text style={styles.descText}>
-          We'll present short tasks to observe how your child focuses and responds, split into three levels that get harder as you go. Every question is read out loud. There's no pressure — just tap what feels right!
+          {t("We'll present short tasks to observe how your child focuses and responds, split into three levels that get harder as you go. Every question is read out loud. There's no pressure — just tap what feels right!")}
         </Text>
 
         {/* Levels overview */}
-        <Text style={styles.sectionLabel}>Three levels</Text>
+        <Text style={styles.sectionLabel}>{t("Three levels")}</Text>
         <View style={styles.levelsCard}>
           {BEHAVIOR_LEVELS.map((lvl, i) => (
             <View key={lvl.id} style={[styles.levelRow, i < BEHAVIOR_LEVELS.length - 1 && styles.levelRowBorder]}>
@@ -77,8 +79,8 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
                 <Text style={styles.levelNumText}>{lvl.id}</Text>
               </LinearGradient>
               <View style={{ flex: 1 }}>
-                <Text style={styles.levelRowTitle}>{lvl.title}</Text>
-                <Text style={styles.levelRowDesc}>{lvl.description}</Text>
+                <Text style={styles.levelRowTitle}>{t(lvl.title)}</Text>
+                <Text style={styles.levelRowDesc}>{t(lvl.description)}</Text>
               </View>
               <View style={[styles.levelCountChip, { backgroundColor: lvl.bg }]}>
                 <Text style={[styles.levelCountText, { color: lvl.color }]}>{behaviorLevelTaskCount(lvl.id)}</Text>
@@ -87,7 +89,7 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>How it works</Text>
+        <Text style={styles.sectionLabel}>{t("How it works")}</Text>
         <View style={styles.stepsCard}>
           {STEPS.map((step, i) => (
             <View key={i} style={[styles.stepRow, i < STEPS.length - 1 && styles.stepRowBorder]}>
@@ -95,8 +97,8 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
                 <Ionicons name={step.icon} size={20} color={step.color} />
               </View>
               <View style={styles.stepText}>
-                <Text style={styles.stepTitle}>{step.title}</Text>
-                <Text style={styles.stepDesc}>{step.desc}</Text>
+                <Text style={styles.stepTitle}>{t(step.title)}</Text>
+                <Text style={styles.stepDesc}>{t(step.desc)}</Text>
               </View>
               <View style={[styles.stepNum, { backgroundColor: step.bg }]}>
                 <Text style={[styles.stepNumText, { color: step.color }]}>{i + 1}</Text>
@@ -110,7 +112,7 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
             <Ionicons name="information-circle-outline" size={20} color="#0891B2" />
           </View>
           <Text style={styles.noticeText}>
-            This is a screening tool, not a diagnosis. Results are indicators only and should be reviewed by a professional.
+            {t("This is a screening tool, not a diagnosis. Results are indicators only and should be reviewed by a professional.")}
           </Text>
         </View>
 
@@ -121,7 +123,7 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
             onPress={() => navigation.navigate("BehaviorLevels")}
           >
             <Ionicons name="layers" size={20} color="#fff" />
-            <Text style={styles.startBtnText}>Choose a Level</Text>
+            <Text style={styles.startBtnText}>{t("Choose a Level")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
         </LinearGradient>

@@ -1,0 +1,11 @@
+{
+  "files.watcherExclude": {
+    "**/mobile/android/**": true,
+    "**/mobile/ios/**": true,
+    "**/node_modules/**": true
+  },
+  "search.exclude": {
+    "**/mobile/android/**": true,
+    "**/mobile/ios/**": true
+  }
+}

@@ -13,12 +13,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Toast from "../../components/Toast";
 import { theme } from "../../theme";
+import { useT } from "../../i18n";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Signup">;
 };
 
 export default function SignupScreen({ navigation }: Props) {
+  const { t } = useT();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,7 +47,7 @@ export default function SignupScreen({ navigation }: Props) {
   const daysInMonth = new Date(pickerYear, pickerMonth, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  const dobDisplay = dobDay ? `${dobDay} ${MONTHS[parseInt(dobMonth) - 1]} ${dobYear}` : "";
+  const dobDisplay = dobDay ? `${dobDay} ${t(MONTHS[parseInt(dobMonth) - 1])} ${dobYear}` : "";
 
   const confirmDob = () => {
     setDobDay(String(pickerDay));
@@ -58,10 +60,10 @@ export default function SignupScreen({ navigation }: Props) {
     setToast({ visible: true, message, type });
 
   const handleSignup = async () => {
-    if (!firstName || !lastName || !email || !password || !confirmPassword) { showToast("Please fill in all fields."); return; }
-    if (!dobDay || !dobMonth || !dobYear) { showToast("Please select the child's date of birth."); return; }
-    if (password !== confirmPassword) { showToast("Passwords do not match."); return; }
-    if (password.length < 6) { showToast("Password must be at least 6 characters."); return; }
+    if (!firstName || !lastName || !email || !password || !confirmPassword) { showToast(t("Please fill in all fields.")); return; }
+    if (!dobDay || !dobMonth || !dobYear) { showToast(t("Please select the child's date of birth.")); return; }
+    if (password !== confirmPassword) { showToast(t("Passwords do not match.")); return; }
+    if (password.length < 6) { showToast(t("Password must be at least 6 characters.")); return; }
     setLoading(true);
     try {
       const { user: newUser } = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -72,11 +74,11 @@ export default function SignupScreen({ navigation }: Props) {
         uid: newUser.uid, firstName: firstName.trim(), lastName: lastName.trim(),
         displayName: fullName, email: email.trim(), dateOfBirth, createdAt: serverTimestamp(),
       });
-      showToast("Account created successfully!", "success");
+      showToast(t("Account created successfully!"), "success");
       setTimeout(() => navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] }), 1000);
     } catch (error: any) {
-      const msg = error.code === "auth/email-already-in-use" ? "An account with this email already exists."
-        : error.code === "auth/invalid-email" ? "Please enter a valid email address."
+      const msg = error.code === "auth/email-already-in-use" ? t("An account with this email already exists.")
+        : error.code === "auth/invalid-email" ? t("Please enter a valid email address.")
         : error.message;
       showToast(msg);
     } finally { setLoading(false); }
@@ -101,18 +103,18 @@ export default function SignupScreen({ navigation }: Props) {
             <Text style={styles.heroBadgeText}>LexiScan</Text>
           </View>
 
-          <Text style={styles.title}>Create{"\n"}Account 🎉</Text>
-          <Text style={styles.subtitle}>Sign up to start your child's screening journey</Text>
+          <Text style={styles.title}>{t("Create Account")} 🎉</Text>
+          <Text style={styles.subtitle}>{t("Sign up to start your child's screening journey")}</Text>
 
           <View style={styles.form}>
             {/* Name row */}
             <View style={styles.nameRow}>
               <View style={[styles.fieldGroup, styles.nameField]}>
-                <Text style={styles.label}>First Name</Text>
+                <Text style={styles.label}>{t("First Name")}</Text>
                 <View style={[styles.inputWrapper, isFocused("firstName") && styles.inputFocused]}>
                   <TextInput
                     style={styles.inputInner}
-                    placeholder="First"
+                    placeholder={t("First")}
                     placeholderTextColor="#9CA3AF"
                     autoCapitalize="words"
                     value={firstName}
@@ -123,11 +125,11 @@ export default function SignupScreen({ navigation }: Props) {
                 </View>
               </View>
               <View style={[styles.fieldGroup, styles.nameField]}>
-                <Text style={styles.label}>Last Name</Text>
+                <Text style={styles.label}>{t("Last Name")}</Text>
                 <View style={[styles.inputWrapper, isFocused("lastName") && styles.inputFocused]}>
                   <TextInput
                     style={styles.inputInner}
-                    placeholder="Last"
+                    placeholder={t("Last")}
                     placeholderTextColor="#9CA3AF"
                     autoCapitalize="words"
                     value={lastName}
@@ -141,7 +143,7 @@ export default function SignupScreen({ navigation }: Props) {
 
             {/* Date of Birth */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Child's Date of Birth</Text>
+              <Text style={styles.label}>{t("Child's Date of Birth")}</Text>
               <TouchableOpacity
                 style={[styles.inputWrapper, isFocused("dob") && styles.inputFocused]}
                 onPress={() => { setDobPickerVisible(true); setFocusedField("dob"); }}
@@ -151,7 +153,7 @@ export default function SignupScreen({ navigation }: Props) {
                   <Ionicons name="calendar-outline" size={18} color={isFocused("dob") ? "#2563EB" : "#94A3B8"} />
                 </View>
                 <Text style={[styles.inputInner, { paddingVertical: 14 }, !dobDisplay && { color: "#9CA3AF" }]}>
-                  {dobDisplay || "Select date of birth"}
+                  {dobDisplay || t("Select date of birth")}
                 </Text>
                 <Ionicons name="chevron-down" size={16} color="#94A3B8" style={{ paddingRight: 4 }} />
               </TouchableOpacity>
@@ -159,7 +161,7 @@ export default function SignupScreen({ navigation }: Props) {
 
             {/* Email */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>{t("Email Address")}</Text>
               <View style={[styles.inputWrapper, isFocused("email") && styles.inputFocused]}>
                 <View style={styles.inputIcon}>
                   <Ionicons name="mail-outline" size={18} color={isFocused("email") ? "#2563EB" : "#94A3B8"} />
@@ -180,14 +182,14 @@ export default function SignupScreen({ navigation }: Props) {
 
             {/* Password */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>{t("Password")}</Text>
               <View style={[styles.inputWrapper, isFocused("password") && styles.inputFocused]}>
                 <View style={styles.inputIcon}>
                   <Ionicons name="lock-closed-outline" size={18} color={isFocused("password") ? "#2563EB" : "#94A3B8"} />
                 </View>
                 <TextInput
                   style={styles.inputInner}
-                  placeholder="Create a password"
+                  placeholder={t("Create a password")}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -204,14 +206,14 @@ export default function SignupScreen({ navigation }: Props) {
 
             {/* Confirm Password */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
+              <Text style={styles.label}>{t("Confirm Password")}</Text>
               <View style={[styles.inputWrapper, isFocused("confirm") && styles.inputFocused]}>
                 <View style={styles.inputIcon}>
                   <Ionicons name="shield-checkmark-outline" size={18} color={isFocused("confirm") ? "#2563EB" : "#94A3B8"} />
                 </View>
                 <TextInput
                   style={styles.inputInner}
-                  placeholder="Repeat your password"
+                  placeholder={t("Repeat your password")}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!showConfirm}
                   autoCapitalize="none"
@@ -230,7 +232,7 @@ export default function SignupScreen({ navigation }: Props) {
               <TouchableOpacity style={styles.primaryButtonInner} onPress={handleSignup} disabled={loading} activeOpacity={0.85}>
                 {loading ? <ActivityIndicator color="#fff" /> : (
                   <>
-                    <Text style={styles.primaryButtonText}>Create Account</Text>
+                    <Text style={styles.primaryButtonText}>{t("Create Account")}</Text>
                     <Ionicons name="arrow-forward" size={18} color="#fff" />
                   </>
                 )}
@@ -239,9 +241,9 @@ export default function SignupScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+            <Text style={styles.footerText}>{t("Already have an account?")} </Text>
             <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.footerLink}>Sign In</Text>
+              <Text style={styles.footerLink}>{t("Sign In")}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -253,13 +255,13 @@ export default function SignupScreen({ navigation }: Props) {
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setDobPickerVisible(false)} />
           <View style={styles.modalCard}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Child's Date of Birth</Text>
+            <Text style={styles.modalTitle}>{t("Child's Date of Birth")}</Text>
 
             {/* Row selectors */}
             <View style={styles.pickerRow}>
               {/* Day */}
               <View style={styles.pickerCol}>
-                <Text style={styles.pickerColLabel}>Day</Text>
+                <Text style={styles.pickerColLabel}>{t("Day")}</Text>
                 <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                   {days.map((d) => (
                     <TouchableOpacity key={d} onPress={() => setPickerDay(d)}
@@ -273,13 +275,13 @@ export default function SignupScreen({ navigation }: Props) {
               </View>
               {/* Month */}
               <View style={styles.pickerCol}>
-                <Text style={styles.pickerColLabel}>Month</Text>
+                <Text style={styles.pickerColLabel}>{t("Month")}</Text>
                 <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                   {MONTHS.map((m, i) => (
                     <TouchableOpacity key={m} onPress={() => setPickerMonth(i + 1)}
                       style={[styles.pickerItem, pickerMonth === i + 1 && styles.pickerItemActive]}>
                       <Text style={[styles.pickerItemText, pickerMonth === i + 1 && styles.pickerItemTextActive]}>
-                        {m}
+                        {t(m)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -287,7 +289,7 @@ export default function SignupScreen({ navigation }: Props) {
               </View>
               {/* Year */}
               <View style={styles.pickerCol}>
-                <Text style={styles.pickerColLabel}>Year</Text>
+                <Text style={styles.pickerColLabel}>{t("Year")}</Text>
                 <ScrollView style={styles.pickerScroll} showsVerticalScrollIndicator={false}>
                   {years.map((y) => (
                     <TouchableOpacity key={y} onPress={() => setPickerYear(y)}
@@ -304,7 +306,7 @@ export default function SignupScreen({ navigation }: Props) {
             <TouchableOpacity style={styles.confirmBtn} onPress={confirmDob} activeOpacity={0.85}>
               <LinearGradient colors={["#3B72F6", "#2563EB"]} style={styles.confirmBtnGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                 <Ionicons name="checkmark" size={16} color="#fff" />
-                <Text style={styles.confirmBtnText}>Confirm Date</Text>
+                <Text style={styles.confirmBtnText}>{t("Confirm Date")}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>

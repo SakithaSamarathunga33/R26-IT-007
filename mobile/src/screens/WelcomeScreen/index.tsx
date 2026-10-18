@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
+import { useT, LANGUAGES } from "../../i18n";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Welcome">;
@@ -19,11 +20,8 @@ type Props = {
 
 const { width, height } = Dimensions.get("window");
 
-const LANGUAGES = ["EN", "SI", "TA"] as const;
-type Language = typeof LANGUAGES[number];
-
 export default function WelcomeScreen({ navigation }: Props) {
-  const [lang, setLang] = useState<Language>("EN");
+  const { lang, setLang, t } = useT();
 
   return (
     <View style={styles.container}>
@@ -77,16 +75,16 @@ export default function WelcomeScreen({ navigation }: Props) {
         {/* Badge */}
         <View style={styles.badge}>
           <Ionicons name="sparkles" size={12} color="#93C5FD" />
-          <Text style={styles.badgeText}>AI-Powered Dyslexia Screening</Text>
+          <Text style={styles.badgeText}>{t("AI-Powered Dyslexia Screening")}</Text>
         </View>
 
         <Text style={styles.headline}>
-          Every Child{"\n"}Deserves to{"\n"}
-          <Text style={styles.headlineAccent}>Thrive</Text>
+          {t("Every Child Deserves to")}{"\n"}
+          <Text style={styles.headlineAccent}>{t("Thrive")}</Text>
         </Text>
 
         <Text style={styles.subtext}>
-          Detect dyslexia early and support every child's learning journey with AI.
+          {t("Detect dyslexia early and support every child's learning journey with AI.")}
         </Text>
 
         {/* CTA button */}
@@ -95,15 +93,15 @@ export default function WelcomeScreen({ navigation }: Props) {
           onPress={() => navigation.navigate("Onboarding")}
           activeOpacity={0.88}
         >
-          <Text style={styles.primaryButtonText}>Get Started</Text>
+          <Text style={styles.primaryButtonText}>{t("Get Started")}</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" />
         </TouchableOpacity>
 
         {/* Sign in row */}
         <View style={styles.signinRow}>
-          <Text style={styles.signinText}>Already have an account? </Text>
+          <Text style={styles.signinText}>{t("Already have an account?")} </Text>
           <TouchableOpacity onPress={() => navigation.navigate("Login")} activeOpacity={0.75}>
-            <Text style={styles.signinLink}>Sign In</Text>
+            <Text style={styles.signinLink}>{t("Sign In")}</Text>
           </TouchableOpacity>
         </View>
 

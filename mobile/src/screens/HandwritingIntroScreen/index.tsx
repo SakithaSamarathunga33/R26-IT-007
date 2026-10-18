@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import {
   HANDWRITING_TASKS, HANDWRITING_LEVELS, handwritingLevelTaskCount,
 } from "../../config/handwritingTasks";
@@ -21,12 +22,13 @@ const STEPS = [
 ];
 
 const CHIPS = [
-  { icon: "layers-outline" as const, label: `${HANDWRITING_LEVELS.length} levels` },
-  { icon: "list-outline" as const,   label: `${HANDWRITING_TASKS.length} activities` },
-  { icon: "pencil-outline" as const, label: "Canvas or photo" },
+  { icon: "layers-outline" as const, label: "{n} levels", n: HANDWRITING_LEVELS.length },
+  { icon: "list-outline" as const,   label: "{n} activities", n: HANDWRITING_TASKS.length },
+  { icon: "pencil-outline" as const, label: "Canvas or photo", n: 0 },
 ];
 
 export default function HandwritingIntroScreen({ navigation }: Props) {
+  const { t } = useT();
   return (
     <View style={styles.container}>
       <KidBackground variant="handwriting" />
@@ -36,7 +38,7 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Handwriting Screening</Text>
+        <Text style={styles.headerTitle}>{t("Handwriting Screening")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -48,24 +50,24 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
           <View style={styles.heroIconWrap}>
             <Ionicons name="create-outline" size={48} color="#fff" />
           </View>
-          <Text style={styles.heroTitle}>Handwriting{"\n"}Pattern Analysis</Text>
-          <Text style={styles.heroSub}>AI-powered handwriting screening for dyslexia indicators</Text>
+          <Text style={styles.heroTitle}>{t("Handwriting Pattern Analysis")}</Text>
+          <Text style={styles.heroSub}>{t("AI-powered handwriting screening for dyslexia indicators")}</Text>
           <View style={styles.chipsRow}>
             {CHIPS.map((c, i) => (
               <View key={i} style={styles.chip}>
                 <Ionicons name={c.icon} size={12} color="#fff" />
-                <Text style={styles.chipText}>{c.label}</Text>
+                <Text style={styles.chipText}>{t(c.label, { n: c.n })}</Text>
               </View>
             ))}
           </View>
         </LinearGradient>
 
         <Text style={styles.descText}>
-          We'll show letters and words for your child to copy or write, split into three levels that get harder as you go. The app analyses letter formation, spacing, and consistency — no pressure, just write naturally!
+          {t("We'll show letters and words for your child to copy or write, split into three levels that get harder as you go. The app analyses letter formation, spacing, and consistency — no pressure, just write naturally!")}
         </Text>
 
         {/* Levels overview */}
-        <Text style={styles.sectionLabel}>Three levels</Text>
+        <Text style={styles.sectionLabel}>{t("Three levels")}</Text>
         <View style={styles.levelsCard}>
           {HANDWRITING_LEVELS.map((lvl, i) => (
             <View key={lvl.id} style={[styles.levelRow, i < HANDWRITING_LEVELS.length - 1 && styles.levelRowBorder]}>
@@ -77,8 +79,8 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
                 <Text style={styles.levelNumText}>{lvl.id}</Text>
               </LinearGradient>
               <View style={{ flex: 1 }}>
-                <Text style={styles.levelRowTitle}>{lvl.title}</Text>
-                <Text style={styles.levelRowDesc}>{lvl.description}</Text>
+                <Text style={styles.levelRowTitle}>{t(lvl.title)}</Text>
+                <Text style={styles.levelRowDesc}>{t(lvl.description)}</Text>
               </View>
               <View style={[styles.levelCountChip, { backgroundColor: lvl.bg }]}>
                 <Text style={[styles.levelCountText, { color: lvl.color }]}>{handwritingLevelTaskCount(lvl.id)}</Text>
@@ -87,7 +89,7 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>How it works</Text>
+        <Text style={styles.sectionLabel}>{t("How it works")}</Text>
         <View style={styles.stepsCard}>
           {STEPS.map((step, i) => (
             <View key={i} style={[styles.stepRow, i < STEPS.length - 1 && styles.stepRowBorder]}>
@@ -95,8 +97,8 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
                 <Ionicons name={step.icon} size={20} color={step.color} />
               </View>
               <View style={styles.stepText}>
-                <Text style={styles.stepTitle}>{step.title}</Text>
-                <Text style={styles.stepDesc}>{step.desc}</Text>
+                <Text style={styles.stepTitle}>{t(step.title)}</Text>
+                <Text style={styles.stepDesc}>{t(step.desc)}</Text>
               </View>
               <View style={[styles.stepNum, { backgroundColor: step.bg }]}>
                 <Text style={[styles.stepNumText, { color: step.color }]}>{i + 1}</Text>
@@ -110,7 +112,7 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
             <Ionicons name="information-circle-outline" size={20} color="#2563EB" />
           </View>
           <Text style={styles.noticeText}>
-            This is a screening tool, not a diagnosis. Results are indicators only and should be reviewed by a qualified professional.
+            {t("This is a screening tool, not a diagnosis. Results are indicators only and should be reviewed by a qualified professional.")}
           </Text>
         </View>
 
@@ -121,7 +123,7 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
             onPress={() => navigation.navigate("HandwritingLevels")}
           >
             <Ionicons name="layers" size={20} color="#fff" />
-            <Text style={styles.startBtnText}>Choose a Level</Text>
+            <Text style={styles.startBtnText}>{t("Choose a Level")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
         </LinearGradient>

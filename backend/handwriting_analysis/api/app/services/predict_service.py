@@ -1,8 +1,11 @@
 from fastapi import HTTPException
-from app.services.model_loader import get_model
+from app.services.model_loader import get_model, MODEL_VERSION
 from app.services.image_validation_service import validate_image_upload
 from app.services.feature_extraction_service import extract_handwriting_features
 from app.utils.risk_utils import probability_to_risk_level, reliability_from_warnings
+
+FEATURE_SCHEMA_VERSION = "handwriting_features_v1"
+PREPROCESSING_VERSION = "adaptive_threshold_v1"
 
 def predict_handwriting_from_image(
     *,
@@ -29,7 +32,7 @@ def predict_handwriting_from_image(
     if model is None:
         raise HTTPException(
             status_code=503,
-            detail="Handwriting model not loaded. Place handwriting_logistic_regression.pkl in the project root."
+            detail="Handwriting model not loaded. Place handwriting_logistic_regression.pkl in ml_models/ (or set HANDWRITING_MODEL_PATH)."
         )
 
     validation, image_rgb, gray, thresh = validate_image_upload(
@@ -66,7 +69,23 @@ def predict_handwriting_from_image(
 
     reliability = reliability_from_warnings(validation.get("warnings", []))
 
+    warnings = list(validation.get("warning_details", []))
+    if features["reversal_flag"] or validation.get("ocr_mirror_match"):
+        warnings.append({"code": "possible_reversal", "message": "Some letters may be written backwards (like b/d or p/q)."})
+
+    ocr_available = validation.get("ocr_available")
+
     return {
+        "component": "handwriting_analysis",
+        "model_version": MODEL_VERSION,
+        "feature_schema_version": FEATURE_SCHEMA_VERSION,
+        "preprocessing_version": PREPROCESSING_VERSION,
+        "quality_status": "inconclusive" if reliability == "low" else "valid",
+        "warnings": warnings,
+        "target_match": {
+            "matched": validation.get("ocr_target_match") if ocr_available else None,
+            "confidence": validation.get("ocr_confidence") if ocr_available else None,
+        },
         "validation": validation,
         "quality": {
             "prediction_reliability": reliability,

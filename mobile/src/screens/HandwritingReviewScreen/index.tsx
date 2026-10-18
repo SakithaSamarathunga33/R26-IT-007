@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
-  ScrollView, ActivityIndicator, Image,
+  ScrollView, ActivityIndicator, Image, Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { File } from "expo-file-system";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -14,9 +15,14 @@ import KidBackground from "../../components/KidBackground";
 import { auth, db } from "../../config/firebase";
 import {
   HANDWRITING_TASKS, HANDWRITING_TASK_TYPE_LABELS,
-  HANDWRITING_TASK_TYPE_ICONS, HANDWRITING_TASK_COLORS,
+  HANDWRITING_TASK_TYPE_ICONS, HANDWRITING_TASK_COLORS, handwritingSupplementIndex,
 } from "../../config/handwritingTasks";
 import { getTimeOfDay } from "../../utils/behaviorFeatures";
+import { checkLetterStart } from "../../utils/letterStart";
+import { getChildAge } from "../../services/childProfile";
+import {
+  getHandwritingSupplement, isHandwritingCorrect, setHandwritingSupplement,
+} from "../../services/handwritingLevelService";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingReview">;
@@ -35,7 +41,10 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
   const taskColors = HANDWRITING_TASK_COLORS[task.task_type];
   const [submitting, setSubmitting] = useState(false);
 
-  const strokeCount = strokesJson ? (JSON.parse(strokesJson) as any[][]).length : 0;
+  const strokes: { x: number; y: number }[][] = strokesJson ? JSON.parse(strokesJson) : [];
+  const strokeCount = strokes.length;
+  // Canvas single letters only: did the first stroke begin where the letter is taught to start? null = not checked.
+  const startPointOk = checkLetterStart(strokes, task.target_text);
 
   const handleRetake = () => navigation.goBack();
 
@@ -51,10 +60,8 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
       const formData = new FormData();
 
       if (capturedUri) {
-        const filename = capturedUri.split("/").pop() ?? "handwriting.png";
-        const ext = filename.split(".").pop()?.toLowerCase() ?? "png";
-        const mimeMap: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
-        formData.append("image", { uri: capturedUri, name: filename, type: mimeMap[ext] ?? "image/png" } as any);
+        // Expo's fetch can't send RN-style { uri, name, type } parts; a File (a Blob) carries the name/extension the server checks.
+        formData.append("image", new File(capturedUri));
 
       } else {
         throw new Error("No image captured. Please rewrite and try again.");
@@ -63,7 +70,8 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
       formData.append("task_type", task.task_type);
       formData.append("target_text", task.target_text);
       formData.append("difficulty_level", task.difficulty_level);
-      formData.append("age", "6");
+      formData.append("age", String(await getChildAge()));
+      // Placeholder defaults until the child profile collects these fields.
       formData.append("native_language", "Sinhala");
       formData.append("assessment_language", "English");
       formData.append("school_type", "urban_public");
@@ -81,8 +89,35 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
       const response = await fetch(HANDWRITING_API, { method: "POST", body: formData });
       const responseText = await response.text();
 
+      if (response.status === 422) {
+        let detail: any = null;
+        try { detail = JSON.parse(responseText)?.detail; } catch {}
+        // Technically unusable image: nothing is saved or counted, the child redoes the SAME task.
+        if (detail?.code === "recapture_required") {
+          setSubmitting(false);
+          Alert.alert(
+            "Let's try that again",
+            detail.message ?? "We couldn't see your writing clearly. Please write it again.",
+            [{ text: "OK", onPress: () => navigation.goBack() }],
+            { cancelable: false }
+          );
+          return;
+        }
+      }
       if (!response.ok) throw new Error(`Server error ${response.status}: ${responseText}`);
       result = JSON.parse(responseText);
+
+      // AETA provenance: this attempt is the supplement only if it is the one in flight.
+      const supplement = getHandwritingSupplement(taskIndex);
+      const provenance = {
+        attempt_type: supplement ? "supplementary" : "original",
+        supplement_parent: supplement?.parentAttemptId ?? null,
+        validity_status: result.quality_status ?? "valid",
+        warnings: result.warnings ?? [],
+        model_version: result.model_version ?? null,
+      };
+      const isCorrect = isHandwritingCorrect(result);
+      let attemptId: string | null = null;
 
       // Save to Firestore — wrapped independently so permissions errors don't surface to the user.
       // Skipped entirely for therapy practice so rehearsal can't move the risk score.
@@ -100,8 +135,10 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
           strokes_json: strokesJson ?? null,
           writing_duration_sec: durationSec,
           retry_count: retryCount,
+          ...provenance,
           submitted_at: serverTimestamp(),
         });
+        attemptId = attemptRef.id;
 
         await addDoc(collection(db, "handwriting_predictions"), {
           attempt_id: attemptRef.id,
@@ -120,12 +157,25 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
           risk_probability: result.prediction?.risk_probability ?? null,
           risk_level: result.prediction?.risk_level ?? null,
           risk_label_binary: result.prediction?.handwriting_risk_label_binary ?? null,
+          target_match: result.target_match ?? null,
+          is_correct: isCorrect,
+          start_point_ok: startPointOk,
           model_name: "logistic_regression",
-          model_version: "1.0",
+          ...provenance,
           saved_at: serverTimestamp(),
         });
       } catch (dbErr: any) {
         console.warn("[HandwritingDB] Save failed (non-fatal):", dbErr.message);
+      }
+
+      // AETA: a valid but incorrect ORIGINAL earns exactly one supplementary task;
+      // a supplement never triggers another. The Result screen routes to it.
+      // AETA fires only for a VALID incorrect original; an inconclusive capture says nothing about the skill.
+      if (!isPractice && !supplement && !isCorrect && (result.quality_status ?? "valid") === "valid") {
+        const supIndex = handwritingSupplementIndex(taskIndex);
+        setHandwritingSupplement(
+          supIndex === null ? null : { taskIndex: supIndex, parentTaskIndex: taskIndex, parentAttemptId: attemptId }
+        );
       }
 
     } catch (err: any) {
@@ -141,6 +191,7 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
       durationSec,
       result,
       error: apiError,
+      startPointOk,
     });
   };
 

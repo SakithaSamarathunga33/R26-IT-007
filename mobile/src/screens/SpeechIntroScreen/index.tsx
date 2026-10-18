@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
+import { useT } from "../../i18n";
 import { SPEECH_LEVELS, levelTaskCount } from "../../config/speechTasks";
 
 type Props = {
@@ -19,12 +20,13 @@ const STEPS = [
 ];
 
 const CHIPS = [
-  { icon: "layers-outline" as const, label: "3 levels" },
-  { icon: "list-outline" as const, label: "10 activities" },
-  { icon: "time-outline" as const, label: "~5 minutes" },
+  { icon: "layers-outline" as const, label: "{n} levels", n: 3 },
+  { icon: "list-outline" as const, label: "{n} activities", n: 10 },
+  { icon: "time-outline" as const, label: "~5 minutes", n: 0 },
 ];
 
 export default function SpeechIntroScreen({ navigation }: Props) {
+  const { t } = useT();
   return (
     <View style={styles.container}>
       <KidBackground variant="speech" />
@@ -35,7 +37,7 @@ export default function SpeechIntroScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Speech Screening</Text>
+        <Text style={styles.headerTitle}>{t("Speech Screening")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -48,15 +50,15 @@ export default function SpeechIntroScreen({ navigation }: Props) {
           <View style={styles.heroIconWrap}>
             <Ionicons name="mic" size={48} color="#fff" />
           </View>
-          <Text style={styles.heroTitle}>Speech & Sound{"\n"}Activity</Text>
-          <Text style={styles.heroSub}>AI-powered phonological screening</Text>
+          <Text style={styles.heroTitle}>{t("Speech & Sound Activity")}</Text>
+          <Text style={styles.heroSub}>{t("AI-powered phonological screening")}</Text>
 
           {/* Chips inside hero */}
           <View style={styles.chipsRow}>
             {CHIPS.map((c, i) => (
               <View key={i} style={styles.chip}>
                 <Ionicons name={c.icon} size={12} color="#fff" />
-                <Text style={styles.chipText}>{c.label}</Text>
+                <Text style={styles.chipText}>{t(c.label, { n: c.n })}</Text>
               </View>
             ))}
           </View>
@@ -64,11 +66,11 @@ export default function SpeechIntroScreen({ navigation }: Props) {
 
         {/* Description */}
         <Text style={styles.descText}>
-          The app says a word, your child says it back. Activities are split into three levels that get harder as you go. No right or wrong — just speak naturally!
+          {t("The app says a word, your child says it back. Activities are split into three levels that get harder as you go. No right or wrong — just speak naturally!")}
         </Text>
 
         {/* Levels overview */}
-        <Text style={styles.sectionLabel}>Three levels</Text>
+        <Text style={styles.sectionLabel}>{t("Three levels")}</Text>
         <View style={styles.levelsCard}>
           {SPEECH_LEVELS.map((lvl, i) => (
             <View key={lvl.id} style={[styles.levelRow, i < SPEECH_LEVELS.length - 1 && styles.levelRowBorder]}>
@@ -80,8 +82,8 @@ export default function SpeechIntroScreen({ navigation }: Props) {
                 <Text style={styles.levelNumText}>{lvl.id}</Text>
               </LinearGradient>
               <View style={{ flex: 1 }}>
-                <Text style={styles.levelRowTitle}>{lvl.title}</Text>
-                <Text style={styles.levelRowDesc}>{lvl.description}</Text>
+                <Text style={styles.levelRowTitle}>{t(lvl.title)}</Text>
+                <Text style={styles.levelRowDesc}>{t(lvl.description)}</Text>
               </View>
               <View style={[styles.levelCountChip, { backgroundColor: lvl.bg }]}>
                 <Text style={[styles.levelCountText, { color: lvl.color }]}>{levelTaskCount(lvl.id)}</Text>
@@ -91,7 +93,7 @@ export default function SpeechIntroScreen({ navigation }: Props) {
         </View>
 
         {/* Steps */}
-        <Text style={styles.sectionLabel}>How it works</Text>
+        <Text style={styles.sectionLabel}>{t("How it works")}</Text>
         <View style={styles.stepsCard}>
           {STEPS.map((step, i) => (
             <View key={i} style={[styles.stepRow, i < STEPS.length - 1 && styles.stepRowBorder]}>
@@ -99,8 +101,8 @@ export default function SpeechIntroScreen({ navigation }: Props) {
                 <Ionicons name={step.icon} size={20} color={step.color} />
               </View>
               <View style={styles.stepText}>
-                <Text style={styles.stepTitle}>{step.title}</Text>
-                <Text style={styles.stepDesc}>{step.desc}</Text>
+                <Text style={styles.stepTitle}>{t(step.title)}</Text>
+                <Text style={styles.stepDesc}>{t(step.desc)}</Text>
               </View>
               <View style={[styles.stepNum, { backgroundColor: step.bg }]}>
                 <Text style={[styles.stepNumText, { color: step.color }]}>{i + 1}</Text>
@@ -115,7 +117,7 @@ export default function SpeechIntroScreen({ navigation }: Props) {
             <Ionicons name="information-circle-outline" size={20} color="#2563EB" />
           </View>
           <Text style={styles.noticeText}>
-            Make sure you're in a quiet room. The microphone will be used to record responses.
+            {t("Make sure you're in a quiet room. The microphone will be used to record responses.")}
           </Text>
         </View>
 
@@ -127,7 +129,7 @@ export default function SpeechIntroScreen({ navigation }: Props) {
             onPress={() => navigation.navigate("SpeechLevels")}
           >
             <Ionicons name="layers" size={20} color="#fff" />
-            <Text style={styles.startBtnText}>Choose a Level</Text>
+            <Text style={styles.startBtnText}>{t("Choose a Level")}</Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
         </LinearGradient>
