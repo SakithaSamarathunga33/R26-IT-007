@@ -23,8 +23,9 @@ import { auth, db } from "../../config/firebase";
 import { theme } from "../../theme";
 import { useFocusEffect } from "@react-navigation/native";
 import { getAssessmentHistory } from "../../services/sessionService";
+import { clearChildAgeCache } from "../../services/childProfile";
 
-import { useT } from "../../i18n";
+import { useT, LANGUAGES } from "../../i18n";
 const LANG_NAMES = { EN: "English", SI: "සිංහල", TA: "தமிழ்" } as const;
 
 type Props = {
@@ -32,7 +33,7 @@ type Props = {
 };
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { lang, t } = useT();
+  const { lang, setLang, t } = useT();
   const user = auth.currentUser;
 
   const getFirstName = () => user?.displayName?.split(" ")[0] ?? "";
@@ -47,6 +48,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState(user?.displayName ?? "LexiScan User");
   const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
+  const [dobInput, setDobInput] = useState("");
   const [reportCount, setReportCount] = useState<number | null>(null);
 
   const initials = getInitials(displayName);
@@ -81,14 +83,33 @@ export default function ProfileScreen({ navigation }: Props) {
   const openEdit = () => {
     setFirstName(getFirstName());
     setLastName(getLastName());
+    setDobInput(dateOfBirth ?? "");
     setEditVisible(true);
+  };
+
+  const chooseLanguage = () => {
+    // Exactly three options, which is Android's Alert button limit; tapping outside cancels.
+    Alert.alert(
+      t("Language"),
+      undefined,
+      LANGUAGES.map((l) => ({ text: LANG_NAMES[l], onPress: () => setLang(l) })),
+      { cancelable: true }
+    );
   };
 
   const handleSave = async () => {
     const trimFirst = firstName.trim();
     const trimLast = lastName.trim();
+    const dob = dobInput.trim();
     if (!trimFirst || !trimLast) {
       Alert.alert(t("Error"), t("First name and last name cannot be empty."));
+      return;
+    }
+    // Round-trip check rejects impossible dates like 2019-02-31; future dates are rejected too.
+    const parsed = new Date(dob);
+    if (dob && (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || isNaN(parsed.getTime())
+      || parsed.toISOString().slice(0, 10) !== dob || parsed > new Date())) {
+      Alert.alert(t("Error"), t("Enter a valid date of birth (YYYY-MM-DD)."));
       return;
     }
     setSaving(true);
@@ -99,8 +120,13 @@ export default function ProfileScreen({ navigation }: Props) {
         firstName: trimFirst,
         lastName: trimLast,
         displayName: fullName,
+        ...(dob ? { dateOfBirth: dob } : {}),
       });
       setDisplayName(fullName);
+      if (dob && dob !== dateOfBirth) {
+        setDateOfBirth(dob);
+        clearChildAgeCache();
+      }
       setEditVisible(false);
     } catch (error: any) {
       Alert.alert(t("Update Failed"), error.message);
@@ -159,7 +185,7 @@ export default function ProfileScreen({ navigation }: Props) {
         <Text style={styles.sectionLabel}>{t("Account")}</Text>
         <View style={styles.card}>
           <SettingsRow icon="mail-outline" iconColor="#2563EB" iconBg="#EFF6FF" label={t("Email Address")} value={user?.email ?? "—"} />
-          <SettingsRow icon="calendar-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label={t("Date of Birth")} value={formatDob(dateOfBirth)} />
+          <SettingsRow icon="calendar-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label={t("Date of Birth")} value={formatDob(dateOfBirth)} onPress={openEdit} />
           <SettingsRow icon="shield-checkmark-outline" iconColor="#059669" iconBg="#ECFDF5" label={t("Account Status")} value={t("Verified")} />
           <SettingsRow icon="notifications-outline" iconColor="#D97706" iconBg="#FFFBEB" label={t("Notifications")} value={t("On")} last />
         </View>
@@ -167,7 +193,7 @@ export default function ProfileScreen({ navigation }: Props) {
         {/* App */}
         <Text style={styles.sectionLabel}>{t("App")}</Text>
         <View style={styles.card}>
-          <SettingsRow icon="language-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label={t("Language")} value={LANG_NAMES[lang]} />
+          <SettingsRow icon="language-outline" iconColor="#7C3AED" iconBg="#F5F3FF" label={t("Language")} value={LANG_NAMES[lang]} onPress={chooseLanguage} />
           <SettingsRow icon="color-palette-outline" iconColor="#0891B2" iconBg="#ECFEFF" label={t("Theme")} value={t("Light")} />
           <SettingsRow icon="information-circle-outline" iconColor="#94A3B8" iconBg="#F1F5F9" label={t("Version")} value="v1.1.0" last />
         </View>
@@ -192,7 +218,7 @@ export default function ProfileScreen({ navigation }: Props) {
             <View style={styles.modalCard}>
               <View style={styles.modalHandle} />
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{t("Edit Name")}</Text>
+                <Text style={styles.modalTitle}>{t("Edit Profile")}</Text>
                 <TouchableOpacity onPress={() => setEditVisible(false)} style={styles.modalCloseBtn}>
                   <Ionicons name="close" size={18} color="#64748B" />
                 </TouchableOpacity>
@@ -225,6 +251,18 @@ export default function ProfileScreen({ navigation }: Props) {
                   />
                 </View>
               </View>
+              <Text style={styles.inputLabel}>{t("Date of Birth")}</Text>
+              <TextInput
+                style={[styles.input, styles.dobInput, focusedField === "dob" && styles.inputFocused]}
+                value={dobInput}
+                onChangeText={setDobInput}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numbers-and-punctuation"
+                maxLength={10}
+                onFocus={() => setFocusedField("dob")}
+                onBlur={() => setFocusedField(null)}
+              />
               <TouchableOpacity
                 style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
                 onPress={handleSave}
@@ -260,16 +298,21 @@ function StatItem({ value, label, icon, color, bg }: { value: string; label: str
   );
 }
 
-function SettingsRow({ icon, iconColor, iconBg, label, value, last }: { icon: any; iconColor: string; iconBg: string; label: string; value: string; last?: boolean }) {
+// Only rows with an action are tappable and show a chevron; the rest are read-only info.
+function SettingsRow({ icon, iconColor, iconBg, label, value, last, onPress }: { icon: any; iconColor: string; iconBg: string; label: string; value: string; last?: boolean; onPress?: () => void }) {
+  const Row = onPress ? TouchableOpacity : View;
   return (
-    <View style={[styles.settingsRow, last && styles.settingsRowLast]}>
+    <Row
+      style={[styles.settingsRow, last && styles.settingsRowLast]}
+      {...(onPress ? { onPress, activeOpacity: 0.7, accessibilityRole: "button" as const } : {})}
+    >
       <View style={[styles.settingsIconWrap, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={16} color={iconColor} />
       </View>
       <Text style={styles.settingsLabel}>{label}</Text>
       <Text style={styles.settingsValue}>{value}</Text>
-      <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
-    </View>
+      {onPress && <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />}
+    </Row>
   );
 }
 
@@ -402,6 +445,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.regular,
   },
   inputFocused: { borderColor: "#2563EB", backgroundColor: "#EFF6FF" },
+  dobInput: { marginBottom: 24 },
   saveBtn: {
     backgroundColor: "#2563EB", paddingVertical: 16, borderRadius: 50,
     alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8,

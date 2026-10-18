@@ -6,6 +6,11 @@ const FALLBACK_AGE = 6;
 
 let cachedAge: { uid: string; age: number } | null = null;
 
+/** Call after the date of birth changes so the next assessment uses the new age. */
+export function clearChildAgeCache() {
+  cachedAge = null;
+}
+
 export function ageFromDob(dob: string, now: Date = new Date()): number | null {
   const birth = new Date(dob);
   if (isNaN(birth.getTime())) return null;
