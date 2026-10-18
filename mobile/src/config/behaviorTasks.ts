@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from "react-native";
+
 export type BehaviorTaskType =
   | "letter_identification"
   | "missing_letter"
@@ -51,8 +53,9 @@ export interface BehaviorTask {
    */
   target_shape?: string;
   /**
-   * Pattern tasks drawn as pictures: the items before the blank, each a shape
-   * or colour name. The screen draws these and the options instead of words.
+   * Tasks drawn as pictures: the items shown in order, each a shape, colour or
+   * word with a photo in WORD_IMAGES. Pattern tasks end the row with a blank.
+   * The screen draws these and the options instead of words.
    */
   sequence?: string[];
 }
@@ -206,7 +209,8 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
     cognitive_focus: "working_memory_load",
     attention_load: "high",
     difficulty_level: "medium",
-    instruction: "Remember: Cat → Dog → Bird\nWhich animal came second?",
+    instruction: "Remember the animals. Which one came second?",
+    sequence: ["Cat", "Dog", "Bird"],
     options: ["Cat", "Dog", "Bird", "Fish"],
     correct_answer: "Dog",
     hint: "Think about the order the animals were shown.",
@@ -371,6 +375,21 @@ export function getBehaviorLevel(level: BehaviorLevelId): BehaviorLevel {
  * Renders a missing-letter word as spaced characters with the target letter
  * replaced by an underscore, e.g. umbrella/0 → "_ m b r e l l a".
  */
+/** Photos for task words and picture options (Unsplash; credits in assets/behavior/CREDITS.md). */
+const WORD_IMAGES: Record<string, ImageSourcePropType> = {
+  cat: require("../assets/behavior/cat.jpg"),
+  dog: require("../assets/behavior/dog.jpg"),
+  table: require("../assets/behavior/table.jpg"),
+  elephant: require("../assets/behavior/elephant.jpg"),
+  butterfly: require("../assets/behavior/butterfly.jpg"),
+  bird: require("../assets/behavior/bird.jpg"),
+  fish: require("../assets/behavior/fish.jpg"),
+};
+
+export function wordImage(word?: string): ImageSourcePropType | undefined {
+  return word ? WORD_IMAGES[word.trim().toLowerCase()] : undefined;
+}
+
 export function maskedWord(task: BehaviorTask): string {
   if (!task.word || task.missing_index === undefined) return "";
   return task.word
