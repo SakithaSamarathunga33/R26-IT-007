@@ -1,3 +1,11 @@
+/**
+ * FusionDifficultyScreen
+ * Explains WHICH area the child seems to struggle with most (speech sounds, handwriting or attention/behaviour),
+ * plus a secondary area, module score bars and key feature signals.
+ * Flow: FusionRiskSummary ("difficulty breakdown") -> FusionDifficulty -> FusionTherapy ("View Therapy Plan").
+ * All data comes from the fusion response passed in the route (already returned by the multi_modal_risk backend);
+ * this screen makes no new API call. Uses i18n and the KidBackground component.
+ */
 import React from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView,
@@ -11,11 +19,13 @@ import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
 import { useT } from "../../i18n";
 
+// Navigation + route (response = the full fusion result from the backend).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionDifficulty">;
   route: RouteProp<RootStackParamList, "FusionDifficulty">;
 };
 
+// Name, description, icon and colours for each difficulty area (blue = speech, purple = handwriting, teal = attention).
 const DIFFICULTY_CONFIG: Record<string, {
   label: string; description: string; icon: keyof typeof Ionicons.glyphMap;
   color: string; bg: string; iconBg: string; gradColors: [string, string];
@@ -49,12 +59,14 @@ const DIFFICULTY_CONFIG: Record<string, {
   },
 };
 
+// The three module scores shown as bars; each has its own colour (blue, purple, teal).
 const ALL_MODULES = [
   { key: "speech_score",      label: "Speech",      color: "#2563EB", icon: "ear-outline" as const },
   { key: "handwriting_score", label: "Handwriting", color: "#7C3AED", icon: "pencil-outline" as const },
   { key: "behavior_score",    label: "Behaviour",   color: "#0891B2", icon: "happy-outline" as const },
 ];
 
+// Main screen: primary area card, secondary area, score comparison, key signals and the therapy button.
 export default function FusionDifficultyScreen({ navigation, route }: Props) {
   const { t } = useT();
   const { response } = route.params;
@@ -62,6 +74,7 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
   const secondary = response.secondary_difficulty_label;
   const features = response.fusion_features ?? {};
 
+  // Pick the display settings for the primary and secondary difficulty (falls back to speech if unknown).
   const primaryConfig = DIFFICULTY_CONFIG[primary?.primary_difficulty_label] ?? DIFFICULTY_CONFIG.phonological_processing;
   const secondaryConfig = secondary ? DIFFICULTY_CONFIG[secondary] : null;
 
@@ -229,8 +242,11 @@ export default function FusionDifficultyScreen({ navigation, route }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+  /* Header: white circle back button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -243,8 +259,10 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20, paddingTop: 8 },
 
+  /* Section labels: light grey small caps */
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 },
 
+  /* Primary area card: gradient colour comes from DIFFICULTY_CONFIG; white text and see-through white pills */
   primaryCard: {
     flexDirection: "row", borderRadius: 22, padding: 20, marginBottom: 20,
     overflow: "hidden", alignItems: "flex-start", gap: 16,
@@ -264,6 +282,7 @@ const styles = StyleSheet.create({
   methodPill: { backgroundColor: "rgba(255,255,255,0.15)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   methodText: { fontSize: 11, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.85)" },
 
+  /* Secondary area card: white, border and badge colours come from DIFFICULTY_CONFIG */
   secondaryCard: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "#fff", borderWidth: 1.5, borderRadius: 20, padding: 16, marginBottom: 20, gap: 14,
@@ -276,6 +295,7 @@ const styles = StyleSheet.create({
   secondaryBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   secondaryBadgeText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  /* Module score bars: white card, grey track, bar colour = module colour */
   scoresCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -294,6 +314,7 @@ const styles = StyleSheet.create({
   scoreBarFill: { height: 7, borderRadius: 4 },
   scorePercent: { fontSize: 13, fontFamily: theme.fonts.bold, width: 36, textAlign: "right" },
 
+  /* Key signals: white card; bar and number are red when the signal is risky, green when fine (set in the code) */
   featuresCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -307,6 +328,7 @@ const styles = StyleSheet.create({
   featureFill: { height: 6, borderRadius: 3 },
   featureVal: { fontSize: 12, fontFamily: theme.fonts.bold, width: 36, textAlign: "right" },
 
+  /* Therapy plan button: blue gradient pill with white text */
   nextBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

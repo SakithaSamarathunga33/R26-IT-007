@@ -1,3 +1,5 @@
+// therapySessionService.ts - tracks progress on the therapy plan (Firestore "therapy_sessions").
+// Plan comes from the fusion report's therapy_recommendation. Used by the therapy plan / home screens and navigation.
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
 
@@ -12,8 +14,10 @@ import { db } from "../config/firebase";
  */
 const COLLECTION = "therapy_sessions";
 
+// Plan state: still going, finished all sessions, or ended early by the user.
 export type TherapyPlanState = "in_progress" | "completed" | "abandoned";
 
+// Saved practice progress for one plan.
 export interface TherapyProgress {
   /** Report this plan came from; progress is void once a newer report exists. */
   reportId: string | null;
@@ -24,10 +28,12 @@ export interface TherapyProgress {
   state: TherapyPlanState;
 }
 
+// Fresh progress with nothing practised yet.
 function emptyProgress(reportId: string | null, target: number): TherapyProgress {
   return { reportId, completed: [], target, state: "in_progress" };
 }
 
+// Cleans data read from Firestore into a valid TherapyProgress.
 function sanitize(raw: any, reportId: string | null, target: number): TherapyProgress {
   const completed = Array.isArray(raw?.completed)
     ? raw.completed.filter((v: any) => typeof v === "string")
@@ -65,6 +71,7 @@ export async function fetchTherapyProgress(
   }
 }
 
+// Saves progress to Firestore.
 async function write(uid: string, p: TherapyProgress) {
   await setDoc(
     doc(db, COLLECTION, uid),
@@ -125,11 +132,13 @@ export function isTherapyBlocking(p: TherapyProgress): boolean {
   return p.state === "in_progress" && p.completed.length < p.target;
 }
 
+// Total sessions needed = activities x sessions per week (at least 1).
 export function sessionsFor(activityCount: number, sessionsPerWeek: number): number {
   const total = activityCount * Math.max(1, sessionsPerWeek);
   return total > 0 ? total : 1;
 }
 
+// Everything the therapy screens need about the current plan.
 export interface ActiveTherapyPlan {
   /** Full fusion response from the most recent assessment. */
   response: any;

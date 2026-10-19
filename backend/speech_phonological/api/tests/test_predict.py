@@ -1,3 +1,4 @@
+# Tests for /predict/speech using a fake model and fake transcripts, so no real model or Whisper is needed.
 import io
 import os
 import sys
@@ -18,6 +19,7 @@ from app.services import model_loader  # noqa: E402
 
 client = TestClient(app)
 
+# Sample form fields sent with every test request.
 FORM = {
     "task_type": "word_repetition", "target_word": "cat", "target_phoneme_seq": "k ae t",
     "difficulty_level": "easy", "linguistic_focus": "phoneme", "age": "7", "gender": "female",
@@ -26,6 +28,7 @@ FORM = {
 }
 
 
+# Generate a short test tone as WAV bytes.
 def _wav(amp: float = 0.5) -> bytes:
     sr = 16000
     t = np.linspace(0, 1.0, sr, endpoint=False)
@@ -38,11 +41,13 @@ def _wav(amp: float = 0.5) -> bytes:
 WAV = _wav()
 
 
+# Send the sample form plus audio to the endpoint with a stubbed transcript.
 def _post(monkeypatch, transcript, wav=WAV):
     monkeypatch.setattr(predict_routes, "transcribe_wav_bytes", lambda *a, **k: transcript)
     return client.post("/predict/speech", data=FORM, files={"audio": ("rec.wav", wav, "audio/wav")})
 
 
+# Fake model returning a fixed probability.
 class _StubModel:
     def predict(self, df):
         return np.array([1])

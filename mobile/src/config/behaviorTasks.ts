@@ -1,5 +1,9 @@
+// behaviorTasks.ts - the list of behaviour/attention tasks and levels (letters, shapes, patterns, memory).
+// Used by the Behavior* screens, behaviorFeatures.ts, summaryService, therapyActivityMap; results go to the
+// behaviour backend (API_URLS.behavior). Also holds task photos and the missing-letter word masking.
 import type { ImageSourcePropType } from "react-native";
 
+// Kinds of behaviour task.
 export type BehaviorTaskType =
   | "letter_identification"
   | "missing_letter"
@@ -9,6 +13,7 @@ export type BehaviorTaskType =
   | "working_memory";
 
 export type DifficultyLevel = "easy" | "medium" | "hard";
+// The thinking skill each task targets (also describes attention load and difficulty below).
 export type CognitiveFocus =
   | "basic_letter_focus"
   | "letter_sound_mapping"
@@ -22,6 +27,8 @@ export type AttentionLoad = "low" | "medium" | "high";
 /** Level 1 = simple, Level 2 = harder, Level 3 = advanced. */
 export type BehaviorLevelId = 1 | 2 | 3;
 
+// One task: the question, answer options, correct answer, hint and the text spoken aloud.
+// Optional fields only apply to some types (missing letter, shape matching, sequences).
 export interface BehaviorTask {
   id: string;
   level: BehaviorLevelId;
@@ -60,6 +67,7 @@ export interface BehaviorTask {
   sequence?: string[];
 }
 
+// Task table (3 levels, play order).
 export const BEHAVIOR_TASKS: BehaviorTask[] = [
   // ── Level 1 — simple: single letters, basic shapes, first missing letters ───
   {
@@ -298,6 +306,7 @@ export const BEHAVIOR_TASKS: BehaviorTask[] = [
 
 // ── Level metadata ────────────────────────────────────────────────────────────
 
+// Display info for a level card.
 export interface BehaviorLevel {
   id: BehaviorLevelId;
   title: string;
@@ -309,6 +318,8 @@ export interface BehaviorLevel {
   gradColors: [string, string];
 }
 
+// Colours per level card: color = main accent, bg = pale card background, gradColors = gradient for the badge
+// (level 1 green = easy, level 2 amber = medium, level 3 purple = hard).
 export const BEHAVIOR_LEVELS: BehaviorLevel[] = [
   {
     id: 1,
@@ -350,6 +361,7 @@ export function behaviorTaskIndicesForLevel(level: BehaviorLevelId): number[] {
   }, []);
 }
 
+// How many tasks are in a level.
 export function behaviorLevelTaskCount(level: BehaviorLevelId): number {
   return BEHAVIOR_TASKS.filter((t) => t.level === level).length;
 }
@@ -367,6 +379,7 @@ export function behaviorNextIndexInLevel(taskIndex: number): number | null {
   return next ?? null;
 }
 
+// Finds the level info for a level number.
 export function getBehaviorLevel(level: BehaviorLevelId): BehaviorLevel {
   return BEHAVIOR_LEVELS.find((l) => l.id === level)!;
 }
@@ -386,10 +399,12 @@ const WORD_IMAGES: Record<string, ImageSourcePropType> = {
   fish: require("../assets/behavior/fish.jpg"),
 };
 
+// Returns the photo for a word (case-insensitive), or undefined if there is none.
 export function wordImage(word?: string): ImageSourcePropType | undefined {
   return word ? WORD_IMAGES[word.trim().toLowerCase()] : undefined;
 }
 
+// Shows the missing-letter word with a blank, e.g. "c a t" with index 0 -> "_ a t".
 export function maskedWord(task: BehaviorTask): string {
   if (!task.word || task.missing_index === undefined) return "";
   return task.word
@@ -398,6 +413,7 @@ export function maskedWord(task: BehaviorTask): string {
     .join(" ");
 }
 
+// Short names shown to users for each task type.
 export const BEHAVIOR_TASK_TYPE_LABELS: Record<BehaviorTaskType, string> = {
   letter_identification: "Letter ID",
   missing_letter: "Missing Letter",
@@ -407,6 +423,7 @@ export const BEHAVIOR_TASK_TYPE_LABELS: Record<BehaviorTaskType, string> = {
   working_memory: "Memory",
 };
 
+// Ionicons icon name for each task type.
 export const BEHAVIOR_TASK_TYPE_ICONS: Record<BehaviorTaskType, string> = {
   letter_identification: "text-outline",
   missing_letter: "help-circle-outline",
@@ -416,6 +433,7 @@ export const BEHAVIOR_TASK_TYPE_ICONS: Record<BehaviorTaskType, string> = {
   working_memory: "bulb-outline",
 };
 
+// Colour trio per task type for chips: color = text/icon, bg = pale fill, border = soft outline.
 export const BEHAVIOR_TASK_COLORS: Record<BehaviorTaskType, { color: string; bg: string; border: string }> = {
   letter_identification: { color: "#2563EB", bg: "#EFF6FF", border: "#DBEAFE" },
   // Indigo — sits in the app's existing blue/purple family rather than

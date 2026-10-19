@@ -1,3 +1,8 @@
+// OnboardingScreen: a 5-slide intro that explains what the app does (speech, handwriting,
+// behaviour screening, risk reports, therapy guidance). The user taps Next through the slides.
+// Reached from: WelcomeScreen ("Get Started" button).
+// Goes to: "Signup" (after the last slide or Skip) or "Login" (Sign In link). Defined in AppNavigator.
+// Uses: i18n (useT) for text, expo-linear-gradient for the button, Ionicons for slide icons.
 import React, { useRef, useState } from "react";
 import {
   View,
@@ -15,12 +20,15 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 
 import { useT } from "../../i18n";
+// Navigation props: lets this screen open Signup or Login.
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Onboarding">;
 };
 
+// Screen size, used to size each slide and the dot animation.
 const { width, height } = Dimensions.get("window");
 
+// Content of each slide. color = main accent, bg = illustration background, iconBg = icon circle colour.
 const SLIDES = [
   {
     key: "speech",
@@ -74,14 +82,18 @@ const SLIDES = [
   },
 ] as const;
 
+// Main onboarding screen component.
 export default function OnboardingScreen({ navigation }: Props) {
   const { t } = useT();
+  // Which slide is showing, a ref to the slide list, and the scroll position (drives the dot animation).
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
 
+  // True when the user is on the final slide (button changes to "Get Started").
   const isLast = activeIndex === SLIDES.length - 1;
 
+  // Go to the next slide, or to Signup if already on the last one.
   const goNext = () => {
     if (isLast) {
       navigation.navigate("Signup");
@@ -92,6 +104,7 @@ export default function OnboardingScreen({ navigation }: Props) {
     setActiveIndex(next);
   };
 
+  // Skip the intro and go straight to Signup.
   const skip = () => navigation.navigate("Signup");
 
   return (
@@ -200,6 +213,10 @@ export default function OnboardingScreen({ navigation }: Props) {
   );
 }
 
+// Colours used on this screen:
+//   white page background and light grey (#F3F4F6) Skip button, grey text (#6B7280) for descriptions
+//   each slide uses its own accent colour from SLIDES for the title, icon, dots, Next button and Sign In link
+//   the slide's pale bg/iconBg colours fill the illustration box and icon circles
 const styles = StyleSheet.create({
   container: {
     flex: 1,

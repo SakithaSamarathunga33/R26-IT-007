@@ -1,3 +1,8 @@
+// WelcomeScreen: the first screen a new visitor sees. Shows a full-screen photo of a child,
+// the app name, a short tagline, a language switcher and two choices: "Get Started" or "Sign In".
+// Reached from: it is the initial route ("Welcome") of the stack in AppNavigator.
+// Goes to: "Onboarding" (Get Started) or "Login" (Already have an account).
+// Uses: i18n (useT, LANGUAGES) for text and language, expo-linear-gradient, hero-child.jpg + child_icon.png assets.
 import React from "react";
 import {
   View,
@@ -14,13 +19,17 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { useT, LANGUAGES } from "../../i18n";
 
+// Navigation props: lets this screen open Onboarding or Login.
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Welcome">;
 };
 
+// Screen size, used to stretch the photo and dark overlay over the whole screen.
 const { width, height } = Dimensions.get("window");
 
+// Main welcome screen component.
 export default function WelcomeScreen({ navigation }: Props) {
+  // Current language, a function to change it, and the translate helper t().
   const { lang, setLang, t } = useT();
 
   return (
@@ -111,12 +120,19 @@ export default function WelcomeScreen({ navigation }: Props) {
   );
 }
 
+// Colours used on this screen:
+//   black background #000 behind the photo
+//   white text and icons (app name, headline, links); see-through white for softer text and pills
+//   light blue #93C5FD / #60A5FA for the badge and the "Thrive" accent word
+//   bright blue #3B82F6 for the Get Started button
+//   see-through black overlay keeps the white text easy to read on the photo
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
   },
 
+  /* Photo and dark overlay */
   heroImage: {
     position: "absolute",
     width,

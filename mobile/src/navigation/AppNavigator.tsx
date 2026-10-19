@@ -1,3 +1,6 @@
+// AppNavigator.tsx - all screens and routes of the app. Defines the route parameter types (what data each
+// screen receives), the bottom tab bar (Home / History / Profile) and the root stack with every
+// Welcome/Login, Speech*, Behavior*, Handwriting* and Fusion* screen. Rendered by App.tsx.
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
@@ -51,6 +54,7 @@ import { BehaviorLevelId } from "../config/behaviorTasks";
 
 // ── Param lists ───────────────────────────────────────────────────────────────
 
+// Routes inside the bottom tabs.
 export type TabParamList = {
   Home: undefined;
   History: undefined;
@@ -74,6 +78,8 @@ export type PracticeParams = {
   response: any;
 };
 
+// Every stack screen and the params it needs. Result screens carry the backend response (`result`)
+// or an `error`; `practice` is present when opened from a therapy plan.
 export type RootStackParamList = {
   Welcome: undefined;
   Onboarding: undefined;
@@ -163,6 +169,7 @@ export type RootStackParamList = {
 
 // ── Tab config ────────────────────────────────────────────────────────────────
 
+// Tab bar buttons: label plus outline icon (inactive) and filled icon (active).
 const TAB_ITEMS: {
   name: keyof TabParamList;
   label: string;
@@ -176,6 +183,8 @@ const TAB_ITEMS: {
 
 // ── Custom bubble tab bar ─────────────────────────────────────────────────────
 
+// Custom floating tab bar: frosted pill (blur on iOS, near-white on Android) with a blue bubble
+// behind the active tab. Pill colours are translucent whites; the bubble uses the theme accent blue.
 function BubbleTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
@@ -240,6 +249,7 @@ function BubbleTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
+// The three main tabs shown after login.
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -257,6 +267,7 @@ function MainTabs() {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Root navigator: starts at Welcome; the canvas screen has swipe-back disabled so drawing isn't interrupted.
 export default function AppNavigator() {
   return (
     <NavigationContainer>
@@ -306,6 +317,7 @@ export default function AppNavigator() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
+// Tab bar styling: translucent white pill with a soft dark-blue shadow; active bubble = theme.colors.accent; active label/icon white.
 const styles = StyleSheet.create({
   tabBarOuter: {
     position: "absolute",

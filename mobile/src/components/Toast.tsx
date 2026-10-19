@@ -1,3 +1,5 @@
+// Toast.tsx - small pop-down message banner for errors/success/warnings (e.g. login failures).
+// The parent controls `visible`; the toast slides in, waits 3 seconds, slides out and calls onHide.
 import React, { useEffect, useRef } from "react";
 import { Animated, Text, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,12 +13,14 @@ type Props = {
   onHide: () => void;
 };
 
+// Colours per type: bg = pale background, color = icon/text/left-bar colour (red error, green success, amber warning).
 const CONFIG: Record<ToastType, { bg: string; icon: string; color: string }> = {
   error:   { bg: "#FEF2F2", icon: "close-circle",     color: "#EF4444" },
   success: { bg: "#F0FDF4", icon: "checkmark-circle",  color: "#22C55E" },
   warning: { bg: "#FFFBEB", icon: "warning",            color: "#F59E0B" },
 };
 
+// Shows the banner at the top of the screen and auto-hides it.
 export default function Toast({ visible, message, type = "error", onHide }: Props) {
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;

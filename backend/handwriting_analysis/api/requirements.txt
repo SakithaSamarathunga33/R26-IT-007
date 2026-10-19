@@ -1,3 +1,4 @@
+# Python packages for the handwriting API (installed by the Dockerfile). opencv/Pillow/pytesseract = image handling and OCR; scikit-learn/joblib = load the .pkl model.
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9

@@ -1,3 +1,11 @@
+// Behaviour activity screen: shows one task (question, picture/shape/word, answer options),
+// reads it aloud, tracks how the child taps and pauses, then sends it for AI scoring.
+// Flow: BehaviorLevels (or the previous result screen) -> BehaviorActivity -> BehaviorResult
+// (via navigation.replace). Back goes to the previous screen.
+// Uses: config/behaviorTasks (task list), utils/behaviorFeatures (turns raw taps/timings into
+// features), services/ttsService (read aloud), services/childProfile (age), KidBackground and
+// ShapeGlyph components, Firebase auth + Firestore (behavior_attempts, behavior_predictions),
+// and the behaviour backend endpoint API_URLS.behavior (POST) from config/apiConfig.
 import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
@@ -31,12 +39,14 @@ type Props = {
 import { API_URLS } from "../../config/apiConfig";
 const BEHAVIOR_API = API_URLS.behavior;
 
+// Colours and label for the Easy / Medium / Hard badge in the header (green / amber / red).
 const DIFFICULTY_CONFIG = {
   easy:   { color: "#059669", bg: "#ECFDF5", label: "Easy" },
   medium: { color: "#D97706", bg: "#FFFBEB", label: "Medium" },
   hard:   { color: "#EF4444", bg: "#FFF5F5", label: "Hard" },
 };
 
+// Where the task is in its life: not started, being answered, being sent, finished.
 type ActivityState = "idle" | "active" | "submitting" | "done";
 
 // Pattern tasks name colours as well as shapes; a colour is drawn as a circle of
@@ -45,6 +55,7 @@ const PATTERN_COLORS: Record<string, string> = {
   red: "#EF4444", blue: "#2563EB", green: "#16A34A", yellow: "#EAB308",
 };
 
+// Small helper component: draws one item as a word photo, a coloured circle, or a shape.
 function PictureGlyph({ value, size, color }: { value: string; size: number; color?: string }) {
   const photo = wordImage(value);
   if (photo) return <Image source={photo} style={{ width: size, height: size, borderRadius: size * 0.2 }} accessibilityLabel={value} />;
@@ -52,6 +63,7 @@ function PictureGlyph({ value, size, color }: { value: string; size: number; col
   return <ShapeGlyph shape={hex ? "circle" : value} size={size} color={hex ?? color} />;
 }
 
+// Main screen. The task shown is chosen by the taskIndex route param.
 export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const taskIndex = route.params?.taskIndex ?? 0;
   const practice = route.params?.practice;
@@ -74,6 +86,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const isPattern = task.task_type === "pattern_completion";
   const wordPhoto = wordImage(task.word);
 
+  // UI state: current phase, chosen answer, tap/hint counts, seconds elapsed, busy flags.
   const [activityState, setActivityState] = useState<ActivityState>("idle");
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [attemptCount, setAttemptCount] = useState(0);
@@ -83,6 +96,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
+  // Refs hold behaviour data collected while the child works (they don't trigger re-renders).
   // Durations use the monotonic performance.now(); Date.now() can jump with clock changes.
   const taskStartRef = useRef<number>(0);
   const attemptStartWallRef = useRef<number>(0);
@@ -98,6 +112,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   const replayCountRef = useRef(0);
   const autoSpokeRef = useRef(false);
 
+  // Reset all tracking and start the seconds timer whenever a new task opens.
   useEffect(() => {
     taskStartRef.current = performance.now();
     attemptStartWallRef.current = Date.now();
@@ -146,6 +161,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   // Never leave the app talking after the child moves on.
   useEffect(() => () => stopSpeaking(), []);
 
+  // Child taps an answer: record the tap time and whether it was right, highlight it, read it back.
   const handleOptionTap = (option: string) => {
     if (activityState !== "active" || submitting) return;
     const now = performance.now();
@@ -165,6 +181,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
     });
   };
 
+  // Show the hint, count it, start the "pause" timer and read the hint aloud.
   const handleShowHint = () => {
     setHintVisible(true);
     setHintCount((c) => c + 1);
@@ -177,6 +194,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
     });
   };
 
+  // Hide the hint and save how long it was open as one pause.
   const handleDismissHint = () => {
     setHintVisible(false);
     if (pauseStartRef.current !== null) {
@@ -185,6 +203,9 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
     }
   };
 
+  // "Confirm & Continue": build features from the taps, send them to the behaviour API,
+  // save the attempt and prediction to Firestore (skipped for practice), then open the result screen.
+  // If the API or save fails, the child still moves on and the error is passed along.
   const handleSubmit = async () => {
     // The ref blocks a double-tap that lands before the `submitting` state re-renders.
     if (!selectedOption || submitting || submittedRef.current) return;
@@ -215,6 +236,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
       inactivity_periods: pausesRef.current.filter((p) => (p.end - p.start) > 3000).length,
     };
 
+    // Turn raw taps/timings into the numeric features the model expects.
     const features = calculateBehaviorFeatures(rawEvents, isCorrect, attemptCount);
 
     const payload = {
@@ -242,6 +264,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
       ...features,
     };
 
+    // Ask the backend model for the risk prediction.
     let result: any = null;
     let apiError: string | undefined;
     const uid = auth.currentUser?.uid ?? "anonymous";
@@ -347,6 +370,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
       <KidBackground variant="behavior" />
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
 
+      {/* Top bar: back button, "Activity x of y", level name, difficulty badge */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => { stopSpeaking(); navigation.goBack(); }}>
           <Ionicons name="arrow-back" size={20} color="#1E293B" />
@@ -361,6 +385,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
         </View>
       </View>
 
+      {/* Progress bar for the current level */}
       <View style={styles.progressTrack}>
         <LinearGradient
           colors={level.gradColors}
@@ -371,6 +396,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
+        {/* Task type badge with the running timer */}
         <View style={styles.typeBadge}>
           <Ionicons name={BEHAVIOR_TASK_TYPE_ICONS[task.task_type] as any} size={14} color={taskColors.color} />
           <Text style={[styles.typeBadgeText, { color: taskColors.color }]}>
@@ -562,7 +588,7 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
 
         <View style={{ height: 20 }} />
 
-        {/* Action row */}
+        {/* Action row: confirm button, greyed out until an answer is picked */}
         <LinearGradient
           colors={!selectedOption || submitting ? ["#E2E8F0", "#E2E8F0"] : [taskColors.color, taskColors.color]}
           style={styles.submitBtn}
@@ -593,7 +619,12 @@ export default function BehaviorActivityScreen({ navigation, route }: Props) {
   );
 }
 
+// Colours: page background #F5F7FF; white cards/tiles with light grey borders (#E2E8F0 / #E8EDF5);
+// dark slate #1E293B for main text; greys #475569 / #64748B / #94A3B8 for secondary text;
+// task-type colours (hints, selected tile, confirm button) come from BEHAVIOR_TASK_COLORS;
+// green #059669 = correct, red #EF4444 = wrong; teal #0891B2 glow on the confirm button.
 const styles = StyleSheet.create({
+  // Page + top bar (back button, title, difficulty badge)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
@@ -611,11 +642,13 @@ const styles = StyleSheet.create({
   diffDot: { width: 6, height: 6, borderRadius: 3 },
   diffText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  // Progress bar: grey track, fill colour comes from the level gradient
   progressTrack: { height: 5, backgroundColor: "#E2E8F0", marginHorizontal: 20, borderRadius: 3, marginBottom: 20, overflow: "hidden" },
   progressFill: { height: 5, borderRadius: 3 },
 
   content: { paddingHorizontal: 20 },
 
+  // Task type badge (white pill) and timer
   typeBadge: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -626,6 +659,7 @@ const styles = StyleSheet.create({
   timerBadge: { flexDirection: "row", alignItems: "center", gap: 3 },
   timerText: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#94A3B8" },
 
+  // Question card: white card, border colour set per task type; label and question text
   questionCard: {
     width: "100%", backgroundColor: "#fff", borderWidth: 1.5,
     borderRadius: 24, padding: 24, marginBottom: 12, gap: 10,
@@ -716,6 +750,7 @@ const styles = StyleSheet.create({
   },
   letterCardBadge: { position: "absolute", top: 6, right: 6 },
 
+  // Hint card and "Show hint" button: tinted with the task-type colours (set in the JSX)
   hintCard: {
     flexDirection: "row", alignItems: "center", gap: 10,
     borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 16,
@@ -727,6 +762,7 @@ const styles = StyleSheet.create({
   },
   hintBtnText: { fontSize: 12, fontFamily: theme.fonts.medium },
 
+  // Normal text answer cards: white with a grey border (selected/right/wrong colours are set in the JSX)
   optionsLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 },
   optionsGrid: { gap: 10 },
   optionCard: {
@@ -738,6 +774,7 @@ const styles = StyleSheet.create({
   optionLetter: { fontSize: 13, fontFamily: theme.fonts.bold, width: 22, textAlign: "center" },
   optionText: { flex: 1, fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
 
+  // Confirm button: gradient pill (grey when disabled, task colour when ready), teal glow shadow
   submitBtn: {
     borderRadius: 50,
     shadowColor: "#0891B2", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

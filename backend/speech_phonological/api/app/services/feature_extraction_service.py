@@ -1,3 +1,6 @@
+# Turns a speech recording into the numeric features the speech model expects (pauses, pitch, energy, MFCCs...).
+# Called by services/predict_service.py. Many phoneme-level values are rough estimates (prototype),
+# because real phoneme alignment is not implemented yet.
 import io
 import numpy as np
 import pandas as pd
@@ -5,8 +8,10 @@ import librosa
 
 from app.utils.task_utils import count_syllables_simple, safe_word_length
 
+# Returned in the API response so results can be traced to this feature layout.
 FEATURE_SCHEMA_VERSION = "speech_features_v1"
 
+# All model input columns, in training order. The order must match the training data.
 MODEL_FEATURE_COLUMNS = [
     "task_type", "target_word", "target_phoneme_seq", "word_length", "syllable_count",
     "difficulty_level", "linguistic_focus", "age", "gender", "native_language",
@@ -33,6 +38,7 @@ MODEL_FEATURE_COLUMNS = [
     "phonological_deficit_score"
 ]
 
+# Load audio at 16kHz mono, cut leading/trailing silence and scale volume. Returns raw and cleaned audio plus durations and peak level.
 def _load_trim_normalize(file_bytes: bytes):
     y_raw, sr = librosa.load(io.BytesIO(file_bytes), sr=16000, mono=True)
     raw_duration = len(y_raw) / sr if len(y_raw) else 0.0
@@ -49,6 +55,7 @@ def _load_trim_normalize(file_bytes: bytes):
     speech_duration = len(y_norm) / sr if len(y_norm) else raw_duration
     return y_raw, y_norm, sr, raw_duration, speech_duration, raw_peak
 
+# Count pauses (quiet stretches over ~0.06s) and their average/max length.
 def _pause_features(y, sr):
     frame_length = 1024
     hop_length = 256
@@ -84,6 +91,7 @@ def _pitch_features(y, sr):
     except Exception:
         return fallback
 
+# 13 MFCC (voice-timbre) averages and spreads, clipped to the ranges seen in training.
 def _mfcc_features(y, sr):
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
     data = {}
@@ -93,6 +101,7 @@ def _mfcc_features(y, sr):
         data[f"mfcc_{i + 1}_std"] = float(np.clip(np.std(mfcc[i]), 1, 60))
     return data
 
+# Rough F1/F2/F3 estimates from the strongest frequency in typical vowel bands (not true formant tracking).
 def _formant_like_features(y, sr):
     S = np.abs(librosa.stft(y, n_fft=2048, hop_length=512))
     spectrum = np.mean(S, axis=1)
@@ -106,6 +115,7 @@ def _formant_like_features(y, sr):
         return float(local_freqs[int(np.argmax(local))])
     return peak(250, 900, 550.0), peak(900, 2800, 1600.0), peak(1800, 3500, 2500.0)
 
+# Checks the recording against the training ranges. 0 warnings = high reliability, 1 = medium, 2+ = low (which later becomes 'requires_review').
 def _quality_flags(raw_peak, speech_duration, raw_duration, energy_mean, mfcc_1_mean):
     warnings = []
     if raw_peak < 0.03:
@@ -125,6 +135,7 @@ def _quality_flags(raw_peak, speech_duration, raw_duration, energy_mean, mfcc_1_
         reliability = "medium"
     return reliability, warnings
 
+# Computes all audio features plus estimated phoneme/pronunciation scores. Returns (one-row DataFrame, feature dict, quality dict).
 def extract_speech_features(
     file_bytes: bytes,
     *,

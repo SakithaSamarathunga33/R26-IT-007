@@ -1,7 +1,10 @@
+# Runs the speech model: extract audio features, predict, and turn the probability into a risk level.
+# Called by routes/predict_routes.py; its result is then adjusted there using the transcript check.
 from fastapi import HTTPException
 from app.services.model_loader import get_model, MODEL_PATH
 from app.services.feature_extraction_service import extract_speech_features
 
+# Returns features, quality info and the prediction. Raises 503 if the model is not loaded.
 def predict_speech_from_audio(
     file_bytes: bytes,
     *,
@@ -42,6 +45,7 @@ def predict_speech_from_audio(
     prediction = int(model.predict(feature_df)[0])
     probability = float(model.predict_proba(feature_df)[0][1])
 
+    # Low-quality audio -> 'requires_review' instead of a risk level. Otherwise cut-offs: <0.35 low, <0.70 medium, else high.
     if quality["prediction_reliability"] == "low":
         risk_level = "requires_review"
     elif probability < 0.35:

@@ -1,3 +1,6 @@
+// fusionService.ts - combines the speech, handwriting and behaviour results into one report.
+// Reads each module's saved predictions from Firestore, calls the fusion backend (POST /predict/fusion),
+// and saves the fusion + therapy results. Used by the summary / final report screens.
 import { db } from "../config/firebase";
 import {
   collection,
@@ -17,6 +20,7 @@ const FUSION_API = API_URLS.fusion;
 
 // ── Aggregation helpers ───────────────────────────────────────────────────────
 
+// Average of a list; 0 if empty.
 function avg(arr: number[]): number {
   if (!arr.length) return 0;
   return arr.reduce((s, v) => s + v, 0) / arr.length;
@@ -31,6 +35,7 @@ function worstReliability(values: string[]): string {
 
 // ── Module summary builders ───────────────────────────────────────────────────
 
+// Averages this session's speech predictions into one module summary (risk, key features, reliability); null if none.
 export async function buildSpeechSummary(childId: string, sessionId: string) {
   const snap = await getDocs(
     query(
@@ -64,6 +69,7 @@ export async function buildSpeechSummary(childId: string, sessionId: string) {
   };
 }
 
+// Same as above for handwriting (ignores supplementary practice attempts).
 export async function buildHandwritingSummary(childId: string, sessionId: string) {
   const snap = await getDocs(
     query(
@@ -94,6 +100,7 @@ export async function buildHandwritingSummary(childId: string, sessionId: string
   };
 }
 
+// Same as above for behaviour tasks.
 export async function buildBehaviorSummary(childId: string, sessionId: string) {
   const snap = await getDocs(
     query(
@@ -126,6 +133,7 @@ export async function buildBehaviorSummary(childId: string, sessionId: string) {
 
 // ── Fusion API call ───────────────────────────────────────────────────────────
 
+// Sends the three module summaries to the fusion backend and returns its report.
 export async function callFusionAPI(payload: object) {
   const res = await fetch(`${FUSION_API}/predict/fusion`, {
     method: "POST",
@@ -138,6 +146,8 @@ export async function callFusionAPI(payload: object) {
 
 // ── Firestore save ────────────────────────────────────────────────────────────
 
+// Saves the fusion result and therapy plan to Firestore and marks the session fusion_completed.
+// Returns the new ids and `failed` = true if any save did not work.
 export async function saveFusionResults(
   sessionId: string,
   response: any

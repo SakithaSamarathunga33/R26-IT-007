@@ -1,3 +1,4 @@
+# Files left out of the Docker build context (caches, virtualenvs, secrets, training datasets, docs).
 **/__pycache__
 **/*.pyc
 .env

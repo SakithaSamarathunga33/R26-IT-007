@@ -1,3 +1,11 @@
+/**
+ * SpeechSummaryScreen
+ * Grown-up summary of the whole speech screening: overall risk indicator, stats and a per-activity breakdown grouped by level.
+ * Flow: SpeechLevelComplete or SpeechLevels ("See results so far") -> SpeechSummary -> back to SpeechLevels.
+ * Reads saved results from Firestore (speech_predictions via services/summaryService) and level progress (speechLevelService).
+ * Marks the speech module as done (sessionService) once every level is finished, which unlocks the Fusion (multi-modal) assessment.
+ * No direct backend API call here.
+ */
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,13 +28,16 @@ import { markModuleDone } from "../../services/sessionService";
 import { fetchModuleSummary, ModuleSummary, RiskLevel, SummaryRow } from "../../services/summaryService";
 import { SpeechLevelProgress, fetchLevelProgress } from "../../services/speechLevelService";
 
+// Only needs navigation (no route params).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechSummary">;
 };
 
+// Risk colours: green = low, orange = medium, red = high, grey = needs review (RISK_BG = matching soft backgrounds).
 const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444", requires_review: "#64748B" };
 const RISK_BG = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", requires_review: "#F8FAFC" };
 
+// Text, icon and card gradient for each overall risk level (green / amber / red / grey).
 const OVERALL_CONFIG = {
   low: { label: "Low Risk Indicators", sublabel: "Speech patterns are generally within typical range.", icon: "checkmark-circle" as const, gradColors: ["#059669", "#047857"] as [string, string] },
   medium: { label: "Moderate Indicators", sublabel: "Some patterns noted. A specialist review may help.", icon: "alert-circle" as const, gradColors: ["#F59E0B", "#D97706"] as [string, string] },
@@ -34,6 +45,7 @@ const OVERALL_CONFIG = {
   requires_review: { label: "Review Required", sublabel: "Some activities had low quality. Please re-run.", icon: "refresh-circle" as const, gradColors: ["#94A3B8", "#64748B"] as [string, string] },
 };
 
+// Main screen: loads results, then shows overall card, stats, disclaimer and activity list.
 export default function SpeechSummaryScreen({ navigation }: Props) {
   const { t } = useT();
   const markedRef = useRef(false);
@@ -41,6 +53,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
   const [levelProgress, setLevelProgress] = useState<SpeechLevelProgress>({ completed: [] });
   const [loading, setLoading] = useState(true);
 
+  // Load the summary and level progress once; mark the speech module done if all levels are played.
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) { setLoading(false); return; }
@@ -65,6 +78,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
       .finally(() => setLoading(false));
   }, []);
 
+  // While loading (or if there are no results) show a spinner or a "no results" message.
   if (loading || !summary) {
     return (
       <View style={[styles.container, { alignItems: "center", justifyContent: "center" }]}>
@@ -220,6 +234,7 @@ export default function SpeechSummaryScreen({ navigation }: Props) {
   );
 }
 
+// One activity row in the list; a LevelGroup is all rows belonging to one level.
 type BreakdownItem = { row: SummaryRow; word: string; typeLabel: string; key: string };
 type LevelGroup = { level: SpeechLevel; items: BreakdownItem[] };
 
@@ -253,6 +268,7 @@ function groupRowsByLevel(rows: SummaryRow[]): LevelGroup[] {
   }));
 }
 
+// One stat in the stats card (coloured value box + small label).
 function StatBox({ value, label, accent, bg }: { value: string; label: string; accent: string; bg: string }) {
   return (
     <View style={styles.statBox}>
@@ -264,8 +280,11 @@ function StatBox({ value, label, accent, bg }: { value: string; label: string; a
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+  /* Header: white circle back button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -278,6 +297,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20, paddingTop: 8 },
 
+  /* Overall result card: gradient colour = overall risk (green / amber / red / grey); white text */
   overallCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
     overflow: "hidden", shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
@@ -290,6 +310,7 @@ const styles = StyleSheet.create({
   overallLabel: { fontSize: 20, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 6, textAlign: "center" },
   overallSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.82)", textAlign: "center", lineHeight: 19 },
 
+  /* "Levels still to go" notice: warm yellow background with brown text */
   partialCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
@@ -302,6 +323,7 @@ const styles = StyleSheet.create({
   partialTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#92400E", marginBottom: 2 },
   partialSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#B45309", lineHeight: 17 },
 
+  /* Stats card: white, grey labels; value colours are set in the code */
   statsCard: {
     flexDirection: "row", backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, paddingVertical: 16, marginBottom: 14,
@@ -313,6 +335,7 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 10, fontFamily: theme.fonts.regular, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.4 },
   statDivider: { width: 1, backgroundColor: "#F1F5F9", marginVertical: 4 },
 
+  /* Disclaimer: light blue background, blue text (dark blue for the bold part) */
   disclaimerCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -321,11 +344,13 @@ const styles = StyleSheet.create({
   disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
   disclaimerBold: { fontFamily: theme.fonts.semiBold, color: "#1E40AF" },
 
+  /* Section title (dark slate) with a small blue count badge */
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
   sectionTitle: { fontSize: 15, fontFamily: theme.fonts.bold, color: "#1E293B" },
   sectionBadge: { backgroundColor: "#EFF6FF", borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
   sectionBadgeText: { fontSize: 10, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  /* Level group header: level gradient badge + level-coloured chip */
   levelGroup: { marginBottom: 10 },
   levelGroupHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, marginTop: 6 },
   levelGroupBadge: { width: 26, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center" },
@@ -334,6 +359,7 @@ const styles = StyleSheet.create({
   levelGroupChip: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   levelGroupChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold },
 
+  /* Activity rows: white cards; index box and risk pill use the risk colours (green / orange / red / grey) */
   activityRow: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -351,6 +377,7 @@ const styles = StyleSheet.create({
   riskPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold, textTransform: "capitalize" },
   activityProb: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#94A3B8" },
 
+  /* Fusion info card: light blue background and blue text */
   fusionCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -360,6 +387,7 @@ const styles = StyleSheet.create({
   fusionTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#1E40AF", marginBottom: 2 },
   fusionSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 17 },
 
+  /* Back button: blue gradient pill with white text */
   doneBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

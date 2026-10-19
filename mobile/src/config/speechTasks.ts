@@ -1,3 +1,7 @@
+// speechTasks.ts - the list of speech (phonological) tasks and levels the child does.
+// Used by the Speech* screens, summaryService, therapyActivityMap; results are sent to the speech backend
+// (API_URLS.speech). Tasks are grouped into 3 levels; the order here is the play order.
+// Kinds of speech task (repeat a word, match a sound, rhyme, syllables, blending...).
 export type TaskType =
   | "word_repetition"
   | "nonword_repetition"
@@ -12,6 +16,7 @@ export type DifficultyLevel = "easy" | "medium" | "hard";
 /** Level 1 = simple, Level 2 = harder than simple, Level 3 = difficult. */
 export type LevelId = 1 | 2 | 3;
 
+// The language skill each task is checking.
 export type LinguisticFocus =
   | "phoneme_accuracy"
   | "word_repetition"
@@ -23,6 +28,7 @@ export type LinguisticFocus =
   | "sound_blending"
   | "multi_syllable";
 
+// One speech task: the target word and its phonemes, what is shown, and what the app says aloud.
 export interface SpeechTask {
   id: string;
   level: LevelId;
@@ -43,6 +49,7 @@ export interface SpeechTask {
  * prediction rows onto this array by position, so keep tasks contiguous per
  * level and only append within a block.
  */
+// Task table (3 levels). difficulty_level is easy / medium / hard.
 export const SPEECH_TASKS: SpeechTask[] = [
   // ── Level 1 — simple: short, familiar single-syllable words ────────────────
   {
@@ -173,6 +180,7 @@ export const SPEECH_TASKS: SpeechTask[] = [
 
 // ── Level metadata ────────────────────────────────────────────────────────────
 
+// Display info for a level card.
 export interface SpeechLevel {
   id: LevelId;
   title: string;
@@ -184,6 +192,8 @@ export interface SpeechLevel {
   gradColors: [string, string];
 }
 
+// Colours per level card: color = main accent, bg = pale card background, gradColors = gradient for the badge
+// (level 1 green = easy, level 2 amber = medium, level 3 purple = hard).
 export const SPEECH_LEVELS: SpeechLevel[] = [
   {
     id: 1,
@@ -225,6 +235,7 @@ export function taskIndicesForLevel(level: LevelId): number[] {
   }, []);
 }
 
+// How many tasks are in a level.
 export function levelTaskCount(level: LevelId): number {
   return SPEECH_TASKS.filter((t) => t.level === level).length;
 }
@@ -242,10 +253,12 @@ export function nextIndexInLevel(taskIndex: number): number | null {
   return next ?? null;
 }
 
+// Finds the level info for a level number.
 export function getLevel(level: LevelId): SpeechLevel {
   return SPEECH_LEVELS.find((l) => l.id === level)!;
 }
 
+// Short names shown to users for each task type.
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   word_repetition: "Word Repetition",
   nonword_repetition: "Nonword Repetition",
@@ -256,6 +269,7 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   sound_blending: "Sound Blending",
 };
 
+// Ionicons icon name for each task type.
 export const TASK_TYPE_ICONS: Record<TaskType, string> = {
   word_repetition: "text",
   nonword_repetition: "shuffle",

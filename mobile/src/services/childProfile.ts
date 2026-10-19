@@ -1,9 +1,12 @@
+// childProfile.ts - works out the child's age from the date of birth saved at sign-up (Firestore users/{uid}).
+// The age is sent to the speech/behaviour/handwriting backends with each prediction.
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 
 // ponytail: only date of birth is collected at sign-up; gender/native language are not, so callers keep their defaults for those until the profile asks for them.
 const FALLBACK_AGE = 6;
 
+// Remembers the age for the logged-in user so Firestore is only read once.
 let cachedAge: { uid: string; age: number } | null = null;
 
 /** Call after the date of birth changes so the next assessment uses the new age. */
@@ -11,6 +14,7 @@ export function clearChildAgeCache() {
   cachedAge = null;
 }
 
+// Converts a date-of-birth string to age in years (1 decimal), clamped to 3-10; null if invalid.
 export function ageFromDob(dob: string, now: Date = new Date()): number | null {
   const birth = new Date(dob);
   if (isNaN(birth.getTime())) return null;

@@ -12,6 +12,7 @@ import { BEHAVIOR_TASKS } from "./behaviorTasks";
  * "Start Activity" can launch the matching module task in practice mode.
  */
 
+// Which screening module a therapy activity belongs to.
 export type TherapyModule = "speech" | "handwriting" | "behavior";
 
 export interface TherapyActivityTarget {
@@ -20,6 +21,7 @@ export interface TherapyActivityTarget {
   taskIds: string[];
 }
 
+// Lookup table: backend activity ID -> module + the task ids to practise (grouped by skill area).
 const ACTIVITY_MAP: Record<string, TherapyActivityTarget> = {
   // ── Phonological processing → Speech module ────────────────────────────────
   SPEECH_001: { module: "speech", taskIds: ["ism_map", "ism_goat"] },          // phoneme_awareness

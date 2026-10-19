@@ -1,3 +1,8 @@
+// Behaviour module intro screen: explains the attention/engagement activity
+// (3 levels, read-aloud questions, how it works) before the child starts.
+// Flow: Home/module list -> BehaviorIntro -> "Choose a Level" -> BehaviorLevels.
+// Back button returns to the previous screen. Uses no backend/API; it only reads
+// the level and task lists from config/behaviorTasks and text from the i18n helper.
 import React from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,18 +20,21 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorIntro">;
 };
 
+// The three "How it works" rows (icon, text and its colour pair: accent + pale background).
 const STEPS = [
   { icon: "volume-high-outline" as const, title: "Listen to the Question", desc: "The app reads every question out loud — tap to hear it again.", color: "#0891B2", bg: "#ECFEFF" },
   { icon: "finger-print-outline" as const, title: "Tap Your Answer", desc: "Tap the option you think is correct. Hints are there if you need them.", color: "#7C3AED", bg: "#F5F3FF" },
   { icon: "analytics-outline" as const, title: "AI Analyses", desc: "Your attention and engagement are measured.", color: "#059669", bg: "#ECFDF5" },
 ];
 
+// Small info pills in the hero card ("3 levels", "N activities", "Read aloud").
 const CHIPS = [
   { icon: "layers-outline" as const, label: "{n} levels", n: BEHAVIOR_LEVELS.length },
   { icon: "list-outline" as const, label: "{n} activities", n: BEHAVIOR_TASKS.length },
   { icon: "volume-high-outline" as const, label: "Read aloud", n: 0 },
 ];
 
+// Static intro page: hero card, level overview, how-it-works steps, notice and start button.
 export default function BehaviorIntroScreen({ navigation }: Props) {
   const { t } = useT();
   return (
@@ -134,7 +142,11 @@ export default function BehaviorIntroScreen({ navigation }: Props) {
   );
 }
 
+// Colours: page background #F5F7FF (soft blue-white); teal/cyan #0891B2 / #0E7490
+// is the module accent (hero, start button, notice); dark slate #1E293B for titles;
+// grey slate #64748B / #94A3B8 for body and label text; white cards with #E8EDF5 borders.
 const styles = StyleSheet.create({
+  // Page + top bar (white round back button, dark title)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
@@ -148,6 +160,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20 },
 
+  // Hero card: teal gradient card with faint white circles and translucent white chips
   heroCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 24,
     overflow: "hidden",
@@ -170,9 +183,11 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#fff" },
 
+  // Intro paragraph and small grey uppercase section labels
   descText: { fontSize: 14, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 22, marginBottom: 24, textAlign: "center" },
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 },
 
+  // "Three levels" card: white card, one row per level (colour badges come from config)
   levelsCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 24, overflow: "hidden",
@@ -187,6 +202,7 @@ const styles = StyleSheet.create({
   levelCountChip: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   levelCountText: { fontSize: 13, fontFamily: theme.fonts.bold },
 
+  // "How it works" card: white card, rows with a tinted icon box and number badge
   stepsCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 16, overflow: "hidden",
@@ -201,6 +217,7 @@ const styles = StyleSheet.create({
   stepNum: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   stepNumText: { fontSize: 12, fontFamily: theme.fonts.bold },
 
+  // Notice box: pale cyan background with dark teal text ("screening tool, not a diagnosis")
   noticeCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     backgroundColor: "#ECFEFF", borderWidth: 1, borderColor: "#CFFAFE",
@@ -209,6 +226,7 @@ const styles = StyleSheet.create({
   noticeIconWrap: { marginTop: 1 },
   noticeText: { flex: 1, fontSize: 13, fontFamily: theme.fonts.regular, color: "#0E7490", lineHeight: 19 },
 
+  // Start button: teal gradient pill with teal glow shadow, white text
   startBtn: {
     borderRadius: 50,
     shadowColor: "#0891B2", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

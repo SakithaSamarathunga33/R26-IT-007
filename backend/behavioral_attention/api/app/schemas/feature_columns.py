@@ -1,5 +1,10 @@
+# The single list of features the behaviour model was trained on (names AND order matter).
+# Used by schemas/behavior_request.py (validation), services/feature_builder.py (building the model input)
+# and routes/predict_routes.py (the /behavior/schema endpoint).
+# Version tag sent back in every response so clients know which feature layout was used.
 FEATURE_SCHEMA_VERSION = "behavior_features_v1"
 
+# All input features, in the exact order the model expects.
 FEATURE_COLUMNS = [
     "task_type",
     "difficulty_level",
@@ -49,6 +54,7 @@ FEATURE_COLUMNS = [
     "attention_score"
 ]
 
+# Features converted to numbers (times, counts, scores, flags).
 NUMERIC_COLUMNS = [
     "age",
     "environment_distraction_level",
@@ -86,6 +92,7 @@ NUMERIC_COLUMNS = [
     "attention_score"
 ]
 
+# Features kept as text (task type, language, device, etc.).
 CATEGORICAL_COLUMNS = [
     "task_type",
     "difficulty_level",

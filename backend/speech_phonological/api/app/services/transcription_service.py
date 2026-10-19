@@ -1,3 +1,5 @@
+# Speech-to-text using faster-whisper. Called by routes/predict_routes.py to check the child said the target word.
+# Optional: if Whisper cannot load, transcription is skipped (returns None) and the rest still works.
 import io
 import logging
 import os
@@ -5,9 +7,11 @@ import tempfile
 
 logger = logging.getLogger("speech.transcription")
 
+# Whisper model cache; loaded lazily on first use. _model_load_failed stops us retrying a failed load on every request.
 _model = None
 _model_load_failed = False
 
+# Maps language names sent by the app (e.g. 'sinhala') to Whisper language codes.
 _LANGUAGE_NAME_TO_CODE = {
     "english": "en",
     "sinhala": "si",
@@ -31,6 +35,7 @@ _LANGUAGE_NAME_TO_CODE = {
 }
 
 
+# Convert a language name/code to a Whisper code; None means let Whisper auto-detect.
 def _normalize_language(lang: str | None) -> str | None:
     if not lang:
         return None
@@ -45,6 +50,7 @@ def _normalize_language(lang: str | None) -> str | None:
     return None
 
 
+# Load the Whisper model on first use. Size and compute type come from WHISPER_MODEL_SIZE / WHISPER_COMPUTE_TYPE (default base / int8, CPU).
 def _get_model():
     global _model, _model_load_failed
     if _model is not None or _model_load_failed:
@@ -71,6 +77,7 @@ def transcribe_wav_bytes(file_bytes: bytes, language: str | None = None) -> str 
         tmp.write(file_bytes)
         tmp_path = tmp.name
     try:
+        # vad_filter skips silence; beam_size=1 keeps it fast.
         segments, _info = model.transcribe(
             tmp_path,
             language=lang_code,

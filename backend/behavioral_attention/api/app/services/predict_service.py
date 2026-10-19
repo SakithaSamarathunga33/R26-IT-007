@@ -1,3 +1,6 @@
+# Core prediction logic for the behaviour module.
+# Called by routes/predict_routes.py. Builds features, runs the model, then adds a risk level and a data-quality rating.
+# The returned JSON is what the mobile app and the multi_modal_risk fusion API use as the behaviour result.
 from fastapi import HTTPException
 from typing import Dict, Any
 
@@ -6,6 +9,8 @@ from app.schemas.feature_columns import FEATURE_SCHEMA_VERSION
 from app.services.feature_builder import build_feature_dataframe
 from app.utils.risk_utils import probability_to_risk_level, reliability_from_missing_count
 
+# Runs one behaviour prediction. Returns the risk label (0/1), risk probability, risk level (low/medium/high)
+# and quality info. Responds 503 if the model is not loaded. A "low" reliability makes quality_status "inconclusive".
 def predict_behavior(payload: Dict[str, Any]):
     model = get_model()
 

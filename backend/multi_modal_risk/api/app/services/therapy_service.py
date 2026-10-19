@@ -1,5 +1,8 @@
+# Chooses therapy activities and how often to practise. Called by services/predict_service.py after the difficulty areas are known.
+# The result is shown in the mobile app and saved via database_save_payload.
 from app.utils.risk_utils import final_risk_level
 
+# Fixed list of activities for each difficulty area (phonological_processing, handwriting, attention_behavior), with id, title, description, target skill and minutes.
 THERAPY_LIBRARY = {
     'phonological_processing': {
         'primary_focus': 'Speech and phonological awareness',
@@ -27,12 +30,16 @@ THERAPY_LIBRARY = {
     }
 }
 
+# Practice sessions per week by risk level: high = 3, medium = 2, low = 1.
 def sessions_per_week(risk_level):
     return 3 if risk_level == 'high' else 2 if risk_level == 'medium' else 1
 
+# Plan intensity by risk level: high = intensive, medium = moderate, low = light.
 def recommendation_intensity(risk_level):
     return 'intensive' if risk_level == 'high' else 'moderate' if risk_level == 'medium' else 'light'
 
+# Builds the plan: activities for the main weak area, one suggested activity for the secondary area, sessions per week and intensity.
+# Dosage uses the risk band of the main area's own score when known. Includes a note that this is not a diagnosis.
 def build_therapy_recommendation(final_prediction, primary_difficulty, secondary_difficulty_label, primary_score=None):
     # dosage follows the weakest (primary) area's own band; overall band only if that score is unknown
     risk_level = final_risk_level(primary_score) if primary_score is not None else final_prediction['final_dyslexia_risk_level']

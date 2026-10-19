@@ -1,12 +1,17 @@
+# Used by both training (training/train_reliability_fusion.py) and the live service (services/fusion_service.py),
+# so they build the model input the same way.
 """Feature vector for the reliability-aware fusion model.
 
 Shared by training (backend/multi_modal_risk/training) and serving, so the two can never drift apart.
 """
 from typing import Dict, List, Optional
 
+# The three input modules.
 MODULES = ['speech', 'handwriting', 'behavior']
+# Reliability label converted to a number: high 1.0, medium 0.5, low 0.0.
 RELIABILITY_NUMERIC = {'high': 1.0, 'medium': 0.5, 'low': 0.0}
 
+# Order of the numbers fed to the logistic fusion model. Must match the order saved in the model JSON, otherwise the model is ignored.
 FEATURE_ORDER = (
     [f'{m}_prob' for m in MODULES]
     + [f'{m}_missing' for m in MODULES]
@@ -15,6 +20,7 @@ FEATURE_ORDER = (
     + ['max_pairwise_gap', 'evidence_completeness']
 )
 
+# Makes the list of numbers for the model: probabilities, missing flags, reliabilities, their products, biggest gap between modules, and share of modules available.
 def build_features(probs: Dict[str, Optional[float]], reliabilities: Dict[str, Optional[str]]) -> List[float]:
     """probs: module -> risk probability, or None when the module is unusable."""
     available = [p for p in probs.values() if p is not None]

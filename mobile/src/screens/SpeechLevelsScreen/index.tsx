@@ -1,3 +1,11 @@
+/**
+ * SpeechLevelsScreen
+ * Lets the child pick one of the 3 speech levels. Level 1 is open; the next level unlocks when the one before is finished.
+ * Flow: SpeechIntro -> SpeechLevels -> SpeechActivity (first task of the chosen level).
+ * Also links to SpeechSummary ("See results so far") once at least one level is done.
+ * Uses config/speechTasks (levels, task lists), services/speechLevelService (saved level progress),
+ * services/sessionService (clears old predictions), Firebase auth (current user id) and i18n.
+ */
 import React, { useCallback, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,10 +26,12 @@ import {
   isLevelUnlocked,
 } from "../../services/speechLevelService";
 
+// Only needs navigation (no route params).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechLevels">;
 };
 
+// Main screen: loads which levels are done, draws progress + level cards.
 export default function SpeechLevelsScreen({ navigation }: Props) {
   const { t } = useT();
   const [progress, setProgress] = useState<SpeechLevelProgress>({ completed: [] });
@@ -45,6 +55,7 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
     }, [])
   );
 
+  // Called when a level card is tapped: clears old results for that level, then opens its first task.
   const startLevel = async (level: SpeechLevel) => {
     const uid = auth.currentUser?.uid;
     // Clear before the first task so an in-flight delete can't eat the new
@@ -208,9 +219,12 @@ export default function SpeechLevelsScreen({ navigation }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  /* Header: white circle back button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -223,6 +237,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
 
   content: { paddingHorizontal: 20, paddingTop: 8 },
+  /* "See results so far" button: light blue fill, blue border and text */
   resultsBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     borderRadius: 16, paddingVertical: 14, marginBottom: 16,
@@ -230,6 +245,7 @@ const styles = StyleSheet.create({
   },
   resultsBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  /* Overall progress card: white card, blue trophy icon, blue percentage, grey track with blue fill */
   progressCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -246,6 +262,7 @@ const styles = StyleSheet.create({
   progressTrack: { height: 6, backgroundColor: "#E2E8F0", borderRadius: 3, overflow: "hidden" },
   progressFill: { height: 6, borderRadius: 3 },
 
+  /* Level cards: white when open, very pale grey when locked */
   levelCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -254,22 +271,26 @@ const styles = StyleSheet.create({
   },
   levelCardLocked: { backgroundColor: "#FBFCFE", borderColor: "#F1F5F9", shadowOpacity: 0, elevation: 0 },
 
+  /* Level number badge: level gradient when open, grey when locked */
   levelBadge: { width: 52, height: 52, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   levelBadgeLocked: { backgroundColor: "#F1F5F9" },
   levelBadgeNum: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff" },
 
+  /* Level text: dark title, grey description, muted grey when locked */
   levelInfo: { flex: 1 },
   levelTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 3 },
   levelTitle: { fontSize: 15, fontFamily: theme.fonts.bold, color: "#1E293B" },
   levelDesc: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 17, marginBottom: 8 },
   textMuted: { color: "#94A3B8" },
 
+  /* "Done" chip: green text on pale green */
   doneChip: {
     flexDirection: "row", alignItems: "center", gap: 3,
     backgroundColor: "#ECFDF5", borderRadius: 20, paddingHorizontal: 7, paddingVertical: 2,
   },
   doneChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold, color: "#059669" },
 
+  /* Small info chips (level colour when open, grey when locked) */
   metaRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   metaChip: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
   metaChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold },
@@ -279,9 +300,11 @@ const styles = StyleSheet.create({
   },
   metaChipPlainText: { fontSize: 10, fontFamily: theme.fonts.medium, color: "#94A3B8" },
 
+  /* Stars: gold = level finished, light grey = not yet */
   starCol: { alignItems: "center", gap: 4 },
   starRow: { flexDirection: "row", gap: 1 },
 
+  /* Note box: light blue background with blue text */
   noteCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",

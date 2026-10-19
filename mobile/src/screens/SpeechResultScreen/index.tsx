@@ -1,3 +1,11 @@
+/**
+ * SpeechResultScreen
+ * Shows the child a friendly, encouraging result after one speech task (no real risk numbers are shown to the child).
+ * Flow: SpeechReview -> SpeechResult -> next SpeechActivity, or SpeechLevelComplete at the end of a level.
+ * In practice mode (from a therapy plan) it goes to the next practice task or back to FusionTherapy instead.
+ * Uses config/speechTasks for task + level info, utils/practiceFlow, services/kidFeedback (spoken praise), i18n and KidBackground.
+ * No backend call here; the AI result was already fetched in SpeechReview.
+ */
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,6 +20,7 @@ import { SPEECH_TASKS, getLevel, levelTaskCount, nextIndexInLevel, positionInLev
 import { practiceNext } from "../../utils/practiceFlow";
 import { speakFeedback, stopSpeaking } from "../../services/kidFeedback";
 
+// Navigation + route (task, tries, AI result or error, practice info).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechResult">;
   route: RouteProp<RootStackParamList, "SpeechResult">;
@@ -19,6 +28,7 @@ type Props = {
 
 // Child-facing: encouragement only. The real risk values are saved with the
 // prediction for the adult summary and never shown here.
+// Colours: green = done, blue = say it again, grey = audio problem / could not check (soft, never scary red for kids).
 const CHEER = {
   done:     { label: "Great job!",                 sublabel: "You said it — keep it up!",                           icon: "star" as const,          gradColors: ["#059669", "#047857"] as [string, string] },
   mismatch: { label: "Let's try that word again!", sublabel: "Listen once more, then say it nice and clear.",       icon: "repeat" as const,        gradColors: ["#3B72F6", "#2563EB"] as [string, string] },
@@ -26,6 +36,7 @@ const CHEER = {
   error:    { label: "Nice try!",                  sublabel: "We couldn't check this one — that's okay, keep going!", icon: "happy-outline" as const, gradColors: ["#94A3B8", "#64748B"] as [string, string] },
 };
 
+// Main screen: picks the right cheer message, shows stats and the Next / Try Again buttons.
 export default function SpeechResultScreen({ navigation, route }: Props) {
   const { t } = useT();
   const { taskIndex, retryCount, result, error, practice } = route.params;
@@ -48,6 +59,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
 
   // Encouragement on arrival. These screens are reached only after the
   // response is submitted, so speaking the outcome cannot change it.
+  // Say a short praise message once, shortly after the screen opens.
   const spokenRef = useRef(false);
   useEffect(() => {
     if (spokenRef.current) return;
@@ -58,6 +70,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
 
   useEffect(() => () => stopSpeaking(), []);
 
+  // Goes to the next step: next practice task / back to therapy plan, level-complete screen, or the next activity.
   const handleNext = () => {
     stopSpeaking();
     // Practice runs belong to a therapy plan: step through that activity's own
@@ -143,6 +156,7 @@ export default function SpeechResultScreen({ navigation, route }: Props) {
   );
 }
 
+// Small card showing one stat (icon, value, label).
 function StatCard({ icon, label, value, accent, bg }: { icon: any; label: string; value: string; accent: string; bg: string }) {
   return (
     <View style={[styles.statCard, { borderColor: bg }]}>
@@ -155,8 +169,11 @@ function StatCard({ icon, label, value, accent, bg }: { icon: any; label: string
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+  /* Header: dark slate title and a level pill in the level colours */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -166,6 +183,7 @@ const styles = StyleSheet.create({
   levelPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
   content: { paddingHorizontal: 20, paddingTop: 8, alignItems: "center" },
 
+  /* Encouragement card: its gradient colour comes from CHEER (green / blue / grey); white text */
   riskCard: {
     width: "100%", borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
     overflow: "hidden", shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
@@ -179,6 +197,7 @@ const styles = StyleSheet.create({
   riskLabel: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 6 },
   riskSubLabel: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.82)", textAlign: "center", lineHeight: 19 },
 
+  /* Stat cards: white, with accent colours passed in (blue and purple) */
   statsRow: { flexDirection: "row", gap: 10, width: "100%", marginBottom: 14 },
   statCard: {
     flex: 1, backgroundColor: "#fff", borderWidth: 1, borderRadius: 16,
@@ -189,6 +208,7 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 14, fontFamily: theme.fonts.bold },
   statLabel: { fontSize: 10, fontFamily: theme.fonts.regular, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5 },
 
+  /* Try Again button: white pill with grey border and grey text */
   reRecordBtn: {
     width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     paddingVertical: 16, borderRadius: 50,
@@ -197,6 +217,7 @@ const styles = StyleSheet.create({
   },
   reRecordBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  /* Next button: blue gradient pill with white text */
   nextBtn: {
     width: "100%", borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

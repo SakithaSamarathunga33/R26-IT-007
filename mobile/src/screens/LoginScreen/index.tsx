@@ -1,3 +1,7 @@
+// LoginScreen: lets an existing user sign in with email + password (Firebase Auth).
+// Reached from: WelcomeScreen / OnboardingScreen (Stack "Login") or from SignupScreen.
+// Goes to: "MainTabs" (Home/History/Profile) after a successful sign in, or "Signup" for new users.
+// Uses: firebase auth (config/firebase), Toast component, theme fonts, i18n translations (useT).
 import React, { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
@@ -14,22 +18,28 @@ import Toast from "../../components/Toast";
 import { theme } from "../../theme";
 import { useT } from "../../i18n";
 
+// Navigation props: lets this screen go back, open Signup, or reset to MainTabs.
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Login">;
 };
 
+// Main login screen component.
 export default function LoginScreen({ navigation }: Props) {
   const { t } = useT();
+  // Form values and UI flags (loading spinner, which field is focused, show/hide password).
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  // Small pop-up message state used for errors and success notes.
   const [toast, setToast] = useState({ visible: false, message: "", type: "error" as "error" | "success" | "warning" });
 
+  // Show a toast message on screen (red error by default).
   const showToast = (message: string, type: "error" | "success" | "warning" = "error") =>
     setToast({ visible: true, message, type });
 
+  // Check the form, sign in with Firebase, then open the main tabs. Shows friendly errors if it fails.
   const handleLogin = async () => {
     if (!email || !password) { showToast(t("Please enter your email and password.")); return; }
     setLoading(true);
@@ -50,6 +60,7 @@ export default function LoginScreen({ navigation }: Props) {
     } finally { setLoading(false); }
   };
 
+  // Send a password reset email to the address typed in the email box.
   const handleForgotPassword = async () => {
     if (!email.trim()) { showToast(t("Enter your email above, then tap Forgot Password.")); return; }
     try {
@@ -65,6 +76,7 @@ export default function LoginScreen({ navigation }: Props) {
     }
   };
 
+  // ---- Screen layout ----
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
@@ -165,7 +177,14 @@ export default function LoginScreen({ navigation }: Props) {
   );
 }
 
+// Colours used on this screen:
+//   page background  #F5F7FF (soft light blue)
+//   main blue        #2563EB / #3B72F6 (buttons, links, focused input border)
+//   dark text        #1E293B (titles), #374151 (labels), #64748B (subtitles)
+//   grey             #94A3B8 / #E2E8F0 (icons, input borders, divider lines)
+//   white            #fff (back button, input boxes, button text)
 const styles = StyleSheet.create({
+  // Page background and back button
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   flex: { flex: 1 },
   backBtn: {
@@ -176,6 +195,7 @@ const styles = StyleSheet.create({
   },
   scroll: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 120, paddingBottom: 48 },
 
+  // Small "LexiScan" badge at the top (light blue pill)
   heroBadge: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -184,9 +204,11 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: { fontSize: 12, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  // Title and subtitle text (dark slate text)
   title: { fontSize: 34, fontFamily: theme.fonts.extraBold, color: "#1E293B", lineHeight: 44, marginBottom: 8 },
   subtitle: { fontSize: 14, color: "#64748B", fontFamily: theme.fonts.regular, marginBottom: 36, lineHeight: 22 },
 
+  // Form fields: labels, white input boxes, blue border when focused
   form: { gap: 18 },
   fieldGroup: { gap: 8 },
   label: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#374151" },
@@ -203,9 +225,11 @@ const styles = StyleSheet.create({
   eyeBtn: { paddingLeft: 8, paddingVertical: 4 },
   inputFocused: { borderColor: "#2563EB", backgroundColor: "#FAFCFF" },
 
+  // "Forgot password" link (blue text)
   forgotRow: { alignItems: "flex-end", marginTop: -4 },
   forgotText: { color: "#2563EB", fontSize: 13, fontFamily: theme.fonts.medium },
 
+  // Sign In button (blue gradient with blue glow, white text)
   primaryButton: {
     borderRadius: 50, marginTop: 4,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
@@ -213,10 +237,12 @@ const styles = StyleSheet.create({
   primaryButtonInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
   primaryButtonText: { color: "#fff", fontSize: 16, fontFamily: theme.fonts.semiBold },
 
+  // "or" divider line
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 28 },
   dividerLine: { flex: 1, height: 1, backgroundColor: "#E2E8F0" },
   dividerText: { fontSize: 13, fontFamily: theme.fonts.regular, color: "#94A3B8" },
 
+  // Footer "Don't have an account? Sign Up" row
   footerRow: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
   footerText: { color: "#64748B", fontSize: 14, fontFamily: theme.fonts.regular },
   footerLink: { color: "#2563EB", fontSize: 14, fontFamily: theme.fonts.semiBold },

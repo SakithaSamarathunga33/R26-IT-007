@@ -1,3 +1,10 @@
+// Handwriting Intro screen.
+// A welcome page that explains the handwriting screening: the three levels, how it
+// works, and a "this is not a diagnosis" notice.
+// Comes from: HomeScreen, when the child taps the Handwriting module card.
+// Goes to: HandwritingLevels (via the "Choose a Level" button); back button goes back.
+// Uses: handwritingTasks config (levels and task counts), KidBackground, and the
+// i18n useT hook for translated text. No backend call here.
 import React from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,18 +22,21 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingIntro">;
 };
 
+// The three "How it works" steps shown in the steps card.
 const STEPS = [
   { icon: "eye-outline" as const,    title: "See the Task",       desc: "A letter or word is shown on screen as the target.",          color: "#2563EB", bg: "#EFF6FF" },
   { icon: "pencil-outline" as const, title: "Write It",           desc: "Use the canvas to write, or take a photo of paper writing.",   color: "#7C3AED", bg: "#F5F3FF" },
   { icon: "analytics-outline" as const, title: "AI Analyses",     desc: "Your handwriting is checked for patterns and formation.",      color: "#059669", bg: "#ECFDF5" },
 ];
 
+// Small info chips on the hero card (number of levels, activities, input types).
 const CHIPS = [
   { icon: "layers-outline" as const, label: "{n} levels", n: HANDWRITING_LEVELS.length },
   { icon: "list-outline" as const,   label: "{n} activities", n: HANDWRITING_TASKS.length },
   { icon: "pencil-outline" as const, label: "Canvas or photo", n: 0 },
 ];
 
+// Main screen component: shows the intro content and the button to the levels page.
 export default function HandwritingIntroScreen({ navigation }: Props) {
   const { t } = useT();
   return (
@@ -134,7 +144,11 @@ export default function HandwritingIntroScreen({ navigation }: Props) {
   );
 }
 
+// Colours used below: light blue-grey page background (#F5F7FF), blue gradient hero card
+// and start button (#2563EB / #1D4ED8) with white text, white cards with a pale border,
+// dark slate titles (#1E293B), grey body text (#64748B / #94A3B8), pale blue notice box.
 const styles = StyleSheet.create({
+  // Page and header (back button + title)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
@@ -148,6 +162,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20 },
 
+  // Hero card: blue gradient with see-through white circles, icon, title and chips
   heroCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 24,
     overflow: "hidden",
@@ -170,9 +185,11 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#fff" },
 
+  // Description text and small grey section headings
   descText: { fontSize: 14, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 22, marginBottom: 24, textAlign: "center" },
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 },
 
+  // "Three levels" card: white card, one row per level with a coloured number badge
   levelsCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 24, overflow: "hidden",
@@ -187,6 +204,7 @@ const styles = StyleSheet.create({
   levelCountChip: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   levelCountText: { fontSize: 13, fontFamily: theme.fonts.bold },
 
+  // "How it works" card: white card, one row per step (icon and number colours come from STEPS)
   stepsCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 16, overflow: "hidden",
@@ -201,6 +219,7 @@ const styles = StyleSheet.create({
   stepNum: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   stepNumText: { fontSize: 12, fontFamily: theme.fonts.bold },
 
+  // Pale blue "not a diagnosis" notice box
   noticeCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -209,6 +228,7 @@ const styles = StyleSheet.create({
   noticeIconWrap: { marginTop: 1 },
   noticeText: { flex: 1, fontSize: 13, fontFamily: theme.fonts.regular, color: "#1D4ED8", lineHeight: 19 },
 
+  // "Choose a Level" button: blue gradient pill with white text
   startBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

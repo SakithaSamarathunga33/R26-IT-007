@@ -1,6 +1,8 @@
+// AnimatedScore.tsx - text that counts up from 0 to a number. Used on result screens for score reveals.
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Text, TextStyle, StyleProp } from "react-native";
 
+// value = final number; duration/delay in milliseconds.
 type Props = {
   value: number;
   style?: StyleProp<TextStyle>;

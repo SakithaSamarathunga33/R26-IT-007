@@ -1,3 +1,5 @@
+# Container recipe for the Behavioral & Attention API (used for the Azure deployment the mobile app calls).
+# Installs requirements.txt, copies the app code and the trained model, and starts uvicorn on $PORT (default 8000).
 # Build context is backend/behavioral_attention so the model in ml_models/ ships with the image:
 #   docker build -f api/Dockerfile backend/behavioral_attention
 FROM python:3.11-slim

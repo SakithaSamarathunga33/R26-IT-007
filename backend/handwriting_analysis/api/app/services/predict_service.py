@@ -1,12 +1,17 @@
+# Orchestrates one handwriting prediction: validate image -> extract features -> run model -> build response.
+# Called by routes/predict_routes.py. The returned dict is what the mobile app and multi_modal_risk consume.
 from fastapi import HTTPException
 from app.services.model_loader import get_model, MODEL_VERSION
 from app.services.image_validation_service import validate_image_upload
 from app.services.feature_extraction_service import extract_handwriting_features
 from app.utils.risk_utils import probability_to_risk_level, reliability_from_warnings
 
+# Version tags returned in the response so downstream code knows how features/preprocessing were made.
 FEATURE_SCHEMA_VERSION = "handwriting_features_v1"
 PREPROCESSING_VERSION = "adaptive_threshold_v1"
 
+# Runs the full pipeline for one image and returns the risk probability, risk level, features and quality warnings.
+# Raises 503 if the model is not loaded.
 def predict_handwriting_from_image(
     *,
     upload_file,
@@ -63,13 +68,16 @@ def predict_handwriting_from_image(
         self_correction_flag=self_correction_flag,
     )
 
+    # probability = chance of the 'at risk' class; risk_level uses the utils/risk_utils.py thresholds.
     prediction = int(model.predict(feature_df)[0])
     probability = float(model.predict_proba(feature_df)[0][1])
     risk_level = probability_to_risk_level(probability)
 
+    # How much to trust the result, based on how many image-quality warnings there were.
     reliability = reliability_from_warnings(validation.get("warnings", []))
 
     warnings = list(validation.get("warning_details", []))
+    # Add a friendly warning if letters look flipped (b/d, p/q), from either the image check or OCR.
     if features["reversal_flag"] or validation.get("ocr_mirror_match"):
         warnings.append({"code": "possible_reversal", "message": "Some letters may be written backwards (like b/d or p/q)."})
 
@@ -80,6 +88,7 @@ def predict_handwriting_from_image(
         "model_version": MODEL_VERSION,
         "feature_schema_version": FEATURE_SCHEMA_VERSION,
         "preprocessing_version": PREPROCESSING_VERSION,
+        # 'inconclusive' tells the app/fusion to treat this result with caution.
         "quality_status": "inconclusive" if reliability == "low" else "valid",
         "warnings": warnings,
         "target_match": {

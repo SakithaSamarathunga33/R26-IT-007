@@ -1,3 +1,11 @@
+/**
+ * SpeechListenScreen
+ * Step 1 of a speech task: the app says the word out loud (text-to-speech) so the child can hear it first.
+ * Flow: SpeechActivity -> SpeechListen -> SpeechRecording ("My Turn to Speak").
+ * Uses config/speechTasks (the task), services/ttsService (speak / stopSpeaking / stretchWord for slow speech)
+ * and the KidBackground component. No backend call.
+ * Passes the number of plays and the time the prompt ended to the next screen, so response time can be measured.
+ */
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,17 +18,20 @@ import KidBackground from "../../components/KidBackground";
 import { SPEECH_TASKS, getLevel, levelTaskCount, positionInLevel } from "../../config/speechTasks";
 import { speak, stopSpeaking, stretchWord } from "../../services/ttsService";
 
+// Navigation + route (taskIndex = which task, practice = optional practice-mode flag).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechListen">;
   route: RouteProp<RootStackParamList, "SpeechListen">;
 };
 
+// Main screen: word card, big speaker button, Again / Slowly buttons and the continue button.
 export default function SpeechListenScreen({ navigation, route }: Props) {
   const taskIndex = route.params?.taskIndex ?? 0;
   const practice = route.params?.practice;
   const task = SPEECH_TASKS[taskIndex];
   const level = getLevel(task.level);
 
+  // speaking = TTS is talking now; heardCount = how many times the prompt has finished playing.
   const [speaking, setSpeaking] = useState(false);
   const [heardCount, setHeardCount] = useState(0);
   const waveAnim = useRef(new Animated.Value(0)).current;
@@ -45,6 +56,7 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
     }
   }, [speaking]);
 
+  // Plays the word with TTS (normal or slow). Tracks speaking state, play count and when the prompt ended.
   const playWord = (rate: "normal" | "slow" = "normal") => {
     const text = rate === "slow" ? stretchWord(task.target_word) : task.listen_prompt;
     speak(text, {
@@ -70,6 +82,7 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
   // Never leave audio playing behind us.
   useEffect(() => () => stopSpeaking(), []);
 
+  // Stops any audio and moves on to the recording screen, passing the play count and prompt end time.
   const goRecord = () => {
     stopSpeaking();
     setSpeaking(false);
@@ -78,6 +91,7 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
     });
   };
 
+  // Animation values for the pulsing ring around the speaker button.
   const waveScale = waveAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.22] });
   const waveOpacity = waveAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.05] });
 
@@ -196,9 +210,12 @@ export default function SpeechListenScreen({ navigation, route }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  /* Header: white circle back button, dark slate title, level pill in level colours */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -212,8 +229,10 @@ const styles = StyleSheet.create({
   levelPill: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 6 },
   levelPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  /* Main content area */
   content: { flex: 1, paddingHorizontal: 20, alignItems: "center", paddingTop: 8 },
 
+  /* Step hint pill: light blue with blue text */
   stepHint: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -221,6 +240,7 @@ const styles = StyleSheet.create({
   },
   stepHintText: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  /* Word card: white card with blue glow; grey label, dark big word, blue phoneme pills */
   wordCard: {
     width: "100%", backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 24, padding: 24, alignItems: "center", gap: 10, marginBottom: 20,
@@ -235,6 +255,7 @@ const styles = StyleSheet.create({
   },
   phonemeText: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#2563EB" },
 
+  /* Speaker button: blue gradient (turns orange while speaking) with a pulsing orange ring */
   speakerArea: { width: 150, height: 150, alignItems: "center", justifyContent: "center" },
   speakerRing: {
     position: "absolute", width: 150, height: 150, borderRadius: 75,
@@ -245,8 +266,10 @@ const styles = StyleSheet.create({
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 10 }, shadowRadius: 22, elevation: 12,
   },
 
+  /* Status text under the speaker: grey */
   speakerStatus: { fontSize: 14, fontFamily: theme.fonts.medium, color: "#64748B", marginTop: 14, marginBottom: 16 },
 
+  /* Again / Slowly buttons: white pills with grey border (blue and purple text) */
   helperRow: { flexDirection: "row", gap: 10, marginBottom: 18 },
   helperBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
@@ -256,6 +279,7 @@ const styles = StyleSheet.create({
   },
   helperBtnText: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  /* "Now you say" card: green theme (pale green fill, green border, dark green text) */
   sayCard: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#ECFDF5", borderWidth: 1, borderColor: "#BBF7D0",
@@ -268,6 +292,7 @@ const styles = StyleSheet.create({
   sayLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#059669", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 },
   sayValue: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#065F46" },
 
+  /* Continue button: blue gradient pill, white text */
   nextBtn: {
     width: "100%", borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

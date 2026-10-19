@@ -1,3 +1,5 @@
+// letterStart.ts - checks whether a child began writing a letter at the correct starting point.
+// Used by the handwriting screens as one of the writing-quality checks.
 type Point = { x: number; y: number };
 
 /**
@@ -6,6 +8,7 @@ type Point = { x: number; y: number };
  * shows. Using the child's own box makes the check independent of size and
  * position. Round letters (d, q) start like a "c", at the top of the bowl.
  */
+// Per-letter start rule table: expected start point plus the hint text shown on the canvas.
 export const LETTER_START: Record<string, { x: number; y: number; cue: string }> = {
   b: { x: 0, y: 0, cue: "Start at the top of the tall line, then go down" },
   d: { x: 0.7, y: 0.45, cue: "Start with the round part, like a c" },

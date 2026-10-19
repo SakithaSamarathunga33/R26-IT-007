@@ -1,3 +1,6 @@
+# HTTP routes for handwriting prediction. The mobile app (mobile/src/config/apiConfig.ts ->
+# HandwritingReviewScreen) POSTs a handwriting image plus child info here, and this file hands it to
+# services/predict_service.py. The multi_modal_risk API later fuses the result.
 from fastapi import APIRouter, UploadFile, File, Form
 from typing import Optional
 
@@ -7,8 +10,10 @@ from app.schemas.feature_columns import FEATURE_COLUMNS
 
 router = APIRouter(prefix="/predict", tags=["Handwriting Prediction"])
 
+# Load the trained model once when the server starts.
 load_model()
 
+# Lists the model's input columns (from schemas/feature_columns.py) so callers can see what the model expects.
 @router.get("/handwriting/schema")
 def get_handwriting_schema():
     return {
@@ -16,6 +21,8 @@ def get_handwriting_schema():
         "message": "POST /predict/handwriting expects a handwriting image and metadata fields."
     }
 
+# Main endpoint: receives the image and form fields, reads the image bytes, and returns the risk prediction.
+# strict_target_match=True makes the request fail if OCR cannot read the target text.
 @router.post("/handwriting")
 async def predict_handwriting(
     image: UploadFile = File(...),

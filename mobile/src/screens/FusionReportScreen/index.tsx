@@ -1,3 +1,11 @@
+/**
+ * FusionReportScreen
+ * The full, detailed assessment report: final result, difficulty areas, module summaries, therapy plan summary,
+ * recommended activities and quality warnings.
+ * Flow: FusionTherapy ("View Full Report") -> FusionReport -> back to the dashboard (MainTabs) via "Back to Dashboard".
+ * All data comes from the multi_modal_risk backend response passed in the route (no new API call here).
+ * Uses config/riskThresholds (score -> risk level), fusionService (method label), i18n and KidBackground.
+ */
 import React from "react";
 import { fusionMethodLabel } from "../../services/fusionService";
 import {
@@ -13,11 +21,14 @@ import KidBackground from "../../components/KidBackground";
 import { riskLevelFromScore } from "../../config/riskThresholds";
 import { useT } from "../../i18n";
 
+// Navigation + route (response = the full fusion result from the backend).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionReport">;
   route: RouteProp<RootStackParamList, "FusionReport">;
 };
 
+// Risk colours: green = low, orange = medium, red = high, grey = not enough evidence.
+// RISK_BG / RISK_BORDER = soft box colours, RISK_GRAD = banner gradient.
 const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444", insufficient: "#64748B" };
 const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", insufficient: "#F8FAFC" };
 const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", insufficient: "#E2E8F0" };
@@ -28,18 +39,21 @@ const RISK_GRAD: Record<string, [string, string]> = {
   insufficient: ["#94A3B8", "#64748B"],
 };
 
+// Friendly names for the difficulty codes the backend sends.
 const DIFFICULTY_LABELS: Record<string, string> = {
   phonological_processing: "Phonological Processing",
   handwriting:             "Handwriting",
   attention_behavior:      "Attention & Behaviour",
 };
 
+// Display info for the three module rows (blue = speech, purple = handwriting, teal = behaviour); scoreKey = field in fusion_features.
 const MODULE_META = [
   { key: "speech",      label: "Speech",      sublabel: "Phonological",  icon: "ear-outline" as const,    color: "#2563EB", iconBg: "#DBEAFE", scoreKey: "speech_score" },
   { key: "handwriting", label: "Handwriting", sublabel: "Handwriting",   icon: "pencil-outline" as const, color: "#7C3AED", iconBg: "#EDE9FE", scoreKey: "handwriting_score" },
   { key: "behaviour",   label: "Behaviour",   sublabel: "Attention",     icon: "happy-outline" as const,  color: "#0891B2", iconBg: "#CFFAFE", scoreKey: "behavior_score" },
 ];
 
+// Small section heading used between report blocks.
 function Section({ title }: { title: string }) {
   const { t } = useT();
   return (
@@ -49,6 +63,7 @@ function Section({ title }: { title: string }) {
   );
 }
 
+// Main screen: builds the report from the backend response.
 export default function FusionReportScreen({ navigation, route }: Props) {
   const { t } = useT();
   const { response } = route.params;
@@ -66,6 +81,7 @@ export default function FusionReportScreen({ navigation, route }: Props) {
   const score = Math.round((fp.overall_risk_score ?? 0) * 100);
   const gradColors = RISK_GRAD[level] ?? RISK_GRAD.low;
 
+  // Today's date, shown in the banner as the report date.
   const generatedDate = new Date().toLocaleDateString("en-US", {
     year: "numeric", month: "long", day: "numeric",
   });
@@ -343,8 +359,11 @@ export default function FusionReportScreen({ navigation, route }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+  /* Header: white circle back button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -357,6 +376,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20, paddingTop: 8 },
 
+  /* Banner: gradient colour = overall risk level; white text, see-through white badges and circles */
   bannerCard: {
     borderRadius: 24, padding: 24, alignItems: "center", marginBottom: 20,
     overflow: "hidden",
@@ -374,9 +394,11 @@ const styles = StyleSheet.create({
   bannerBadge: { backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
   bannerBadgeText: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#fff" },
 
+  /* Section headings: light grey small caps */
   sectionHeaderRow: { marginTop: 4, marginBottom: 10 },
   sectionTitle: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2 },
 
+  /* Result card: border and fill colours are set from the risk level in the code */
   resultCard: {
     borderWidth: 1, borderRadius: 20, padding: 16, marginBottom: 20,
     shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
@@ -394,6 +416,7 @@ const styles = StyleSheet.create({
   resultFill: { height: 8, borderRadius: 4 },
   resultThreshold: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
 
+  /* Difficulty card: white card with light grey divider lines */
   diffCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -405,6 +428,7 @@ const styles = StyleSheet.create({
   diffKey: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#64748B" },
   diffVal: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#1E293B", textAlign: "right", flex: 1 },
 
+  /* Module rows: white card, bar colour = module colour, level pill uses risk colours */
   modulesCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, overflow: "hidden", marginBottom: 20,
@@ -423,6 +447,7 @@ const styles = StyleSheet.create({
   moduleLevelPill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   moduleLevelText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  /* Therapy summary card: white card with light grey divider lines */
   therapyCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -433,6 +458,7 @@ const styles = StyleSheet.create({
   therapyLabel: { flex: 1, fontSize: 13, fontFamily: theme.fonts.medium, color: "#64748B" },
   therapyVal: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
 
+  /* Activity list: white card; blue number boxes */
   actList: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 6, marginBottom: 20,
@@ -449,6 +475,7 @@ const styles = StyleSheet.create({
   actMetaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#CBD5E1" },
   actSkill: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#64748B", textTransform: "capitalize" },
 
+  /* Quality warnings: yellow background with brown text */
   qCard: {
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
     borderRadius: 16, padding: 14, marginBottom: 16,
@@ -457,6 +484,7 @@ const styles = StyleSheet.create({
   qBorder: { borderTopWidth: 1, borderTopColor: "#FEF3C7", marginTop: 4, paddingTop: 8 },
   qText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E", lineHeight: 18 },
 
+  /* Disclaimer: light blue background, blue text (dark blue for the bold part) */
   disclaimerCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -465,6 +493,7 @@ const styles = StyleSheet.create({
   disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
   disclaimerBold: { fontFamily: theme.fonts.semiBold, color: "#1E40AF" },
 
+  /* Dashboard button: blue gradient pill with white text */
   homeBtn: {
     borderRadius: 50, overflow: "hidden",
     shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

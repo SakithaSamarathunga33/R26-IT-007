@@ -1,3 +1,11 @@
+/**
+ * SpeechLevelCompleteScreen
+ * Celebration screen shown when the child finishes all tasks of a speech level.
+ * Flow: SpeechResult (last task of a level) -> SpeechLevelComplete -> SpeechActivity (next level / retry),
+ * SpeechSummary (full results) or SpeechLevels.
+ * Works out the level score from Firestore (summaryService), unlocks the next level if mastered (speechLevelService),
+ * and uses ConfettiBurst, StatChipRow, kidFeedback (spoken praise), Firebase auth and i18n. No backend API call.
+ */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,11 +25,13 @@ import { clearLevelPredictions, countSpeechUnmasteredPass, markLevelComplete } f
 import { MASTERY_MIN_SCORE, MAX_UNMASTERED_PASSES } from "../../services/levelProgressService";
 import { LevelScore, fetchLevelScore } from "../../services/summaryService";
 
+// Navigation + route (level = the level that was just finished).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechLevelComplete">;
   route: RouteProp<RootStackParamList, "SpeechLevelComplete">;
 };
 
+// Main screen: trophy hero, score chips, unlock notice and the action buttons.
 export default function SpeechLevelCompleteScreen({ navigation, route }: Props) {
   const { t } = useT();
   const level = route.params.level;
@@ -90,6 +100,7 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
     Animated.spring(popAnim, { toValue: 1, useNativeDriver: true, friction: 5, tension: 60 }).start();
   }, []);
 
+  // Pop-in size animation for the hero card.
   const scale = popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
 
   // A gentle continuous bounce on the trophy so the hero card feels alive,
@@ -105,8 +116,10 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
     loop.start();
     return () => loop.stop();
   }, [trophyBounce]);
+  // Converts the bounce value into an up/down movement for the trophy.
   const trophyTranslateY = trophyBounce.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
 
+  // Opens the first task of the next level (after clearing its old results).
   const startNextLevel = async () => {
     if (!nextLevel) return;
     stopSpeaking();
@@ -291,9 +304,12 @@ export default function SpeechLevelCompleteScreen({ navigation, route }: Props) 
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  /* Header: dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -302,6 +318,7 @@ const styles = StyleSheet.create({
 
   content: { flex: 1, paddingHorizontal: 20, paddingTop: 8, alignItems: "center" },
 
+  /* Hero card: uses the level's own gradient colours; white text; see-through white circles are decoration */
   heroCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 18, overflow: "hidden",
     shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
@@ -317,6 +334,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 24, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 8, textAlign: "center" },
   heroSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.85)", textAlign: "center", lineHeight: 19 },
 
+  /* Unlock card: white card (badge colour = level colours, or green when all levels are done) */
   unlockCard: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -327,6 +345,7 @@ const styles = StyleSheet.create({
   unlockTitle: { fontSize: 14, fontFamily: theme.fonts.bold, color: "#1E293B", marginBottom: 3 },
   unlockSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 17 },
 
+  /* Save-failed warning: red text on pale red background */
   saveFailCard: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#FFF5F5", borderWidth: 1, borderColor: "#FECACA",
@@ -335,6 +354,7 @@ const styles = StyleSheet.create({
   saveFailTitle: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#EF4444", marginBottom: 2 },
   saveFailSub: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#DC2626", lineHeight: 16 },
 
+  /* Main button: gradient pill (level colour or blue) with white text */
   primaryBtn: {
     width: "100%", borderRadius: 50, marginBottom: 12,
     shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
@@ -342,6 +362,7 @@ const styles = StyleSheet.create({
   primaryBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
   primaryBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
 
+  /* Secondary button: white pill with grey border and grey text */
   secondaryBtn: {
     width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     paddingVertical: 16, borderRadius: 50,
@@ -350,6 +371,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  /* Text link: light grey, underlined */
   linkBtn: { paddingVertical: 10 },
   linkBtnText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#94A3B8", textDecorationLine: "underline" },
 });

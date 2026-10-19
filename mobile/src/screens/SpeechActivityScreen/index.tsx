@@ -1,3 +1,10 @@
+/**
+ * SpeechActivityScreen
+ * Shows ONE speech task (the target word, its sounds and the instruction) before the child records.
+ * Flow: SpeechLevels -> SpeechActivity -> SpeechListen (the app says the word) -> SpeechRecording.
+ * Uses the task list and level helpers from config/speechTasks, plus the KidBackground component.
+ * No backend call here; the audio is uploaded later in SpeechRecording / SpeechReview.
+ */
 import React from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,17 +23,20 @@ import {
   positionInLevel,
 } from "../../config/speechTasks";
 
+// Navigation + route (taskIndex = which task, practice = optional practice-mode flag).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechActivity">;
   route: RouteProp<RootStackParamList, "SpeechActivity">;
 };
 
+// Badge colours per difficulty: green = easy, orange = medium, red = hard (color = text/dot, bg = badge fill).
 const DIFFICULTY_CONFIG = {
   easy:   { color: "#059669", bg: "#ECFDF5", label: "Easy" },
   medium: { color: "#D97706", bg: "#FFFBEB", label: "Medium" },
   hard:   { color: "#EF4444", bg: "#FFF5F5", label: "Hard" },
 };
 
+// Main screen: works out which task and level to show, then draws the header, word card and Listen button.
 export default function SpeechActivityScreen({ navigation, route }: Props) {
   const taskIndex = route.params?.taskIndex ?? 0;
   const practice = route.params?.practice;
@@ -130,9 +140,12 @@ export default function SpeechActivityScreen({ navigation, route }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  /* Header: back button (white circle), title (dark slate), difficulty badge */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -147,14 +160,17 @@ const styles = StyleSheet.create({
   diffDot: { width: 6, height: 6, borderRadius: 3 },
   diffText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  /* Progress bar: light grey track, fill colour comes from the level gradient */
   progressTrack: {
     height: 5, backgroundColor: "#E2E8F0", marginHorizontal: 20,
     borderRadius: 3, marginBottom: 24, overflow: "hidden",
   },
   progressFill: { height: 5, borderRadius: 3 },
 
+  /* Main content area */
   content: { flex: 1, paddingHorizontal: 20, alignItems: "center" },
 
+  /* Level badge (level colours) and task-type badge (light blue) */
   badgeRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 20 },
   levelBadge: {
     flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1,
@@ -168,6 +184,7 @@ const styles = StyleSheet.create({
   },
   typeBadgeText: { fontSize: 12, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  /* Word card: white card with blue glow; grey label, dark big word, blue phoneme pills */
   wordCard: {
     width: "100%", backgroundColor: "#fff",
     borderWidth: 1, borderColor: "#E8EDF5", borderRadius: 24,
@@ -183,6 +200,7 @@ const styles = StyleSheet.create({
   },
   phonemeText: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#2563EB" },
 
+  /* Instruction card: warm yellow background with brown text */
   instructionCard: {
     width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 12,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FEF3C7",
@@ -191,6 +209,7 @@ const styles = StyleSheet.create({
   instructionIcon: { marginTop: 1 },
   instructionText: { flex: 1, fontSize: 14, fontFamily: theme.fonts.medium, color: "#92400E", lineHeight: 20 },
 
+  /* Hint card (made-up word note): light blue background with blue text */
   hintCard: {
     width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -198,6 +217,7 @@ const styles = StyleSheet.create({
   },
   hintText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
 
+  /* Listen button: blue gradient pill with blue shadow, white text */
   recordBtn: {
     width: "100%", borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

@@ -1,3 +1,5 @@
+// App.tsx - root of the mobile app. Loads the Outfit fonts, then shows the navigator
+// (src/navigation/AppNavigator) wrapped in the language provider (src/i18n).
 import React from "react";
 import { View, ActivityIndicator } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -12,6 +14,7 @@ import {
 import AppNavigator from "./src/navigation/AppNavigator";
 import { LanguageProvider } from "./src/i18n";
 
+// Waits for fonts to load (spinner on a dark background), then renders the whole app.
 export default function App() {
   const [fontsLoaded] = useFonts({
     Outfit_400Regular,

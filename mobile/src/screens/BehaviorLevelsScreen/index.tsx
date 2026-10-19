@@ -1,3 +1,9 @@
+// Behaviour level picker: shows the 3 levels, which are unlocked/done, and overall progress.
+// Flow: BehaviorIntro -> BehaviorLevels -> BehaviorActivity (first task of the chosen level).
+// "See results so far" opens BehaviorSummary. Back returns to the intro.
+// Uses behaviorLevelService (reads progress / clears old level predictions from Firestore),
+// sessionService.clearModulePredictions, Firebase auth for the user id, config/behaviorTasks
+// for level and task data, and KidBackground. It calls no HTTP endpoint directly.
 import React, { useCallback, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,6 +35,7 @@ type Props = {
 
 export default function BehaviorLevelsScreen({ navigation }: Props) {
   const { t } = useT();
+  // Which levels the child has finished, and whether that is still loading.
   const [progress, setProgress] = useState<BehaviorLevelProgress>({ completed: [] });
   const [loading, setLoading] = useState(true);
 
@@ -50,6 +57,7 @@ export default function BehaviorLevelsScreen({ navigation }: Props) {
     }, [])
   );
 
+  // Called when a level card is tapped: clears old results for it, then opens its first task.
   const startLevel = async (level: BehaviorLevel) => {
     const uid = auth.currentUser?.uid;
     // Clear before the first task so an in-flight delete can't eat the new
@@ -213,7 +221,11 @@ export default function BehaviorLevelsScreen({ navigation }: Props) {
   );
 }
 
+// Colours: page background #F5F7FF; teal #0891B2 / #0E7490 is the accent (progress, buttons,
+// icons); dark slate #1E293B for titles; greys #64748B / #94A3B8 / #CBD5E1 for secondary and
+// locked text; green #059669 for "Done"; amber #F59E0B for earned stars; white cards.
 const styles = StyleSheet.create({
+  // Page + top bar
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
   header: {
@@ -228,6 +240,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
 
   content: { paddingHorizontal: 20, paddingTop: 8 },
+  // "See results so far" button: pale cyan fill with a light cyan border, teal text
   resultsBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     borderRadius: 16, paddingVertical: 14, marginBottom: 16,
@@ -235,6 +248,7 @@ const styles = StyleSheet.create({
   },
   resultsBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#0891B2" },
 
+  // Overall progress card: white card, grey track with a teal fill bar
   progressCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -251,6 +265,7 @@ const styles = StyleSheet.create({
   progressTrack: { height: 6, backgroundColor: "#E2E8F0", borderRadius: 3, overflow: "hidden" },
   progressFill: { height: 6, borderRadius: 3 },
 
+  // Level cards: white when unlocked; locked ones are washed out (no shadow, grey badge/text)
   levelCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -269,12 +284,14 @@ const styles = StyleSheet.create({
   levelDesc: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 17, marginBottom: 8 },
   textMuted: { color: "#94A3B8" },
 
+  // "Done" chip: light green background with green text
   doneChip: {
     flexDirection: "row", alignItems: "center", gap: 3,
     backgroundColor: "#ECFDF5", borderRadius: 20, paddingHorizontal: 7, paddingVertical: 2,
   },
   doneChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold, color: "#059669" },
 
+  // Small info chips under each level (level number, activity count) and the star column
   metaRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   metaChip: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
   metaChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold },
@@ -287,6 +304,7 @@ const styles = StyleSheet.create({
   starCol: { alignItems: "center", gap: 4 },
   starRow: { flexDirection: "row", gap: 1 },
 
+  // Note at the bottom: pale cyan box with dark teal text
   noteCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#ECFEFF", borderWidth: 1, borderColor: "#CFFAFE",

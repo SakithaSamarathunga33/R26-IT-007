@@ -1,3 +1,6 @@
+# HTTP route for speech prediction. The mobile app (mobile/src/config/apiConfig.ts -> SpeechReviewScreen)
+# POSTs a recorded word plus child info here. It converts/validates the audio, predicts risk, transcribes
+# the speech and checks the child said the target word. The multi_modal_risk API later fuses the result.
 import logging
 import re
 
@@ -10,6 +13,7 @@ from app.services.transcription_service import transcribe_wav_bytes
 from app.models.response_models import SpeechPredictResponse
 
 
+# Lowercase and strip punctuation/spaces so 'Cat!' matches 'cat'.
 def _normalize_for_match(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
 
@@ -17,10 +21,13 @@ def _normalize_for_match(text: str) -> str:
 logger = logging.getLogger("speech.predict")
 logging.basicConfig(level=logging.INFO)
 
+# All routes here live under /predict.
 router = APIRouter(prefix="/predict", tags=["Speech Prediction"])
 
+# Load the trained model once when the server starts.
 load_model()
 
+# Main endpoint. Steps: convert audio to WAV -> validate -> model prediction -> Whisper transcript -> word-match check.
 @router.post("/speech", response_model=SpeechPredictResponse)
 async def predict_speech(
     audio: UploadFile = File(...),
@@ -73,6 +80,8 @@ async def predict_speech(
         transcript,
     )
 
+    # If the transcript is missing the model result stands; if the spoken word differs from the target,
+    # the result is downgraded to 'requires_review' with low reliability (we cannot trust a score for the wrong word).
     if transcript is None:
         # Whisper unavailable or failed: the model result stands, the word match is unknown.
         transcript_match = None
@@ -84,6 +93,7 @@ async def predict_speech(
             quality["prediction_reliability"] = "low"
             quality["warnings"].append("Spoken word did not match the target word.")
 
+    # Result counts as inconclusive when it needs review or reliability is low; the app can then ask for a retry.
     inconclusive = prediction["risk_level"] == "requires_review" or quality["prediction_reliability"] == "low"
 
     return {

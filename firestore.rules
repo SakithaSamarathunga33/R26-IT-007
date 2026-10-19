@@ -1,15 +1,22 @@
+// Firestore security rules for the LexiScan mobile app (the app reads/writes Firestore directly).
+// General pattern: a signed-in user may only read or write documents that belong to their own uid.
+// Collections here are written by the mobile screens (attempts, predictions, level progress, therapy,
+// assessment sessions) using results returned by the backend APIs.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Profile document; doc id is the user's uid.
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Raw speech task attempts. Creator must set user_id to their own uid; only the owner can read.
     match /speech_attempts/{docId} {
       allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
       allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
     }
+    // Speech API results saved by the app. Any signed-in user can create/read; only the owning child can delete.
     match /speech_predictions/{docId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null;
@@ -21,20 +28,24 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Raw behavior task attempts, owner-only (same pattern as speech_attempts).
     match /behavior_attempts/{docId} {
       allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
       allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
     }
+    // Behavioral API results saved by the app (same rules as speech_predictions).
     match /behavior_predictions/{docId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null;
       allow delete: if request.auth != null && resource.data.child_id == request.auth.uid;
     }
 
+    // Raw handwriting task attempts, owner-only.
     match /handwriting_attempts/{docId} {
       allow create: if request.auth != null && request.resource.data.user_id == request.auth.uid;
       allow read: if request.auth != null && resource.data.user_id == request.auth.uid;
     }
+    // Handwriting API results saved by the app (same rules as speech_predictions).
     match /handwriting_predictions/{docId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null;
@@ -51,6 +62,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Combined risk results from the multi_modal_risk API. Readable only by the child they belong to.
     match /fusion_predictions/{docId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null && resource.data.child_id == request.auth.uid;
@@ -62,16 +74,19 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Therapy suggestions generated from the fusion result. Readable only by the child they belong to.
     match /therapy_recommendations/{docId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null && resource.data.child_id == request.auth.uid;
     }
 
+    // In-progress assessment state. The doc id must be exactly 'session_<uid>' so users only touch their own session.
     match /assessment_sessions/{sessionId} {
       allow read, write: if request.auth != null
         && sessionId == ("session_" + request.auth.uid);
     }
 
+    // Finished assessment records; the 'uid' field must match the signed-in user.
     match /assessment_history/{docId} {
       allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
       allow read: if request.auth != null && resource.data.uid == request.auth.uid;

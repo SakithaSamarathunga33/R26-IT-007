@@ -1,3 +1,5 @@
+# Automated tests for POST /predict/fusion (run with pytest from the api folder).
+# They cover missing/unavailable modules, disagreement, low reliability, therapy dosage, the learned model and the rule fallback.
 import copy
 import json
 import os
@@ -5,6 +7,7 @@ from pathlib import Path
 import pytest
 
 API_DIR = Path(__file__).resolve().parent.parent
+# Point the service at the ml_models folder so tests use the real model files.
 MODELS = API_DIR.parent / 'ml_models'
 os.environ.setdefault('DIFFICULTY_MODEL_PATH', str(MODELS / 'fusion_primary_difficulty_xgboost.pkl'))
 os.environ.setdefault('DIFFICULTY_ENCODER_PATH', str(MODELS / 'fusion_primary_difficulty_label_encoder.pkl'))
@@ -14,8 +17,10 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.main import app  # noqa: E402
 
 client = TestClient(app)
+# Example 'all three modules' request used as a starting point.
 BASE = json.loads((API_DIR / 'sample_request_high.json').read_text())
 
+# Helper: copy the example request and change or remove modules.
 def payload(**modules):
     data = copy.deepcopy(BASE)
     for name, value in modules.items():
@@ -25,6 +30,7 @@ def payload(**modules):
             data[name].update(value)
     return data
 
+# Helper: send a request and return the JSON (fails if status is not 200).
 def post(data):
     res = client.post('/predict/fusion', json=data)
     assert res.status_code == 200, res.text

@@ -1,3 +1,11 @@
+/**
+ * FusionLoadingScreen
+ * Waiting screen that runs the final "fusion" analysis, which combines the speech, handwriting and behaviour results.
+ * Flow: FusionProgress ("Run Final Analysis") -> FusionLoading -> FusionRiskSummary (via navigation.replace when done).
+ * Uses services/fusionService (build each module summary, call the multi_modal_risk backend at POST /predict/fusion,
+ * save the results), services/sessionService (save to history, reset the session), services/childProfile (age), Firebase auth and i18n.
+ * If anything fails, an error message is shown on this screen instead.
+ */
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, Animated, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -18,10 +26,12 @@ import {
 import { saveAssessmentToHistory, resetSession, getSessionId } from "../../services/sessionService";
 import { getChildAge } from "../../services/childProfile";
 
+// Only needs navigation (no route params).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionLoading">;
 };
 
+// The progress messages shown to the user, in the order they happen.
 const STEPS = [
   "Gathering speech module results…",
   "Gathering handwriting module results…",
@@ -32,6 +42,7 @@ const STEPS = [
   "Almost done…",
 ];
 
+// Main screen: runs the fusion analysis on open and shows a spinner with step-by-step progress.
 export default function FusionLoadingScreen({ navigation }: Props) {
   const { t } = useT();
   const childId = auth.currentUser?.uid ?? "unknown";
@@ -39,12 +50,15 @@ export default function FusionLoadingScreen({ navigation }: Props) {
   // persistent session id; each fusion run gets its own id for the backend/record.
   const sessionId = getSessionId(childId);
 
+  // step = which progress message is active; error = message to show if the analysis fails.
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Animation values: spin = rotating ring, pulse = growing/shrinking icon.
   const spin = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
 
+  // On open: start both animations and begin the analysis.
   useEffect(() => {
     Animated.loop(
       Animated.timing(spin, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true })
@@ -59,6 +73,7 @@ export default function FusionLoadingScreen({ navigation }: Props) {
     runFusion();
   }, []);
 
+  // Collects the three module summaries, sends them to the fusion backend, saves the result, then opens the risk summary.
   async function runFusion() {
     try {
       setStep(0);
@@ -120,8 +135,10 @@ export default function FusionLoadingScreen({ navigation }: Props) {
     }
   }
 
+  // Turns the spin value (0..1) into a rotation angle for the ring.
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
+  // Error view: shown instead of the progress view when the analysis fails.
   if (error) {
     return (
       <View style={styles.container}>
@@ -185,14 +202,18 @@ export default function FusionLoadingScreen({ navigation }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Layout: full-screen blue-to-dark gradient background (set in the JSX) */
   container: { flex: 1 },
   fill: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
 
+  /* Decoration: very faint white circles */
   decoCircleLg: { position: "absolute", width: 300, height: 300, borderRadius: 150, backgroundColor: "rgba(255,255,255,0.04)", top: -80, right: -80 },
   decoCircleSm: { position: "absolute", width: 150, height: 150, borderRadius: 75, backgroundColor: "rgba(255,255,255,0.04)", bottom: 60, left: -40 },
 
+  /* Spinning ring and pulsing icon circle: see-through white on the blue background */
   spinRing: {
     position: "absolute",
     width: 140, height: 140, borderRadius: 70,
@@ -207,9 +228,11 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center", marginBottom: 28,
   },
 
+  /* Title: white; subtitle: soft white */
   title: { fontSize: 24, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 8, textAlign: "center" },
   subtitle: { fontSize: 14, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.7)", marginBottom: 36, textAlign: "center" },
 
+  /* Step list: dots are faint white, green when done, bright white when active; future steps are dimmed */
   stepsWrap: { width: "100%", gap: 10 },
   stepRow: { flexDirection: "row", alignItems: "center", gap: 10, opacity: 1 },
   stepRowFuture: { opacity: 0.35 },
@@ -223,6 +246,7 @@ const styles = StyleSheet.create({
   stepTextActive: { color: "#fff", fontFamily: theme.fonts.semiBold },
   stepTextDone: { color: "rgba(255,255,255,0.4)" },
 
+  /* Error view: red icon on a faint red circle, white title, soft white message (on a dark slate gradient) */
   errorWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
   errorIconWrap: {
     width: 90, height: 90, borderRadius: 45, backgroundColor: "rgba(239,68,68,0.15)",

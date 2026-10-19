@@ -1,9 +1,13 @@
+// summaryService.ts - reads a module's saved predictions from Firestore and works out the average risk,
+// overall risk level and per-level score. Used by the module summary and level-complete screens.
 import { db } from "../config/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { riskLevelFromScore } from "../config/riskThresholds";
 
+// Same levels as config/riskThresholds plus "requires_review" (no data to judge).
 export type RiskLevel = "low" | "medium" | "high" | "requires_review";
 
+// One saved prediction (one task).
 export type SummaryRow = {
   risk_level: RiskLevel;
   risk_probability: number;
@@ -11,6 +15,7 @@ export type SummaryRow = {
   saved_at: number; // millis for stable ordering
 };
 
+// All rows for a module plus their average risk and overall level.
 export type ModuleSummary = {
   rows: SummaryRow[];
   count: number;
@@ -18,6 +23,7 @@ export type ModuleSummary = {
   overallLevel: RiskLevel;
 };
 
+// Uses the stored risk level if valid, otherwise works it out from the probability.
 function toLevel(v: any, prob: number): RiskLevel {
   if (v === "low" || v === "medium" || v === "high" || v === "requires_review") return v;
   return riskLevelFromScore(prob);
@@ -28,6 +34,7 @@ export function isScored(d: Record<string, any>): boolean {
   return d.attempt_type !== "supplementary";
 }
 
+// Converts a Firestore timestamp to milliseconds.
 function millis(saved: any): number {
   // Firestore Timestamp -> millis; fall back to 0 so undated docs sort first
   if (saved && typeof saved.toMillis === "function") return saved.toMillis();
@@ -80,6 +87,7 @@ export async function fetchModuleSummary(
   return { rows, count, avgProb, overallLevel };
 }
 
+// Score for one level.
 export type LevelScore = {
   /** Percent of this level's tasks that scored low-risk, 0-100. */
   score: number;

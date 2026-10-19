@@ -1,3 +1,6 @@
+# The main fusion rules: decides which modules are usable, how much each counts, the final risk score/label/level,
+# the main and secondary difficulty areas, and quality warnings. Called by services/predict_service.py.
+# Settings come from app/config/fusion_rule_config.json; the learned model comes from services/model_loader.py.
 import json
 import math
 from pathlib import Path
@@ -6,13 +9,17 @@ from app.services.model_loader import get_difficulty_model, get_difficulty_encod
 from app.services.reliability_features import FEATURE_ORDER, build_features
 from app.utils.risk_utils import final_risk_level, binary_label_from_score, combined_reliability, module_score
 
+# Location of the rule settings file (weights, threshold, disagreement limit, reliability factors).
 CONFIG_PATH = Path(__file__).resolve().parent.parent / 'config' / 'fusion_rule_config.json'
+# Maps each module to the difficulty area name used in labels and the therapy library.
 DIFFICULTY_BY_MODULE = {'speech': 'phonological_processing', 'handwriting': 'handwriting', 'behavior': 'attention_behavior'}
 
+# Reads the rule settings JSON (on every request, so edits take effect without code changes).
 def load_rule_config():
     with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+# For speech/handwriting/behavior: is it usable, its score, its reliability and model version. Unusable = missing, unavailable or invalid.
 def component_statuses(payload: Dict[str, Any]):
     statuses = {}
     for name in DIFFICULTY_BY_MODULE:
@@ -26,12 +33,16 @@ def component_statuses(payload: Dict[str, Any]):
         }
     return statuses
 
+# Number of modules that can be used in fusion.
 def usable_count(statuses):
     return sum(s['usable'] for s in statuses.values())
 
+# Score per difficulty area, for usable modules only.
 def difficulty_scores(statuses):
     return {DIFFICULTY_BY_MODULE[name]: s['score'] for name, s in statuses.items() if s['usable']}
 
+# Final weight per module = base weight x reliability factor (default 0.85 if unknown), then scaled so the weights add up to 1.
+# Unusable modules get 0.
 def effective_weights(statuses, config):
     factors = config.get('reliability_factors', {})
     raw = {
@@ -41,11 +52,14 @@ def effective_weights(statuses, config):
     total = sum(raw.values())
     return {name: w / total if total else 0.0 for name, w in raw.items()}
 
+# Flags when the highest and lowest module scores differ by the threshold (default 0.5) or more: the modules disagree.
 def disagreement_indicator(statuses, config):
     scores = [s['score'] for s in statuses.values() if s['usable']]
     gap = max(scores) - min(scores) if len(scores) > 1 else 0.0
     return {'max_pairwise_gap': round(gap, 4), 'flagged': gap >= float(config.get('disagreement_threshold', 0.5))}
 
+# Gives the review flag: 'insufficient_evidence' (fewer than 2 usable modules by default),
+# 'review_recommended' (modules disagree, any low-reliability module, or a module missing), otherwise 'normal'.
 def review_status(statuses, disagreement, config):
     count = usable_count(statuses)
     if count < int(config.get('minimum_usable_modules', 2)):
@@ -55,6 +69,8 @@ def review_status(statuses, disagreement, config):
         return 'review_recommended'
     return 'normal'
 
+# Probability of "at risk" from the trained logistic model (coefficients in the JSON file).
+# Returns None if the model is missing or was built for a different feature layout.
 def learned_fusion_probability(statuses, model):
     """Calibrated P(at risk) from the reliability-aware logistic model, or None if the artifact doesn't match this code."""
     if not model or model.get('feature_order') != FEATURE_ORDER:
@@ -64,6 +80,9 @@ def learned_fusion_probability(statuses, model):
         c * (v - m) / sc for c, v, m, sc in zip(model['coefficients'], x, model['scaler_mean'], model['scaler_scale']))
     return 1.0 / (1.0 + math.exp(-z))
 
+# Produces the final result block. Score and risk level (low <0.35, medium <0.70, high) come from the weighted rule;
+# the yes/no label uses the trained model when available (decision threshold 0.5), otherwise the rule threshold (default 0.35).
+# 'borderline' = model and rule disagree, which escalates the review status.
 def calculate_weighted_fusion(statuses, config: Dict[str, Any], status: str):
     """Severity (score + low/medium/high band) comes from the reliability-weighted rule; the at-risk yes/no label and
     its calibrated probability come from the trained model when it is available (rule fallback otherwise).
@@ -99,6 +118,8 @@ def calculate_weighted_fusion(statuses, config: Dict[str, Any], status: str):
         'review_status': 'review_recommended' if borderline and status == 'normal' else status
     }
 
+# Finds the child's main weak area. Uses the XGBoost model only when all modules and their features are present;
+# otherwise falls back to the module with the highest risk score.
 def predict_primary_difficulty(feature_df, statuses, features_complete=True):
     model = get_difficulty_model()
     encoder = get_difficulty_encoder()
@@ -113,10 +134,12 @@ def predict_primary_difficulty(feature_df, statuses, features_complete=True):
     scores = difficulty_scores(statuses)
     return {'primary_difficulty_label': max(scores, key=scores.get), 'confidence': None, 'method': 'rule_based_fallback_highest_usable_module_score'}
 
+# Second weakest area: the highest-scoring usable module that is not the primary one.
 def predict_secondary_difficulty(statuses, primary_label):
     scores = {label: score for label, score in difficulty_scores(statuses).items() if label != primary_label}
     return max(scores, key=scores.get) if scores else None
 
+# Builds the quality block: overall reliability (lowest of the usable modules) and plain-text warnings about missing, unusable or low-reliability modules.
 def fusion_quality(payload, statuses):
     warnings = []
     for name, s in statuses.items():

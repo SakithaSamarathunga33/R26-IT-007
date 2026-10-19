@@ -1,3 +1,6 @@
+# Top-level orchestration of one fusion request. Called by routes/predict_routes.py.
+# Runs, in order: module statuses -> feature table -> disagreement/review status -> final fusion -> difficulty areas -> therapy plan
+# (fusion_service.py, feature_builder.py, therapy_service.py) and packages the answer for the mobile app.
 from typing import Dict, Any
 from app.services.model_loader import load_models
 from app.services.feature_builder import build_fusion_features
@@ -7,8 +10,12 @@ from app.services.fusion_service import (
 )
 from app.services.therapy_service import build_therapy_recommendation
 
+# Make sure models are loaded even if this file is imported on its own (e.g. in tests).
 load_models()
 
+# Returns the full fusion response: final prediction, difficulty areas, therapy recommendation, quality, review info,
+# and 'database_save_payload' (rows ready to be saved for this child and session).
+# If there is not enough evidence, difficulty and therapy are left empty (None).
 def predict_fusion(payload: Dict[str, Any]):
     config = load_rule_config()
     statuses = component_statuses(payload)

@@ -1,3 +1,5 @@
+# Documentation-only file: sketches a possible future "raw events" endpoint.
+# Nothing here runs and it is not registered in main.py. The live route is in predict_routes.py.
 '''
 This file is not registered in main.py by default.
 

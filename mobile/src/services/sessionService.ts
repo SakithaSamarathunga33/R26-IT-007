@@ -1,3 +1,6 @@
+// sessionService.ts - one screening "session" per child in Firestore (assessment_sessions): which of the
+// three modules are done, plus saved final reports (assessment_history). Used by the home screen, module
+// result screens and the final report / history screens.
 import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection,
   serverTimestamp, query, where, getDocs, writeBatch,
@@ -15,6 +18,7 @@ const PREDICTION_COLLECTIONS = [
   "behavior_predictions",
 ];
 
+// Progress of the current screening run.
 export interface SessionProgress {
   speechDone: boolean;
   handwritingDone: boolean;
@@ -23,6 +27,7 @@ export interface SessionProgress {
   startedAt?: any;
 }
 
+// One saved final report in the history list.
 export interface AssessmentRecord {
   id: string;
   completedAt: any;
@@ -32,13 +37,16 @@ export interface AssessmentRecord {
   fullReport: any;
 }
 
+// Firestore collection names.
 const SESSION_COLLECTION = "assessment_sessions";
 const HISTORY_COLLECTION = "assessment_history";
 
+// Each child has a single session document called session_<uid>.
 export function getSessionId(uid: string) {
   return `session_${uid}`;
 }
 
+// Module name -> Firestore collection that holds its predictions.
 export type PredictionModule = "speech" | "handwriting" | "behavior";
 
 const MODULE_COLLECTION: Record<PredictionModule, string> = {
@@ -80,6 +88,7 @@ export async function clearModulePredictions(uid: string, module: PredictionModu
   await deletePredictionsIn(MODULE_COLLECTION[module], uid);
 }
 
+// Loads the current session, or starts a fresh one (clearing old data if the last run was completed).
 export async function getOrCreateSession(uid: string): Promise<SessionProgress> {
   const sessionId = getSessionId(uid);
   const ref = doc(db, SESSION_COLLECTION, sessionId);
@@ -113,6 +122,7 @@ export async function getOrCreateSession(uid: string): Promise<SessionProgress> 
   };
 }
 
+// Marks speech / handwriting / behaviour as finished for this session.
 export async function markModuleDone(uid: string, module: "speechDone" | "handwritingDone" | "behaviourDone") {
   const sessionId = getSessionId(uid);
   const ref = doc(db, SESSION_COLLECTION, sessionId);
@@ -128,6 +138,7 @@ export async function markModuleDone(uid: string, module: "speechDone" | "handwr
   }
 }
 
+// Stores the final fusion report in history and returns its id.
 export async function saveAssessmentToHistory(uid: string, response: any): Promise<string> {
   const fp = response.final_prediction ?? {};
   const pd = response.primary_difficulty ?? {};
@@ -145,6 +156,7 @@ export async function saveAssessmentToHistory(uid: string, response: any): Promi
   return ref.id;
 }
 
+// Starts over: wipes predictions and level progress and creates a clean session.
 export async function resetSession(uid: string) {
   // Wipe the previous run's predictions so the next screening's summaries
   // only reflect new data. Level unlocks go with them — keeping them would show
@@ -166,6 +178,7 @@ export async function resetSession(uid: string) {
   }, { merge: false });
 }
 
+// Returns all saved reports for this child, newest first.
 export async function getAssessmentHistory(uid: string): Promise<AssessmentRecord[]> {
   const snap = await getDocs(
     query(

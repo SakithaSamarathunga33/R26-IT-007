@@ -1,3 +1,11 @@
+// HandwritingResultScreen
+// Shows the child a friendly "well done" card after one handwriting task (no scores or risk shown).
+// Comes from: HandwritingReviewScreen (after the image was submitted).
+// Goes to: HandwritingTask (next task or bonus task), HandwritingLevelComplete (last task of a level),
+// or FusionTherapy / next practice task when this was a therapy-plan practice run.
+// Uses: handwritingTasks config + handwritingLevelService (task order, bonus task, correct/incorrect),
+// kidFeedback (spoken encouragement), practiceFlow, i18n (translations), KidBackground.
+// It makes no backend call itself; the result arrives through navigation params.
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -33,6 +41,7 @@ const FEEDBACK = {
   done:  { label: "All done!",      sublabel: "Thanks for writing. Let's keep going!", icon: "checkmark-circle" as const },
 };
 
+// Main component: picks the right message, works out which screen comes next.
 export default function HandwritingResultScreen({ navigation, route }: Props) {
   const { t } = useT();
   const { taskIndex, retryCount, durationSec, result, error, practice, startPointOk } = route.params;
@@ -51,6 +60,7 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
   const isLevelEnd = nextIndex === null;
   const position = handwritingPositionInLevel(taskIndex);
 
+  // Choose which encouragement message to show (based on skipped / correct / bonus task).
   const config =
     error === "Skipped" || !result ? FEEDBACK.done
     : supplement?.parentTaskIndex === taskIndex ? FEEDBACK.again
@@ -73,8 +83,11 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
     return () => clearTimeout(timer);
   }, [taskIndex]);
 
+  // Stop any speech when leaving the screen.
   useEffect(() => () => stopSpeaking(), []);
 
+  // "Next" button: moves on to the next task, the level-complete screen,
+  // or (for therapy practice) the next practice step / back to the therapy plan.
   const handleNext = () => {
     stopSpeaking();
     // Practice runs belong to a therapy plan: step through that activity's own
@@ -204,7 +217,12 @@ export default function HandwritingResultScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // --- Screen layout ---
+  // Colours: light blue-grey page background (#F5F7FF)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+
+  // --- Header (title + level pill) ---
+  // Colours: dark slate title; pill colours come from the level config
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -214,6 +232,8 @@ const styles = StyleSheet.create({
   levelPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
   content: { paddingHorizontal: 20 },
 
+  // --- Encouragement card (big card at the top) ---
+  // Colours: gradient from the level colours, white text, see-through white circles for decoration
   riskCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
     overflow: "hidden",
@@ -227,12 +247,16 @@ const styles = StyleSheet.create({
   riskLabel: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 4 },
   riskSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.8)", textAlign: "center", marginBottom: 14 },
 
+  // --- Alert / tip cards (unclear image, text not read, letter-start tip) ---
+  // Colours: set in the JSX (yellow for warnings, green for the tip)
   alertCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 12,
   },
   alertText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, lineHeight: 18 },
 
+  // --- Activity stats card ---
+  // Colours: white card, light borders/dividers, dark labels, grey values and section title
   statsCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 14, overflow: "hidden",
@@ -245,6 +269,8 @@ const styles = StyleSheet.create({
   statsLabel: { flex: 1, fontSize: 14, fontFamily: theme.fonts.medium, color: "#1E293B" },
   statsValue: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  // --- Error card (analysis unavailable) ---
+  // Colours: soft yellow background, amber border, brown text
   errorCard: {
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FEF3C7",
@@ -252,6 +278,8 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E" },
 
+  // --- Next button ---
+  // Colours: blue gradient (set in JSX), blue glow shadow, white text
   nextBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

@@ -1,3 +1,7 @@
+// SignupScreen: lets a parent create an account (name, child's date of birth, email, password).
+// Reached from: OnboardingScreen (after the last slide or Skip) or LoginScreen ("Sign Up" link).
+// Goes to: "MainTabs" after the account is created, or back to "Login" via the footer link. Defined in AppNavigator.
+// Uses: firebase auth (create user) and firestore (saves a "users" document), Toast component, theme fonts, i18n (useT).
 import React, { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
@@ -15,12 +19,15 @@ import Toast from "../../components/Toast";
 import { theme } from "../../theme";
 import { useT } from "../../i18n";
 
+// Navigation props: lets this screen go back, open Login, or reset to MainTabs.
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Signup">;
 };
 
+// Main signup screen component.
 export default function SignupScreen({ navigation }: Props) {
   const { t } = useT();
+  // Form values and UI flags (loading spinner, focused field, show/hide password boxes).
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -30,8 +37,10 @@ export default function SignupScreen({ navigation }: Props) {
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // Small pop-up message state used for errors and success notes.
   const [toast, setToast] = useState({ visible: false, message: "", type: "error" as "error" | "success" | "warning" });
 
+  // DOB picker state: the saved date, whether the picker is open, and the values being chosen inside it.
   // DOB picker state
   const [dobDay, setDobDay] = useState("");
   const [dobMonth, setDobMonth] = useState("");
@@ -41,14 +50,17 @@ export default function SignupScreen({ navigation }: Props) {
   const [pickerMonth, setPickerMonth] = useState(1);
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear() - 6);
 
+  // Lists used by the date picker: month names, selectable years (child aged 4 to 19) and days of the chosen month.
   const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 16 }, (_, i) => currentYear - 4 - i); // 4 to 19 years old
   const daysInMonth = new Date(pickerYear, pickerMonth, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
+  // Text shown in the date box, e.g. "5 Mar 2018". Empty until a date is chosen.
   const dobDisplay = dobDay ? `${dobDay} ${t(MONTHS[parseInt(dobMonth) - 1])} ${dobYear}` : "";
 
+  // Save the day/month/year picked in the picker and close it.
   const confirmDob = () => {
     setDobDay(String(pickerDay));
     setDobMonth(String(pickerMonth));
@@ -56,9 +68,11 @@ export default function SignupScreen({ navigation }: Props) {
     setDobPickerVisible(false);
   };
 
+  // Show a toast message on screen (red error by default).
   const showToast = (message: string, type: "error" | "success" | "warning" = "error") =>
     setToast({ visible: true, message, type });
 
+  // Check the form, create the Firebase account, save the profile in Firestore, then open the main tabs.
   const handleSignup = async () => {
     if (!firstName || !lastName || !email || !password || !confirmPassword) { showToast(t("Please fill in all fields.")); return; }
     if (!dobDay || !dobMonth || !dobYear) { showToast(t("Please select the child's date of birth.")); return; }
@@ -84,8 +98,10 @@ export default function SignupScreen({ navigation }: Props) {
     } finally { setLoading(false); }
   };
 
+  // True if the given field is the one currently being typed in (used to highlight it).
   const isFocused = (f: string) => focusedField === f;
 
+  // ---- Screen layout ----
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
@@ -316,7 +332,15 @@ export default function SignupScreen({ navigation }: Props) {
   );
 }
 
+// Colours used on this screen:
+//   page background  #F5F7FF (soft light blue)
+//   main blue        #2563EB / #3B72F6 (buttons, links, focused input border, selected picker item text)
+//   dark text        #1E293B (titles), #374151 (labels), #64748B (subtitles, footer)
+//   grey             #94A3B8 / #E2E8F0 (icons, input borders, picker labels)
+//   white            #fff (back button, input boxes, date picker sheet, button text)
+//   dark see-through blue-black behind the date picker pop-up
 const styles = StyleSheet.create({
+  // Page background and back button
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   flex: { flex: 1 },
   backBtn: {
@@ -327,6 +351,7 @@ const styles = StyleSheet.create({
   },
   scroll: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 110, paddingBottom: 48 },
 
+  // Small "LexiScan" badge at the top (light blue pill)
   heroBadge: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -335,9 +360,11 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: { fontSize: 12, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  // Title and subtitle text
   title: { fontSize: 34, fontFamily: theme.fonts.extraBold, color: "#1E293B", lineHeight: 44, marginBottom: 8 },
   subtitle: { fontSize: 14, color: "#64748B", fontFamily: theme.fonts.regular, marginBottom: 32, lineHeight: 22 },
 
+  // Form fields: name row, labels, white input boxes, blue border when focused
   form: { gap: 16 },
   nameRow: { flexDirection: "row", gap: 12 },
   nameField: { flex: 1 },
@@ -355,6 +382,7 @@ const styles = StyleSheet.create({
   eyeBtn: { paddingLeft: 8, paddingVertical: 4 },
   inputFocused: { borderColor: "#2563EB", backgroundColor: "#FAFCFF" },
 
+  // Create Account button (blue gradient with blue glow, white text)
   primaryButton: {
     borderRadius: 50, marginTop: 8,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
@@ -362,10 +390,12 @@ const styles = StyleSheet.create({
   primaryButtonInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
   primaryButtonText: { color: "#fff", fontSize: 16, fontFamily: theme.fonts.semiBold },
 
+  // Footer "Already have an account? Sign In" row
   footerRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 28 },
   footerText: { color: "#64748B", fontSize: 14, fontFamily: theme.fonts.regular },
   footerLink: { color: "#2563EB", fontSize: 14, fontFamily: theme.fonts.semiBold },
 
+  // Date of birth picker pop-up (dark overlay, white bottom sheet)
   modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(15,23,42,0.45)" },
   modalCard: {
     backgroundColor: "#fff", borderTopLeftRadius: 28, borderTopRightRadius: 28,
@@ -374,6 +404,7 @@ const styles = StyleSheet.create({
   },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#E2E8F0", alignSelf: "center", marginBottom: 16 },
   modalTitle: { fontSize: 18, fontFamily: theme.fonts.bold, color: "#1E293B", textAlign: "center", marginBottom: 20 },
+  // Day / month / year columns inside the picker (selected item has a light blue background)
   pickerRow: { flexDirection: "row", gap: 8, marginBottom: 24 },
   pickerCol: { flex: 1, alignItems: "center" },
   pickerColLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 8 },
@@ -382,6 +413,7 @@ const styles = StyleSheet.create({
   pickerItemActive: { backgroundColor: "#EFF6FF", borderWidth: 1.5, borderColor: "#DBEAFE" },
   pickerItemText: { fontSize: 15, fontFamily: theme.fonts.regular, color: "#64748B" },
   pickerItemTextActive: { fontFamily: theme.fonts.bold, color: "#2563EB" },
+  // Confirm Date button
   confirmBtn: { borderRadius: 50, overflow: "hidden" },
   confirmBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16 },
   confirmBtnText: { color: "#fff", fontSize: 15, fontFamily: theme.fonts.semiBold },

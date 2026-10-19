@@ -1,3 +1,4 @@
+# Python packages for the Multi-Modal Fusion API (installed by the Dockerfile). xgboost is needed for the primary-difficulty model.
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.9.2

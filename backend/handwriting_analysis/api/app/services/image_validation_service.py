@@ -1,3 +1,6 @@
+# Checks the uploaded handwriting image before we predict: file type/size, blank or cut-off writing, noise,
+# and an optional OCR check. Called by services/predict_service.py. Bad images raise a 422 'recapture_required'
+# error that the mobile app shows as a 'please retake' message.
 from fastapi import HTTPException, UploadFile
 from PIL import Image
 import numpy as np
@@ -5,6 +8,7 @@ import cv2
 import io
 import re
 
+# Upload limits: size cap and accepted image types.
 MAX_FILE_SIZE_MB = 10
 ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 ALLOWED_CONTENT_TYPES = {
@@ -15,6 +19,7 @@ ALLOWED_CONTENT_TYPES = {
     "application/octet-stream"
 }
 
+# Child-friendly messages for each reason a photo must be retaken (shown in the app).
 RECAPTURE_MESSAGES = {
     "blank": "We couldn't see any writing. Please try writing again.",
     "undecodable": "We couldn't open that picture. Please take it again.",
@@ -31,6 +36,7 @@ def _recapture(reason: str):
         detail={"code": "recapture_required", "reason": reason, "message": RECAPTURE_MESSAGES[reason]}
     )
 
+# Decode uploaded bytes into an RGB array; fails as 'undecodable' if it is not a real image.
 def load_image_from_bytes(file_bytes: bytes):
     try:
         image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
@@ -38,6 +44,7 @@ def load_image_from_bytes(file_bytes: bytes):
     except Exception:
         raise _recapture("undecodable")
 
+# Turn the picture into black/white where the handwriting is white. Returns (grayscale, binary) images used by validation and feature extraction.
 def _preprocess_for_foreground(image_rgb):
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
 
@@ -66,6 +73,8 @@ def _preprocess_for_foreground(image_rgb):
 
     return gray, thresh
 
+# Runs all checks and returns (validation info, rgb image, gray image, binary image).
+# Thresholds inside (foreground share 0.002 to 0.65, blobs under 12 pixels ignored, over 80 components = noisy) decide blank, too dense or noisy images.
 def validate_image_upload(file: UploadFile, content: bytes, target_text: str, strict_target_match: bool = False):
     filename = file.filename or "uploaded_image.png"
     ext = "." + filename.split(".")[-1].lower() if "." in filename else ""

@@ -1,3 +1,5 @@
+// i18n/strings/auth.ts - Sinhala and Tamil translations for the welcome, login, signup, onboarding and profile screens.
+// Merged into one dictionary in i18n/index.tsx; the English text is the lookup key.
 import type { Entry } from "../index";
 
 // English -> Sinhala/Tamil. Use {name} placeholders for dynamic values.

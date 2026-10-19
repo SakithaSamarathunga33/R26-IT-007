@@ -1,3 +1,5 @@
+// i18n/strings/results.ts - Sinhala and Tamil translations for the result, summary, fusion report and therapy plan screens.
+// Merged into one dictionary in i18n/index.tsx; the English text is the lookup key.
 import type { Entry } from "../index";
 
 // English -> Sinhala/Tamil. Use {name} placeholders for dynamic values.

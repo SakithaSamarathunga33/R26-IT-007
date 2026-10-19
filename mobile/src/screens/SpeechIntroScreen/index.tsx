@@ -1,3 +1,10 @@
+/**
+ * SpeechIntroScreen
+ * Welcome page for the speech screening: explains the 3 levels and how the activity works.
+ * Flow: Home / assessment menu -> SpeechIntro -> SpeechLevels (via the "Choose a Level" button).
+ * Uses config/speechTasks (levels + task counts), i18n (useT) for translated text, and the KidBackground component.
+ * No backend call on this screen.
+ */
 import React from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -9,22 +16,26 @@ import KidBackground from "../../components/KidBackground";
 import { useT } from "../../i18n";
 import { SPEECH_LEVELS, levelTaskCount } from "../../config/speechTasks";
 
+// Only needs navigation (no route params).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechIntro">;
 };
 
+// The three "How it works" steps. color = icon/number colour, bg = its soft background.
 const STEPS = [
   { icon: "volume-high-outline" as const, title: "The App Says It", desc: "You will hear the word out loud — tap to hear it again or slowly.", color: "#2563EB", bg: "#EFF6FF" },
   { icon: "mic-outline" as const, title: "Now You Say It", desc: "Tap the record button and say the word clearly.", color: "#7C3AED", bg: "#F5F3FF" },
   { icon: "checkmark-circle-outline" as const, title: "See Your Result", desc: "Replay, retry, then move on to the next activity.", color: "#059669", bg: "#ECFDF5" },
 ];
 
+// Small info chips in the hero card (levels, activities, time). {n} is filled in by t().
 const CHIPS = [
   { icon: "layers-outline" as const, label: "{n} levels", n: 3 },
   { icon: "list-outline" as const, label: "{n} activities", n: 10 },
   { icon: "time-outline" as const, label: "~5 minutes", n: 0 },
 ];
 
+// Main screen: hero card, levels list, steps list, notice and the start button.
 export default function SpeechIntroScreen({ navigation }: Props) {
   const { t } = useT();
   return (
@@ -140,9 +151,12 @@ export default function SpeechIntroScreen({ navigation }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  /* Header: white circle back button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -154,9 +168,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
 
+  /* Scroll area padding */
   content: { paddingHorizontal: 20 },
 
   /* Hero card */
+  /* Blue gradient hero with blue glow; white text; see-through white circles are decoration */
   heroCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 24,
     overflow: "hidden",
@@ -179,10 +195,12 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#fff" },
 
+  /* Body text: grey-blue; section labels: light grey small caps */
   descText: { fontSize: 14, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 22, marginBottom: 24, textAlign: "center" },
 
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 },
 
+  /* Levels list: white card, light borders; each level uses its own colour from the config */
   levelsCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 24, overflow: "hidden",
@@ -197,6 +215,7 @@ const styles = StyleSheet.create({
   levelCountChip: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   levelCountText: { fontSize: 13, fontFamily: theme.fonts.bold },
 
+  /* Steps list: white card; each step has its own icon colour + soft background */
   stepsCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 16, overflow: "hidden",
@@ -211,6 +230,7 @@ const styles = StyleSheet.create({
   stepNum: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   stepNumText: { fontSize: 12, fontFamily: theme.fonts.bold },
 
+  /* Notice box: light blue background and blue text (quiet-room reminder) */
   noticeCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -219,6 +239,7 @@ const styles = StyleSheet.create({
   noticeIconWrap: { marginTop: 1 },
   noticeText: { flex: 1, fontSize: 13, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 19 },
 
+  /* Start button: blue gradient pill, white text */
   startBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

@@ -1,3 +1,14 @@
+// BehaviorResultScreen
+// Shown right after a child finishes ONE behaviour activity. It gives gentle,
+// encouraging feedback (stars, "Correct!"/"Good try!", simple stats and score bars).
+// Comes from: BehaviorActivityScreen (navigation.replace("BehaviorResult", ...)).
+// Goes next to:
+//   - BehaviorActivity (next task in the same level), or
+//   - BehaviorLevelComplete (last task of the level), or
+//   - for therapy "practice" runs: next practice task, or FusionTherapy when done.
+// Uses: BEHAVIOR_TASKS / level helpers (config/behaviorTasks), practiceNext (utils/practiceFlow),
+// speakFeedback / stopSpeaking (services/kidFeedback), KidBackground, i18n.
+// No backend call here: the result data is passed in through route params.
 import React, { useEffect, useRef } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, Animated } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,6 +40,7 @@ const CHEER = {
   tried:   { label: "Nice effort!", sublabel: "Every try makes you stronger.", stars: 2 },
 };
 
+// One labelled progress bar (e.g. "Attention  ▇▇▇░  72%"). value is 0 to 1.
 function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <View style={scoreBarStyles.row}>
@@ -41,14 +53,18 @@ function ScoreBar({ label, value, color }: { label: string; value: number; color
   );
 }
 
+// Styles for ScoreBar.
 const scoreBarStyles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+  // Text colour: grey label
   label: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#64748B", width: 80 },
+  // Bar background: light grey track (the coloured fill is passed in as a prop)
   track: { flex: 1, height: 6, backgroundColor: "#E2E8F0", borderRadius: 3, overflow: "hidden" },
   fill: { height: 6, borderRadius: 3 },
   value: { fontSize: 12, fontFamily: theme.fonts.bold, width: 36, textAlign: "right" },
 });
 
+// Main screen: reads the finished task's result from route params and shows it.
 export default function BehaviorResultScreen({ navigation, route }: Props) {
   const { t } = useT();
   const { taskIndex, isCorrect, selectedOption, elapsed, attemptCount, hintCount, features, result, error, practice } = route.params;
@@ -72,6 +88,7 @@ export default function BehaviorResultScreen({ navigation, route }: Props) {
     return () => clearTimeout(timer);
   }, [taskIndex]);
 
+  // Stop any voice that is still playing when the screen closes.
   useEffect(() => () => stopSpeaking(), []);
 
   // A springy pop on the answer card so the outcome feels like an event, not a
@@ -83,6 +100,7 @@ export default function BehaviorResultScreen({ navigation, route }: Props) {
   }, [taskIndex]);
   const popScale = popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] });
 
+  // "Next" button: decides where to go (next practice step, next task, or level complete).
   const handleNext = () => {
     stopSpeaking();
     // Practice runs belong to a therapy plan: step through that activity's own
@@ -107,6 +125,7 @@ export default function BehaviorResultScreen({ navigation, route }: Props) {
     }
   };
 
+  // Behaviour scores (attention, engagement...) for the bars; may be missing if analysis failed.
   const f = features as BehaviorFeatures | null;
 
   return (
@@ -219,7 +238,14 @@ export default function BehaviorResultScreen({ navigation, route }: Props) {
   );
 }
 
+// Colours used below:
+//   Page background: soft blue-white (#F5F7FF)
+//   Main teal gradient (#0891B2 -> #0E7490): encouragement card and Next button
+//   Cards: white with a pale border (#E8EDF5); answer card is green (right) or orange (try again)
+//   Text: dark navy (#1E293B) for titles, slate grey (#64748B / #94A3B8) for secondary text
+//   Warning card: pale yellow background (#FFFBEB) with brown text (#92400E)
 const styles = StyleSheet.create({
+  // --- Page and header ---
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
@@ -230,6 +256,7 @@ const styles = StyleSheet.create({
   levelPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
   content: { paddingHorizontal: 20 },
 
+  // --- Encouragement card (teal gradient, white text, faint white decoration circle) ---
   riskCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
     overflow: "hidden",
@@ -240,6 +267,7 @@ const styles = StyleSheet.create({
   riskLabel: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 4 },
   riskSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.8)", textAlign: "center" },
 
+  // --- Answer card (border/background colour is set in code: green if correct, orange if not) ---
   answerCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
     borderWidth: 2.5, borderRadius: 22, padding: 18, marginBottom: 14,
@@ -248,6 +276,7 @@ const styles = StyleSheet.create({
   answerTitle: { fontSize: 22, fontFamily: theme.fonts.extraBold, marginBottom: 3 },
   answerSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "#64748B" },
 
+  // --- Stats card (white card with light grey shadow and divider lines) ---
   statsCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 14, overflow: "hidden",
@@ -260,12 +289,14 @@ const styles = StyleSheet.create({
   statsLabel: { flex: 1, fontSize: 14, fontFamily: theme.fonts.medium, color: "#1E293B" },
   statsValue: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  // --- Score bars card (same white card look) ---
   scoresCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 14,
     shadowColor: "#94A3B8", shadowOpacity: 0.07, shadowOffset: { width: 0, height: 4 }, shadowRadius: 12, elevation: 3,
   },
 
+  // --- "Couldn't check this one" notice (soft yellow warning) ---
   errorCard: {
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FEF3C7",
@@ -273,6 +304,7 @@ const styles = StyleSheet.create({
   },
   errorText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E" },
 
+  // --- Next button (teal gradient pill with teal glow, white text) ---
   nextBtn: {
     borderRadius: 50,
     shadowColor: "#0891B2", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

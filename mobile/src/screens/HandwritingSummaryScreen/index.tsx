@@ -1,3 +1,9 @@
+// HandwritingSummaryScreen
+// Adult-facing summary of all handwriting results: overall risk, average scores, and a per-task breakdown grouped by level.
+// Comes from: HandwritingLevelComplete (final level or "See results so far") and HandwritingLevels ("results" button).
+// Goes to: HandwritingLevels ("Continue to Level n"), MainTabs ("Back to Dashboard"), or back.
+// Uses: Firestore via summaryService (collection "handwriting_predictions"), handwritingLevelService (level progress),
+// sessionService.markModuleDone (marks the handwriting module finished), riskThresholds, handwritingTasks config, i18n.
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,12 +28,16 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingSummary">;
 };
 
+// Colours for each risk level: text/icon colour, soft background, and border.
+// green = low, amber = medium, red = high, grey = needs review.
 const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444", requires_review: "#64748B" };
 const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", requires_review: "#F8FAFC" };
 const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", requires_review: "#E2E8F0" };
 
+// Turns any value into a safe number (0 if it is missing or not a number).
 const num = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
+// Text, icon and gradient colours for the big overall card, one entry per risk level.
 const OVERALL_CONFIG = {
   low:             { label: "Low Risk Indicators",   sublabel: "Handwriting patterns within typical range.",                   icon: "checkmark-circle" as const, gradColors: ["#059669", "#047857"] as [string,string] },
   medium:          { label: "Moderate Indicators",   sublabel: "Some handwriting patterns noted. A review may help.",          icon: "alert-circle" as const,    gradColors: ["#F59E0B", "#D97706"] as [string,string] },
@@ -77,6 +87,7 @@ function groupRowsByLevel(rows: SummaryRow[]): LevelGroup[] {
   }));
 }
 
+// Small horizontal bar showing a 0-1 value as a filled percentage.
 function MiniBar({ value, color }: { value: number; color: string }) {
   return (
     <View style={{ flex: 1, height: 4, backgroundColor: "#E2E8F0", borderRadius: 2, overflow: "hidden" }}>
@@ -85,6 +96,7 @@ function MiniBar({ value, color }: { value: number; color: string }) {
   );
 }
 
+// Main component: loads saved results, works out the overall risk, and draws the summary.
 export default function HandwritingSummaryScreen({ navigation }: Props) {
   const { t } = useT();
   const markedRef = useRef(false);
@@ -92,6 +104,7 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
   const [levelProgress, setLevelProgress] = useState<HandwritingLevelProgress>({ completed: [] });
   const [loading, setLoading] = useState(true);
 
+  // On open: load this child's handwriting results and level progress from Firestore.
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) { setLoading(false); return; }
@@ -332,7 +345,12 @@ export default function HandwritingSummaryScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // --- Screen layout ---
+  // Colours: light blue-grey page background (#F5F7FF)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+
+  // --- Header (back button + title) ---
+  // Colours: white round back button, dark slate title
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -345,6 +363,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20 },
 
+  // --- Overall card (top card with risk label and 3 stats) ---
+  // Colours: gradient by risk level, white text, see-through white panels and decoration circle
   overallCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
     overflow: "hidden",
@@ -366,6 +386,8 @@ const styles = StyleSheet.create({
   overallStatVal: { fontSize: 20, fontFamily: theme.fonts.extraBold, color: "#fff" },
   overallStatLabel: { fontSize: 10, fontFamily: theme.fonts.medium, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: 0.5 },
 
+  // --- Risk score card (percentage + progress bar) ---
+  // Colours: white card, light border, grey bar track, bar colour set by risk level
   probCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 14,
@@ -378,6 +400,8 @@ const styles = StyleSheet.create({
   probFill: { height: 8, borderRadius: 4 },
   probNote: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
 
+  // --- Letter reversal notice ---
+  // Colours: background/border/title set in JSX (red if 2+ tasks, amber otherwise), grey subtext
   reversalCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 16,
@@ -385,8 +409,11 @@ const styles = StyleSheet.create({
   reversalTitle: { fontSize: 13, fontFamily: theme.fonts.semiBold, marginBottom: 2 },
   reversalSub: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
 
+  // --- Section heading ("Task Breakdown") --- grey small caps text
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 },
 
+  // --- "Levels still to go" notice ---
+  // Colours: soft yellow card, amber border, brown title, orange-brown subtext
   partialCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
@@ -399,6 +426,8 @@ const styles = StyleSheet.create({
   partialTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#92400E", marginBottom: 2 },
   partialSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#B45309", lineHeight: 17 },
 
+  // --- Level group header (badge, level title, task count chip) ---
+  // Colours: badge gradient and chip colours come from the level config, dark slate title
   levelGroup: { marginBottom: 14 },
   levelGroupHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
   levelGroupBadge: { width: 26, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center" },
@@ -407,6 +436,8 @@ const styles = StyleSheet.create({
   levelGroupChip: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   levelGroupChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold },
 
+  // --- Task breakdown list (one row per task + risk pill) ---
+  // Colours: white card, light dividers, dark task name, grey word text, pill colours by risk level
   breakdownCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 16, overflow: "hidden",
@@ -421,6 +452,8 @@ const styles = StyleSheet.create({
   riskPill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   riskPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  // --- Disclaimer ("not a diagnosis") ---
+  // Colours: light blue card, blue border, blue text
   disclaimerCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -428,6 +461,8 @@ const styles = StyleSheet.create({
   },
   disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#1D4ED8", lineHeight: 18 },
 
+  // --- Bottom buttons (Continue / Back to Dashboard) ---
+  // Colours: gradient set in JSX (level colour, blue, or grey), blue glow shadow, white text
   doneBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

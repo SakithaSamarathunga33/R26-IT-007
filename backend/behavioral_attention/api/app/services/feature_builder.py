@@ -1,3 +1,5 @@
+# Turns the incoming JSON into the one-row table (DataFrame) the model needs.
+# Called by services/predict_service.py. Also reports which features were missing, which drives the reliability rating.
 import pandas as pd
 from typing import Dict, Any
 from app.schemas.feature_columns import FEATURE_COLUMNS, NUMERIC_COLUMNS, CATEGORICAL_COLUMNS

@@ -1,3 +1,12 @@
+// Handwriting Levels screen.
+// Lets the child pick one of the three handwriting levels. Shows overall progress,
+// locks a level until the one before it is finished, and a "See results so far" button.
+// Comes from: HandwritingIntro ("Choose a Level"), or HandwritingLevelComplete.
+// Goes to: HandwritingTask (first task of the chosen level), or HandwritingSummary
+// (results so far).
+// Uses: handwritingTasks config (levels, task counts), handwritingLevelService
+// (saved progress, unlock rule, supplement reset), sessionService (clear old
+// predictions in the database), Firebase auth (current user id), i18n useT.
 import React, { useCallback, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -28,11 +37,13 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "HandwritingLevels">;
 };
 
+// Main screen component: loads level progress and lists the level cards.
 export default function HandwritingLevelsScreen({ navigation }: Props) {
   const { t } = useT();
   const [progress, setProgress] = useState<HandwritingLevelProgress>({ completed: [] });
   const [loading, setLoading] = useState(true);
 
+  // Loads the saved progress (which levels are done) each time the screen is shown.
   // Re-read on focus so a level finished deeper in the flow shows as unlocked
   // the moment the child comes back here.
   useFocusEffect(
@@ -51,6 +62,7 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
     }, [])
   );
 
+  // Tapped on a level card: clears old results for that level, then opens its first task.
   const startLevel = async (level: HandwritingLevel) => {
     const uid = auth.currentUser?.uid;
     // Clear before the first task so an in-flight delete can't eat the new
@@ -215,7 +227,12 @@ export default function HandwritingLevelsScreen({ navigation }: Props) {
   );
 }
 
+// Colours used below: light blue-grey page background (#F5F7FF), white cards with a pale
+// border, dark slate titles (#1E293B), grey secondary text (#64748B / #94A3B8), blue
+// (#2563EB) for progress and the results button, green for "Done", amber for stars,
+// and washed-out greys for locked levels.
 const styles = StyleSheet.create({
+  // Page and header (back button + title)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
   header: {
@@ -229,6 +246,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
 
+  // Scroll content and the pale blue "See results so far" button
   content: { paddingHorizontal: 20, paddingTop: 8 },
   resultsBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
@@ -237,6 +255,7 @@ const styles = StyleSheet.create({
   },
   resultsBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  // Overall progress card: white card with a blue progress bar
   progressCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -253,6 +272,7 @@ const styles = StyleSheet.create({
   progressTrack: { height: 6, backgroundColor: "#E2E8F0", borderRadius: 3, overflow: "hidden" },
   progressFill: { height: 6, borderRadius: 3 },
 
+  // Level cards: white when open, faded grey when locked
   levelCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -271,12 +291,14 @@ const styles = StyleSheet.create({
   levelDesc: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 17, marginBottom: 8 },
   textMuted: { color: "#94A3B8" },
 
+  // Green "Done" chip
   doneChip: {
     flexDirection: "row", alignItems: "center", gap: 3,
     backgroundColor: "#ECFDF5", borderRadius: 20, paddingHorizontal: 7, paddingVertical: 2,
   },
   doneChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold, color: "#059669" },
 
+  // Small info chips (level number, task count) and the star row
   metaRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   metaChip: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
   metaChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold },
@@ -289,6 +311,7 @@ const styles = StyleSheet.create({
   starCol: { alignItems: "center", gap: 4 },
   starRow: { flexDirection: "row", gap: 1 },
 
+  // Pale blue note box at the bottom
   noteCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",

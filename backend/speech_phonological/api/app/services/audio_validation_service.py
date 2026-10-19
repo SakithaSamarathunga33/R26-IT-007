@@ -1,8 +1,10 @@
+# Prepares and checks uploaded audio. Called by routes/predict_routes.py before any prediction.
 from fastapi import HTTPException, UploadFile
 import soundfile as sf
 import io
 import subprocess
 
+# Upload limits: size cap and accepted audio extensions (phones record m4a/aac/3gp, not WAV).
 MAX_FILE_SIZE_MB = 15
 ALLOWED_EXTENSIONS = {".wav", ".m4a", ".aac", ".3gp", ".mp4", ".webm"}
 
@@ -24,6 +26,7 @@ def convert_to_wav_bytes(content: bytes, filename: str) -> bytes:
     return proc.stdout
 
 
+# Checks type, size, readability and length (0.2s to 20s). Returns basic audio info for the response, or raises a 400 error.
 def validate_wav_upload(file: UploadFile, content: bytes):
     filename = file.filename or "uploaded.wav"
     ext = "." + filename.split(".")[-1].lower() if "." in filename else ""

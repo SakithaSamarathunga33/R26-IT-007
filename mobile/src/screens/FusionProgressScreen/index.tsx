@@ -1,3 +1,11 @@
+/**
+ * FusionProgressScreen
+ * Checks that the speech, handwriting and behaviour modules are all fully finished before the final analysis can run.
+ * Flow: Home / History -> FusionProgress -> FusionLoading ("Run Final Analysis", only enabled when every module is ready).
+ * Uses services/fusionService (build each module summary from saved Firestore results), the per-module level-progress
+ * services (speech / handwriting / behaviour), the level lists in config, Firebase auth and i18n.
+ * The multi_modal_risk backend is NOT called here; it is called later in FusionLoading.
+ */
 import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator,
@@ -22,12 +30,15 @@ import { fetchLevelProgress } from "../../services/speechLevelService";
 import { fetchHandwritingLevelProgress } from "../../services/handwritingLevelService";
 import { fetchBehaviorLevelProgress } from "../../services/behaviorLevelService";
 
+// Only needs navigation (no route params).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionProgress">;
 };
 
+// Possible states of a module: loading, ready, missing (not started), partial (some levels left), low_quality.
 type ModuleStatus = "loading" | "ready" | "missing" | "partial" | "low_quality";
 
+// What we know about one module: its status, risk number, reliability and how many levels are done.
 interface ModuleState {
   status: ModuleStatus;
   risk_probability?: number;
@@ -37,12 +48,14 @@ interface ModuleState {
   levelsTotal?: number;
 }
 
+// Display info for the three module cards (name, icon and colours: blue = speech, purple = writing, teal = behaviour).
 const MODULE_CONFIG = [
   { key: "speech",      label: "Speech",      sublabel: "Phonological",  icon: "ear-outline" as const,    color: "#2563EB", bg: "#EFF6FF", iconBg: "#DBEAFE" },
   { key: "handwriting", label: "Writing",     sublabel: "Handwriting",   icon: "pencil-outline" as const, color: "#7C3AED", bg: "#F5F3FF", iconBg: "#EDE9FE" },
   { key: "behaviour",   label: "Behaviour",   sublabel: "Attention",     icon: "happy-outline" as const,  color: "#0891B2", bg: "#ECFEFF", iconBg: "#CFFAFE" },
 ];
 
+// Main screen: module status cards, warnings and the Run Final Analysis button.
 export default function FusionProgressScreen({ navigation }: Props) {
   const { t } = useT();
   const childId = auth.currentUser?.uid ?? "unknown";
@@ -55,10 +68,12 @@ export default function FusionProgressScreen({ navigation }: Props) {
   });
   const [checking, setChecking] = useState(true);
 
+  // Check the modules once when the screen opens.
   useEffect(() => {
     checkModules();
   }, []);
 
+  // Loads all module summaries + level progress in parallel and works out each module's status.
   async function checkModules() {
     setChecking(true);
     const [speech, handwriting, behavior, speechLv, handwritingLv, behaviorLv] =
@@ -109,12 +124,14 @@ export default function FusionProgressScreen({ navigation }: Props) {
     setChecking(false);
   }
 
+  // allReady = every module is ready (or only low quality); anyMissing / anyPartial drive the warning boxes.
   const allReady = Object.values(modules).every(
     (m) => m.status === "ready" || m.status === "low_quality"
   );
   const anyMissing = Object.values(modules).some((m) => m.status === "missing");
   const anyPartial = Object.values(modules).some((m) => m.status === "partial");
 
+  // Icon for a status: spinner, green tick, orange warning/clock, or red cross.
   function statusIcon(status: ModuleStatus) {
     if (status === "loading") return <ActivityIndicator size="small" color="#94A3B8" />;
     if (status === "ready")   return <Ionicons name="checkmark-circle" size={22} color="#059669" />;
@@ -123,6 +140,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
     return <Ionicons name="close-circle" size={22} color="#EF4444" />;
   }
 
+  // Short status text shown under the icon (e.g. Ready, 2/3 levels).
   function statusLabel(state: ModuleState) {
     if (state.status === "loading")     return t("Checking…");
     if (state.status === "ready")       return t("Ready");
@@ -132,6 +150,7 @@ export default function FusionProgressScreen({ navigation }: Props) {
     return t("Not started");
   }
 
+  // Status text colour: green = ready, orange = low quality / partial, red = not started, grey = loading.
   function statusColor(status: ModuleStatus) {
     if (status === "ready")       return "#059669";
     if (status === "low_quality") return "#D97706";
@@ -277,8 +296,11 @@ export default function FusionProgressScreen({ navigation }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+  /* Header: white circle back button, light blue refresh button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -295,6 +317,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20, paddingTop: 8 },
 
+  /* Hero card: blue gradient with blue glow, white text, faint white circle decorations */
   heroCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 24,
     overflow: "hidden",
@@ -309,8 +332,10 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 8 },
   heroSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 20 },
 
+  /* Section label: light grey small caps */
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 },
 
+  /* Module cards: white; icon boxes and risk text use each module's colour */
   moduleCard: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -326,6 +351,7 @@ const styles = StyleSheet.create({
   moduleStatusWrap: { alignItems: "center", gap: 4 },
   moduleStatusText: { fontSize: 10, fontFamily: theme.fonts.semiBold, textTransform: "uppercase", letterSpacing: 0.4 },
 
+  /* Warning boxes: yellow background with brown text */
   warningCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
@@ -340,6 +366,7 @@ const styles = StyleSheet.create({
   },
   cautionText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E", lineHeight: 18 },
 
+  /* Disclaimer: light blue background, blue text (dark blue for the bold part) */
   disclaimerCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -348,9 +375,11 @@ const styles = StyleSheet.create({
   disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
   disclaimerBold: { fontFamily: theme.fonts.semiBold, color: "#1E40AF" },
 
+  /* Checking message: grey text */
   checkingRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 18 },
   checkingText: { fontSize: 14, fontFamily: theme.fonts.medium, color: "#64748B" },
 
+  /* Run button: blue gradient pill (turns light grey with grey text when disabled) */
   ctaBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

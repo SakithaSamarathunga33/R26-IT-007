@@ -1,3 +1,11 @@
+// HandwritingLevelCompleteScreen
+// Celebration screen shown when a child finishes all tasks in one handwriting level.
+// It checks the level score, unlocks the next level if the child passed, and offers the next step.
+// Comes from: HandwritingResultScreen (after the last task of a level).
+// Goes to: HandwritingTask (start next level or retry this one), HandwritingSummary (final level / "See results so far"),
+// or HandwritingLevels ("Back to levels").
+// Uses: handwritingLevelService (Firestore: level score, mastery, unlock saving, clearing old results),
+// kidFeedback (spoken praise), handwritingTasks config, firebase auth, i18n, ConfettiBurst, StatChipRow, KidBackground.
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -34,6 +42,7 @@ type Props = {
   route: RouteProp<RootStackParamList, "HandwritingLevelComplete">;
 };
 
+// Main component: shows the level result, unlock message and next-step buttons.
 export default function HandwritingLevelCompleteScreen({ navigation, route }: Props) {
   const { t } = useT();
   const level = route.params.level;
@@ -77,6 +86,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
       .finally(() => setSaving(false));
   }, [level]);
 
+  // Run the save/check once when the screen opens.
   useEffect(() => { saveProgress(); }, [saveProgress]);
 
   // Spoken celebration — the level-complete moment is the main reward, and
@@ -96,8 +106,10 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
     return () => clearTimeout(t);
   }, [level, isFinalLevel, saving, canProceed, levelResult]);
 
+  // Stop any speech when leaving the screen.
   useEffect(() => () => stopSpeaking(), []);
 
+  // Pop-in animation for the hero card when the screen opens.
   useEffect(() => {
     Animated.spring(popAnim, { toValue: 1, useNativeDriver: true, friction: 5, tension: 60 }).start();
   }, []);
@@ -119,6 +131,7 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
   }, [trophyBounce]);
   const trophyTranslateY = trophyBounce.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
 
+  // "Start Level n": clears old results for the next level and opens its first task.
   const startNextLevel = async () => {
     if (!nextLevel) return;
     stopSpeaking();
@@ -305,8 +318,11 @@ export default function HandwritingLevelCompleteScreen({ navigation, route }: Pr
 }
 
 const styles = StyleSheet.create({
+  // --- Screen layout ---
+  // Colours: light blue-grey page background (#F5F7FF)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  // --- Header --- dark slate title
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -315,6 +331,8 @@ const styles = StyleSheet.create({
 
   content: { flex: 1, paddingHorizontal: 20, paddingTop: 8, alignItems: "center" },
 
+  // --- Hero card (trophy + "Level n finished!") ---
+  // Colours: gradient from the level colours, white text, see-through white circles for decoration
   heroCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 18, overflow: "hidden",
     shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
@@ -330,6 +348,8 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 24, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 8, textAlign: "center" },
   heroSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.85)", textAlign: "center", lineHeight: 19 },
 
+  // --- Unlock / practise notice card ---
+  // Colours: white card, light border, dark title, grey subtext, badge colour from the level
   unlockCard: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -340,6 +360,8 @@ const styles = StyleSheet.create({
   unlockTitle: { fontSize: 14, fontFamily: theme.fonts.bold, color: "#1E293B", marginBottom: 3 },
   unlockSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 17 },
 
+  // --- "Progress not saved" retry card ---
+  // Colours: light red background, red border and text
   saveFailCard: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#FFF5F5", borderWidth: 1, borderColor: "#FECACA",
@@ -348,6 +370,8 @@ const styles = StyleSheet.create({
   saveFailTitle: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#EF4444", marginBottom: 2 },
   saveFailSub: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#DC2626", lineHeight: 16 },
 
+  // --- Main action button ---
+  // Colours: gradient set in JSX (level colour or blue), blue glow shadow, white text
   primaryBtn: {
     width: "100%", borderRadius: 50, marginBottom: 12,
     shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
@@ -355,6 +379,8 @@ const styles = StyleSheet.create({
   primaryBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
   primaryBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
 
+  // --- Secondary button ("See results so far") ---
+  // Colours: white button, light grey border, grey text
   secondaryBtn: {
     width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     paddingVertical: 16, borderRadius: 50,
@@ -363,6 +389,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  // --- Text link ("Back to levels") --- light grey underlined text
   linkBtn: { paddingVertical: 10 },
   linkBtnText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#94A3B8", textDecorationLine: "underline" },
 });

@@ -1,3 +1,9 @@
+// HistoryScreen: lists the user's past screening reports (date, risk level, score, module scores).
+// Tapping a report opens a pop-up with the full details and a button to open the full report page.
+// Reached from: the "History" tab inside "MainTabs" (bottom tab bar in AppNavigator).
+// Goes to: "FusionProgress" (empty state button) and "FusionRiskSummary" (Open Full Report).
+// Uses: firebase auth (current user), sessionService.getAssessmentHistory, fusionService.fusionMethodLabel,
+// config/riskThresholds.riskLevelFromScore, theme fonts, i18n (useT).
 import React, { useCallback, useState } from "react";
 import { fusionMethodLabel } from "../../services/fusionService";
 import {
@@ -15,10 +21,13 @@ import { theme } from "../../theme";
 import { riskLevelFromScore } from "../../config/riskThresholds";
 import { useT } from "../../i18n";
 
+// Navigation props: used to open the Final Analysis and Full Report screens.
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "MainTabs">;
 };
 
+// Risk colours: text/icon colour, soft background, border and banner gradient for each risk level.
+// green = low, amber = medium, red = high, grey = not enough evidence.
 const RISK_COLOR  = { low: "#059669", medium: "#D97706", high: "#EF4444", insufficient: "#64748B" };
 const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", insufficient: "#F8FAFC" };
 const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", insufficient: "#E2E8F0" };
@@ -29,6 +38,7 @@ const RISK_GRAD: Record<string, [string, string]> = {
   insufficient: ["#94A3B8", "#64748B"],
 };
 
+// Work out which risk level to show for a saved report.
 // History stores riskLevel "low" as a fallback when the fusion returned no level,
 // so read the report's own status to avoid showing "Low" for insufficient evidence.
 function recordLevel(r: AssessmentRecord): keyof typeof RISK_COLOR {
@@ -36,29 +46,35 @@ function recordLevel(r: AssessmentRecord): keyof typeof RISK_COLOR {
   return (r.riskLevel ?? "low") as keyof typeof RISK_COLOR;
 }
 
+// Turn a risk level into readable text, e.g. "Low" or "Not enough evidence".
 function levelLabel(level: keyof typeof RISK_COLOR, t: (en: string) => string): string {
   return t(level === "insufficient" ? "Not enough evidence" : level.charAt(0).toUpperCase() + level.slice(1));
 }
 
+// Friendly names for the difficulty codes stored in the report.
 const DIFFICULTY_LABELS: Record<string, string> = {
   phonological_processing: "Phonological Processing",
   handwriting:             "Handwriting",
   attention_behavior:      "Attention & Behaviour",
 };
 
+// The three screening modules: name, icon, accent colour and the key of its score in the report.
 const MODULE_META = [
   { scoreKey: "speech_score",      label: "Speech",      icon: "ear-outline" as const,    color: "#2563EB", iconBg: "#DBEAFE" },
   { scoreKey: "handwriting_score", label: "Handwriting", icon: "pencil-outline" as const, color: "#7C3AED", iconBg: "#EDE9FE" },
   { scoreKey: "behavior_score",    label: "Behaviour",   icon: "happy-outline" as const,  color: "#0891B2", iconBg: "#CFFAFE" },
 ];
 
+// Main history screen component.
 export default function HistoryScreen({ navigation }: Props) {
   const user = auth.currentUser;
   const { t } = useT();
+  // The saved reports, loading flag, and the report currently opened in the pop-up (null = closed).
   const [history, setHistory] = useState<AssessmentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AssessmentRecord | null>(null);
 
+  // Each time the tab comes into view, reload the user's reports.
   useFocusEffect(
     useCallback(() => {
       if (!user?.uid) return;
@@ -70,6 +86,7 @@ export default function HistoryScreen({ navigation }: Props) {
     }, [user?.uid])
   );
 
+  // ---- Screen layout: header, then loading / empty / list of reports, then the detail pop-up ----
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FF" />
@@ -113,6 +130,7 @@ export default function HistoryScreen({ navigation }: Props) {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+          {/* One card per saved report */}
           {history.map((record, i) => {
             const level = recordLevel(record);
             const rc = RISK_COLOR[level] ?? RISK_COLOR.low;
@@ -201,6 +219,7 @@ export default function HistoryScreen({ navigation }: Props) {
       <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSelected(null)} />
+          {/* Build the detail pop-up content for the tapped report */}
           {selected && (() => {
             const level = recordLevel(selected);
             const rc    = RISK_COLOR[level] ?? RISK_COLOR.low;
@@ -363,6 +382,7 @@ export default function HistoryScreen({ navigation }: Props) {
   );
 }
 
+// One label + value line inside the report pop-up (optional top border).
 function ModalRow({ icon, color, label, value, border }: { icon: any; color: string; label: string; value: string; border?: boolean }) {
   return (
     <View style={[styles.modalRowItem, border && styles.modalBorder]}>
@@ -375,9 +395,17 @@ function ModalRow({ icon, color, label, value, border }: { icon: any; color: str
   );
 }
 
+// Colours used on this screen:
+//   page background #F5F7FF; white (#fff) report cards with pale grey borders (#E8EDF5)
+//   main blue #2563EB / #3B72F6 for the badge, "View full" chip and buttons
+//   dark text #1E293B, grey text #64748B / #94A3B8 for dates and labels
+//   risk colours (green / amber / red / grey) come from RISK_COLOR, RISK_BG and RISK_BORDER above and are applied inline
+//   module accents: blue (speech), purple (handwriting), teal (behaviour)
 const styles = StyleSheet.create({
+  // Page background
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  // Header styles (title + total badge)
   header: {
     paddingTop: 62, paddingHorizontal: 22, paddingBottom: 20,
     flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between",
@@ -391,6 +419,7 @@ const styles = StyleSheet.create({
   },
   headerBadgeText: { fontSize: 12, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  // Loading and empty-state styles
   centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, gap: 12 },
   loadingText: { fontSize: 14, fontFamily: theme.fonts.regular, color: "#94A3B8", marginTop: 8 },
 
@@ -404,6 +433,7 @@ const styles = StyleSheet.create({
   emptyBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16 },
   emptyBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#fff" },
 
+  // Report list and report card styles
   scroll: { paddingHorizontal: 20, paddingTop: 4 },
 
   card: {
@@ -425,6 +455,7 @@ const styles = StyleSheet.create({
   riskDot: { width: 6, height: 6, borderRadius: 3 },
   riskPillText: { fontSize: 12, fontFamily: theme.fonts.semiBold },
 
+  // Score bar, difficulty line and module chips on each card
   scoreRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   scoreLabel: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#64748B" },
   scoreValue: { fontSize: 14, fontFamily: theme.fonts.extraBold },
@@ -450,6 +481,7 @@ const styles = StyleSheet.create({
   },
   viewDetailText: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  // Report detail pop-up styles (dark overlay, light sheet, risk banner, score box, info cards, disclaimer)
   /* Modal */
   modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(15,23,42,0.5)" },
   modalCard: {

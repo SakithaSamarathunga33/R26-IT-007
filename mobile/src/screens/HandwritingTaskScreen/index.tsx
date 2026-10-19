@@ -1,3 +1,12 @@
+// Handwriting Task screen.
+// Shows one handwriting task before the child writes: the target letter/word (or a
+// spoken word for dictation), the instruction, a progress bar for the level, and a
+// choice between drawing on screen or taking a photo.
+// Comes from: HandwritingLevels (first task of a level), HandwritingResult (next task),
+// HandwritingLevelComplete (next level) and FusionTherapy (practice mode).
+// Goes to: HandwritingCanvas with the chosen input mode and the start time.
+// Uses: handwritingTasks config (tasks, levels, colours) and ttsService (read the word
+// aloud). No backend call here.
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,12 +30,14 @@ type Props = {
 
 type InputMode = "canvas" | "photo";
 
+// Colours and labels for the Easy / Medium / Hard badge (green, amber, red).
 const DIFFICULTY_CONFIG = {
   easy:   { color: "#059669", bg: "#ECFDF5", label: "Easy" },
   medium: { color: "#D97706", bg: "#FFFBEB", label: "Medium" },
   hard:   { color: "#EF4444", bg: "#FFF5F5", label: "Hard" },
 };
 
+// Main screen component: picks the task from the route params and shows it.
 export default function HandwritingTaskScreen({ navigation, route }: Props) {
   const taskIndex = route.params?.taskIndex ?? 0;
   const practice = route.params?.practice;
@@ -47,6 +58,8 @@ export default function HandwritingTaskScreen({ navigation, route }: Props) {
   const [speaking, setSpeaking] = useState(false);
   const autoSpokeRef = useRef(false);
 
+  // Says the target word aloud, normally or slowly (stretched out), and tracks
+  // whether the voice is currently speaking.
   const speakWord = (rate: "normal" | "slow" = "normal") => {
     speak(rate === "slow" ? stretchWord(task.target_text) : task.target_text, {
       rate,
@@ -65,8 +78,11 @@ export default function HandwritingTaskScreen({ navigation, route }: Props) {
     return () => clearTimeout(t);
   }, [taskIndex, isDictation]);
 
+  // Stop any speech when leaving the screen.
   useEffect(() => () => stopSpeaking(), []);
 
+  // Start button: stops speech and opens the canvas screen, saving the start time
+  // so the time taken to write can be measured.
   const handleStart = () => {
     stopSpeaking();
     setSpeaking(false);
@@ -237,7 +253,12 @@ export default function HandwritingTaskScreen({ navigation, route }: Props) {
   );
 }
 
+// Colours used below: light blue-grey page background (#F5F7FF), white cards with a pale
+// border, dark slate text (#1E293B), grey secondary text (#475569 / #94A3B8). The target
+// text, mode highlight and start button take their colour from the task type
+// (taskColors), so those are set in the JSX, not here.
 const styles = StyleSheet.create({
+  // Page and header (back button, title, difficulty badge)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
@@ -253,11 +274,13 @@ const styles = StyleSheet.create({
   diffDot: { width: 6, height: 6, borderRadius: 3 },
   diffText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  // Level progress bar: grey track, gradient fill in the level colours
   progressTrack: { height: 5, backgroundColor: "#E2E8F0", marginHorizontal: 20, borderRadius: 3, marginBottom: 20, overflow: "hidden" },
   progressFill: { height: 5, borderRadius: 3 },
 
   content: { paddingHorizontal: 20 },
 
+  // Level badge and task-type badge
   badgeRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginBottom: 16 },
   levelBadge: {
     flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1,
@@ -272,6 +295,8 @@ const styles = StyleSheet.create({
   },
   typeBadgeText: { fontSize: 12, fontFamily: theme.fonts.semiBold },
 
+  // Target card: big white card showing the letter/word, plus the dictation and
+  // "hear the word" buttons (white pills with grey text)
   targetCard: {
     backgroundColor: "#fff", borderWidth: 1.5, borderRadius: 24, padding: 24, marginBottom: 14,
     alignItems: "center", gap: 10,
@@ -301,6 +326,7 @@ const styles = StyleSheet.create({
 
   memoryHint: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#94A3B8", textAlign: "center" },
 
+  // Instruction card: white card with a light grey icon box
   instructionCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -312,6 +338,8 @@ const styles = StyleSheet.create({
   },
   instructionText: { flex: 1, fontSize: 14, fontFamily: theme.fonts.medium, color: "#1E293B", lineHeight: 20 },
 
+  // Writing-mode chooser: small grey heading and two white option cards
+  // (the selected one is tinted with the task colour in the JSX)
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 },
 
   modeRow: { flexDirection: "row", gap: 12 },
@@ -327,6 +355,7 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center",
   },
 
+  // Start button: rounded pill with white text (fill colour set in the JSX)
   startBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

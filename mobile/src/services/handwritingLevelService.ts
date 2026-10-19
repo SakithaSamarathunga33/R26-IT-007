@@ -1,3 +1,6 @@
+// handwritingLevelService.ts - handwriting-module level progress (wraps levelProgressService), mastery scoring
+// per level, and the "supplementary task" state used when a child gets an extra practice letter.
+// Used by the handwriting screens and sessionService.
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../config/firebase";
 import {
@@ -26,6 +29,7 @@ const CONFIG: LevelModuleConfig = {
 
 export type HandwritingLevelProgress = LevelProgress;
 
+// Loads which handwriting levels the child has completed.
 export function fetchHandwritingLevelProgress(uid: string) {
   return fetchProgress(CONFIG, uid);
 }
@@ -42,6 +46,7 @@ export function markHandwritingLevelComplete(uid: string, level: HandwritingLeve
   return markComplete(CONFIG, uid, level);
 }
 
+// True if the level is open (level 1 always; others need the previous one done).
 export function isHandwritingLevelUnlocked(
   level: HandwritingLevelId,
   progress: HandwritingLevelProgress
@@ -49,10 +54,12 @@ export function isHandwritingLevelUnlocked(
   return isUnlocked(level, progress);
 }
 
+// Deletes this level's saved predictions before replaying it.
 export function clearHandwritingLevelPredictions(uid: string, level: HandwritingLevelId) {
   return clearPredictionsForLevel(CONFIG, uid, level);
 }
 
+// Clears all handwriting level progress (new screening).
 export function resetHandwritingLevelProgress(uid: string) {
   return resetProgress(CONFIG, uid);
 }
@@ -67,6 +74,7 @@ export function isHandwritingCorrect(result: any): boolean {
   return typeof matched === "boolean" ? matched : result.prediction?.risk_level !== "high";
 }
 
+// Level result: correct count out of total, percent score, and whether mastery (4 of 5) was reached.
 export interface HandwritingLevelResult {
   correct: number;
   total: number;

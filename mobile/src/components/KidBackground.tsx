@@ -1,8 +1,11 @@
+// KidBackground.tsx - soft decorative background (gradient, blobs, floating animal icons) for the
+// children's activity screens. Each screen picks a `variant`; it never blocks touches.
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, View, Animated, Easing } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
+// Which screen theme to use (one per module plus home, therapy and celebration).
 export type KidBackgroundVariant =
   | "speech"
   | "handwriting"
@@ -18,6 +21,8 @@ type Props = {
 /** Ionicons' only real animal glyphs — everything else is a UI icon, not a creature. */
 const ANIMAL_ICONS = ["paw", "fish", "bug"] as const;
 
+// Colour scene per variant: `colors` = 3-stop background gradient (very light pastels),
+// `accent` = main decoration colour, `soft` = second decoration colour, `icons` = which animals float.
 const SCENES: Record<
   KidBackgroundVariant,
   {
@@ -65,6 +70,7 @@ const SCENES: Record<
   },
 };
 
+// Settings for one floating icon (animation timing and sway are staggered).
 type FloatingAnimalProps = {
   icon: typeof ANIMAL_ICONS[number];
   size: number;
@@ -80,6 +86,7 @@ type FloatingAnimalProps = {
   swayDeg: number;
 };
 
+// A faint icon in a rounded bubble that bobs up and down and sways, looping forever.
 function FloatingAnimal({
   icon, size, color, borderColor, style, innerStyle, delay, duration, bounceHeight, baseRotateDeg, swayDeg,
 }: FloatingAnimalProps) {
@@ -166,6 +173,7 @@ export default function KidBackground({ variant }: Props) {
   );
 }
 
+// Layout of the faint blobs (orbs), icon bubbles and dot rows; low opacity keeps content readable.
 const styles = StyleSheet.create({
   orb: {
     position: "absolute",

@@ -1,3 +1,10 @@
+// HandwritingReviewScreen
+// The child checks their writing (canvas drawing or photo) before sending it.
+// Comes from: HandwritingCanvasScreen (passes the image, strokes, time and retry count).
+// Goes to: HandwritingResult (replaces this screen), or back to the canvas on "Retake".
+// Uses: the handwriting backend API (API_URLS.handwriting) to analyse the image,
+// Firestore ("handwriting_attempts" + "handwriting_predictions") to save the outcome,
+// the task list in config/handwritingTasks, KidBackground, and handwritingLevelService.
 import React, { useState } from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
@@ -32,6 +39,7 @@ type Props = {
 import { API_URLS } from "../../config/apiConfig";
 const HANDWRITING_API = API_URLS.handwriting;
 
+// Main component: shows a preview of the writing and sends it for analysis.
 export default function HandwritingReviewScreen({ navigation, route }: Props) {
   const { taskIndex, inputMode, capturedUri, strokesJson, retryCount, durationSec, practice } = route.params;
   // Practice runs come from a therapy plan — they must never write predictions,
@@ -46,8 +54,11 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
   // Canvas single letters only: did the first stroke begin where the letter is taught to start? null = not checked.
   const startPointOk = checkLetterStart(strokes, task.target_text);
 
+  // Go back to the canvas/camera so the child can write again.
   const handleRetake = () => navigation.goBack();
 
+  // Sends the image + task info to the backend, saves the result to Firestore,
+  // then opens the Result screen (even if something failed, with an error message).
   const handleSubmit = async () => {
     setSubmitting(true);
     let result: any = null;
@@ -305,7 +316,12 @@ export default function HandwritingReviewScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // --- Screen layout ---
+  // Colours: light blue-grey page background (#F5F7FF)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+
+  // --- Header (back button + title) ---
+  // Colours: white round back button, dark slate title text (#1E293B)
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -318,6 +334,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20 },
 
+  // --- Preview card (the writing image + task label) ---
+  // Colours: white card, light grey divider, purple stroke badge, grey placeholder text
   previewCard: {
     backgroundColor: "#fff", borderWidth: 1.5, borderRadius: 24, overflow: "hidden",
     marginBottom: 16,
@@ -344,6 +362,8 @@ const styles = StyleSheet.create({
   photoPreviewInner: { alignItems: "center", gap: 8 },
   photoPreviewText: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  // --- Stats row (duration, rewrites, mode) ---
+  // Colours: white card, light border, dark value text, grey small labels
   statsCard: {
     flexDirection: "row", backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 14,
@@ -355,6 +375,8 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontFamily: theme.fonts.extraBold, color: "#1E293B" },
   statLabel: { fontSize: 10, fontFamily: theme.fonts.medium, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5 },
 
+  // --- Warning notice ---
+  // Colours: soft yellow background, amber border, brown text
   warningCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FEF3C7",
@@ -362,6 +384,8 @@ const styles = StyleSheet.create({
   },
   warningText: { flex: 1, fontSize: 13, fontFamily: theme.fonts.regular, color: "#92400E", lineHeight: 19 },
 
+  // --- Retake button ---
+  // Colours: white button, light border, grey text (secondary action)
   retakeBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -370,6 +394,8 @@ const styles = StyleSheet.create({
   },
   retakeBtnText: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  // --- Submit button ---
+  // Colours: fill comes from the task colour (grey while submitting), blue glow shadow, white text
   submitBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

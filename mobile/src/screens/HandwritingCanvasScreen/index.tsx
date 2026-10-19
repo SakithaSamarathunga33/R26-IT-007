@@ -1,3 +1,12 @@
+// Handwriting Canvas screen.
+// The child writes the task answer here, either by drawing with a finger/stylus
+// or by taking/choosing a photo of paper writing.
+// Comes from: HandwritingTaskScreen (the "Open Canvas / Open Camera" button).
+// Goes to: HandwritingReview (with the canvas image or photo) when "Review & Submit"
+// is pressed; the back button returns to the task screen.
+// Uses: HANDWRITING_TASKS config (the task), ttsService (read the hint / word aloud),
+// LETTER_START util (where-to-start hint), ImagePicker + ViewShot (photo and canvas capture).
+// It makes no backend call itself - the Review screen sends the image for analysis.
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity,
@@ -25,14 +34,18 @@ type Props = {
   route: RouteProp<RootStackParamList, "HandwritingCanvas">;
 };
 
+// One touch position, and one stroke = the list of points from finger down to finger up.
 type Point = { x: number; y: number };
 type Stroke = Point[];
 
+// Main screen component: holds the drawn strokes / photo and handles submit.
 export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   const { taskIndex, inputMode, taskStartTs, practice } = route.params;
   const task = HANDWRITING_TASKS[taskIndex];
   const taskColors = HANDWRITING_TASK_COLORS[task.task_type];
 
+  // strokes = finished lines, currentStroke = the line being drawn right now,
+  // photoUri = chosen photo, retryCount = how many times the child cleared/retook.
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<Stroke>([]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -40,6 +53,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   const [pickingImage, setPickingImage] = useState(false);
   const [capturing, setCapturing] = useState(false);
 
+  // Refs hold the latest values so the touch handlers (created once) never read stale state.
   const viewShotRef = useRef<ViewShotRef>(null);
   const canvasInnerRef = useRef<View>(null);
   const strokesRef = useRef<Stroke[]>([]);
@@ -70,6 +84,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
 
   // ── PanResponder ──────────────────────────────────────────────────────────
 
+  // Called when the finger lifts: saves the current line (if it has more than one point).
   const finishStroke = () => {
     if (currentStrokeRef.current.length > 1) {
       strokesRef.current = [...strokesRef.current, currentStrokeRef.current];
@@ -80,6 +95,8 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
     isDrawingRef.current = false;
   };
 
+  // Touch handler for drawing: start a line on touch, add points while moving,
+  // finish it on release. Only active in "canvas" mode.
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => inputMode === "canvas",
@@ -107,6 +124,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
     })
   ).current;
 
+  // Clear button: wipes all strokes and counts it as a rewrite.
   const handleClear = () => {
     strokesRef.current = [];
     setStrokes([]);
@@ -114,6 +132,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
     setRetryCount((c) => c + 1);
   };
 
+  // Undo button: removes only the last stroke.
   const handleUndo = () => {
     if (strokesRef.current.length === 0) return;
     strokesRef.current = strokesRef.current.slice(0, -1);
@@ -122,6 +141,8 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
 
   // ── Photo capture ─────────────────────────────────────────────────────────
 
+  // Asks for camera permission and opens the camera; if camera is denied it falls back
+  // to the photo gallery, and shows an alert if neither is allowed.
   const handlePickPhoto = useCallback(async () => {
     setPickingImage(true);
     try {
@@ -143,6 +164,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
     }
   }, []);
 
+  // Retake button: drops the current photo and opens the camera again.
   const handleRetakePhoto = () => {
     setPhotoUri(null);
     setRetryCount((c) => c + 1);
@@ -151,6 +173,8 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
 
   // ── Submit: capture canvas → navigate to Review ───────────────────────────
 
+  // Works out how long the task took, saves the canvas as a PNG (or uses the photo),
+  // then opens the Review screen with the image, strokes and timing.
   const handleSubmit = async () => {
     const durationSec = Math.round((Date.now() - taskStartTs) / 1000);
 
@@ -186,6 +210,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
 
   // ── Render strokes ────────────────────────────────────────────────────────
 
+  // Turns a list of points into an SVG path string (smoothed with curves) so it can be drawn.
   const strokeToPath = (stroke: Stroke): string => {
     if (stroke.length === 0) return "";
     if (stroke.length === 1) {
@@ -203,6 +228,7 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
     return d;
   };
 
+  // Draws every finished stroke plus the one in progress as dark lines over the canvas.
   const renderStrokes = (allStrokes: Stroke[], current: Stroke) => (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
       {[...allStrokes, current].map((stroke, si) =>
@@ -394,7 +420,12 @@ export default function HandwritingCanvasScreen({ navigation, route }: Props) {
   );
 }
 
+// Colours used below: page background light blue-grey (#F5F7FF), white cards/buttons,
+// dark slate text (#1E293B), grey-blue secondary text (#64748B / #94A3B8),
+// blue (#2563EB) for the main action and photo area, red (#EF4444) for Clear,
+// amber (#FEF3C7 / #D97706) for the rewrite badge, faint purple for the trace letter.
 const styles = StyleSheet.create({
+  // Page and header (back button + title)
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
@@ -410,6 +441,7 @@ const styles = StyleSheet.create({
 
   body: { flex: 1, paddingHorizontal: 20, gap: 14 },
 
+  // Small reminder strip above the canvas (target letter, hints, "Hear again" button)
   targetReminder: {
     flexDirection: "row", alignItems: "center", gap: 10,
     borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, alignSelf: "center",
@@ -424,6 +456,7 @@ const styles = StyleSheet.create({
   replayBtnText: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
   hiddenHint: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#94A3B8" },
 
+  // Drawing area: white paper with a soft border and shadow, plus empty-state placeholder
   canvasWrapper: { flex: 1, gap: 10 },
   canvas: {
     flex: 1, backgroundColor: "#fff",
@@ -437,6 +470,7 @@ const styles = StyleSheet.create({
   },
   placeholderText: { fontSize: 13, fontFamily: theme.fonts.regular, color: "#CBD5E1", textAlign: "center" },
 
+  // Faint purple letter shown behind the strokes for tracing tasks
   traceLetterWrap: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     alignItems: "center", justifyContent: "center", gap: 4,
@@ -452,6 +486,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  // Undo / Clear buttons (white pills) and the amber "Rewrite #" badge
   canvasTools: { flexDirection: "row", alignItems: "center", gap: 12 },
   toolBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
@@ -461,6 +496,7 @@ const styles = StyleSheet.create({
   retryBadge: { marginLeft: "auto" as any, backgroundColor: "#FEF3C7", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   retryText: { fontSize: 11, fontFamily: theme.fonts.medium, color: "#D97706" },
 
+  // Photo mode: dashed "take a photo" box, then a preview box with blue accents and a Retake button
   photoWrapper: { flex: 1 },
   photoPlaceholder: {
     flex: 1, backgroundColor: "#fff", borderRadius: 20, borderWidth: 1.5, borderColor: "#E2E8F0",
@@ -483,6 +519,7 @@ const styles = StyleSheet.create({
   },
   retakeBtnText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#64748B" },
 
+  // Bottom action button: blue gradient pill with white text (grey when nothing is drawn yet)
   actionArea: { paddingBottom: 30 },
   submitBtn: {
     borderRadius: 50,

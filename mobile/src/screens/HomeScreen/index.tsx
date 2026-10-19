@@ -1,3 +1,10 @@
+// HomeScreen: the main dashboard. Shows a greeting, overall progress (how many of the 3 modules are done),
+// the practice (therapy) plan card, the three screening module cards, and the AI risk report button.
+// Reached from: the "Home" tab inside "MainTabs" (bottom tab bar in AppNavigator), also right after login/signup.
+// Goes to: "Profile" tab (avatar), "SpeechIntro" / "HandwritingIntro" / "BehaviorIntro" (module cards),
+// "FusionTherapy" (practice plan), "FusionProgress" (Run Final Analysis) and "FusionRiskSummary" (View Last Report).
+// Uses: firebase auth (current user), sessionService (module progress + report history),
+// therapySessionService (active practice plan), KidBackground component, theme fonts, i18n (useT).
 import React, { useCallback, useState } from "react";
 import {
   View,
@@ -9,6 +16,7 @@ import {
   Dimensions,
 } from "react-native";
 
+// Screen width, used to size the module cards in a 2-column grid.
 const { width } = Dimensions.get("window");
 const COL = (width - 44 - 10) / 2;
 import { LinearGradient } from "expo-linear-gradient";
@@ -26,6 +34,7 @@ import { ActiveTherapyPlan, fetchActiveTherapyPlan } from "../../services/therap
 import { useT } from "../../i18n";
 
 
+// Navigation props: tab navigation (Home/History/Profile) combined with stack navigation to the other screens.
 type Props = {
   navigation: CompositeNavigationProp<
     BottomTabNavigationProp<TabParamList, "Home">,
@@ -33,6 +42,7 @@ type Props = {
   >;
 };
 
+// The three screening modules shown as cards: names, icon, gradient colours and which screen they open.
 const MODULES = [
   {
     key: "speech",
@@ -84,19 +94,24 @@ const MODULES = [
   },
 ];
 
+// Main home screen component.
 export default function HomeScreen({ navigation }: Props) {
+  // The signed-in user, used for the greeting and loading their data.
   const user = auth.currentUser;
   const { t } = useT();
   const firstName = user?.displayName?.split(" ")[0] ?? t("there");
 
+  // Which modules the child has finished (speech / handwriting / behaviour).
   const [session, setSession] = useState<SessionProgress>({
     speechDone: false, handwritingDone: false, behaviourDone: false, status: "in_progress",
   });
 
+  // The current practice plan, or null if there is none.
   const [therapyPlan, setTherapyPlan] = useState<ActiveTherapyPlan | null>(null);
   // Latest saved fusion response, so a past report stays viewable while a new screening is in progress.
   const [lastReport, setLastReport] = useState<any>(null);
 
+  // Each time the tab comes into view, reload progress, the latest report and the practice plan.
   useFocusEffect(
     useCallback(() => {
       if (!user?.uid) return;
@@ -111,6 +126,7 @@ export default function HomeScreen({ navigation }: Props) {
   // cycle runs screen → practise → re-screen rather than back-to-back screenings.
   const modulesLocked = !!therapyPlan?.blocking;
 
+  // Quick lookup of done/not done for each module, and how many are done.
   const moduleDone: Record<string, boolean> = {
     speech: session.speechDone,
     handwriting: session.handwritingDone,
@@ -118,6 +134,7 @@ export default function HomeScreen({ navigation }: Props) {
   };
   const completedCount = Object.values(moduleDone).filter(Boolean).length;
 
+  // ---- Screen layout ----
   return (
     <View style={styles.container}>
       <KidBackground variant="home" />
@@ -439,6 +456,12 @@ export default function HomeScreen({ navigation }: Props) {
   );
 }
 
+// Colours used on this screen:
+//   page background #F5F7FF (soft light blue); dark text #1E293B, grey text #64748B / #94A3B8
+//   blue gradient #3B72F6 -> #2563EB for the progress card, avatar and "Run Final Analysis" button
+//   module cards: blue (speech), purple (writing), teal (behaviour); grey gradient when locked
+//   purple #7C3AED / #6D28D9 for the practice plan card and lock notice
+//   white (#fff) report card; green #4ADE80 for "Done" ticks; see-through white for badges on coloured cards
 const styles = StyleSheet.create({
   container: {
     flex: 1,

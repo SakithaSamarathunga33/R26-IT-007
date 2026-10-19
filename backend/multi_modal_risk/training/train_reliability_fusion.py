@@ -21,6 +21,7 @@ from sklearn.metrics import accuracy_score, brier_score_loss, confusion_matrix, 
 from sklearn.model_selection import GroupKFold
 from sklearn.preprocessing import StandardScaler
 
+# Project paths: dataset in; JSON model (loaded by api/app/services/model_loader.py) and report out.
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'api'))
 from app.services.reliability_features import FEATURE_ORDER, MODULES, build_features  # noqa: E402
@@ -30,6 +31,7 @@ DATASET = ROOT / 'datasets' / 'fusion_training_dataset_synthetic.csv'
 OUT_MODEL = ROOT / 'ml_models' / 'fusion_reliability_lr_v1.json'
 OUT_REPORT = Path(__file__).with_name('REPORT.md')
 
+# Simulation settings, fixed in advance: reliability mix, noise by reliability level, chance a module is missing, copies per row.
 SEED = 42
 RELIABILITY_LEVELS = ['high', 'medium', 'low']
 RELIABILITY_P = [0.5, 0.35, 0.15]                            # how often each level occurs
@@ -40,6 +42,7 @@ DECISION_THRESHOLD = 0.5                                    # probability cut-of
 SCORE_COLS = {'speech': 'speech_score', 'handwriting': 'handwriting_score', 'behavior': 'behavior_score'}
 
 
+# Simulation step: makes clean training scores look like real sessions (random missing modules, reliability levels, noise).
 def degrade(clean, rng, p_missing=P_MISSING, rel_p=RELIABILITY_P, force_missing=False):
     """clean: (n, 3) module scores. Returns per-row (probs dict, reliabilities dict); always >= 2 modules usable."""
     rows = []
@@ -59,16 +62,19 @@ def degrade(clean, rng, p_missing=P_MISSING, rel_p=RELIABILITY_P, force_missing=
     return rows
 
 
+# Turns a list of simulated sessions into the number table for the model.
 def matrix(rows):
     return np.array([build_features(p, r) for p, r in rows])
 
 
+# Comparison only: the old rule that scored a missing module as 0.
 def rule_v1(rows):
     """The original fixed rule: missing module scored as 0."""
     w = {'speech': 0.40, 'handwriting': 0.35, 'behavior': 0.25}
     return np.array([sum(w[m] * (p[m] or 0.0) for m in MODULES) for p, _ in rows])
 
 
+# Comparison only: the current service rule, reliability-weighted over usable modules.
 def rule_v2(rows, config):
     """The current service rule: reliability-weighted, renormalised over usable modules."""
     out = []
@@ -79,6 +85,7 @@ def rule_v2(rows, config):
     return np.array(out)
 
 
+# Accuracy, sensitivity, specificity, AUC and confusion counts for one method.
 def metrics(y, score, threshold):
     pred = (score >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y, pred, labels=[0, 1]).ravel()
@@ -86,12 +93,14 @@ def metrics(y, score, threshold):
                 auc=roc_auc_score(y, score), tp=tp, fn=fn, fp=fp, tn=tn)
 
 
+# Scales the inputs and trains the logistic regression.
 def fit(X, y):
     scaler = StandardScaler().fit(X)
     model = LogisticRegression(max_iter=2000, random_state=SEED).fit(scaler.transform(X), y)
     return scaler, model
 
 
+# Runs cross-validation, prints the comparison, trains the final model and writes the JSON model and REPORT.md.
 def main():
     df = pd.read_csv(DATASET)
     clean = df[[SCORE_COLS[m] for m in MODULES]].to_numpy()

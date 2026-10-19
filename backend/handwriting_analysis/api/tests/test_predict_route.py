@@ -1,3 +1,4 @@
+# Tests for the /predict/handwriting route using small generated images (OCR is switched off so no tesseract is needed).
 import io
 import os
 import sys
@@ -18,6 +19,7 @@ from app.services import model_loader  # noqa: E402
 
 client = TestClient(app)
 
+# Sample form fields sent with every test request.
 FORM = {
     "task_type": "letter_write",
     "target_text": "b",
@@ -39,6 +41,7 @@ def no_ocr(monkeypatch):
     monkeypatch.setitem(sys.modules, "pytesseract", None)
 
 
+# Make an in-memory PNG, optionally drawing on it.
 def _png(draw_fn=None, size=(400, 400), frame=False):
     img = Image.new("RGB", size, "white")
     d = ImageDraw.Draw(img)
@@ -54,11 +57,13 @@ def _png(draw_fn=None, size=(400, 400), frame=False):
     return buf.getvalue()
 
 
+# Draw a simple letter 'b' for tests.
 def _letter_b(d):
     d.line([(160, 100), (160, 300)], fill="black", width=10)
     d.ellipse([160, 200, 250, 300], outline="black", width=10)
 
 
+# Send the sample form plus an image to the endpoint.
 def _post(data, filename="writing.png"):
     return client.post("/predict/handwriting", data=FORM, files={"image": (filename, data, "image/png")})
 

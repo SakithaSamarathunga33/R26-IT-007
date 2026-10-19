@@ -1,3 +1,4 @@
+// Type patch used by services/ttsService.ts and any screen playing audio (no runtime code).
 // expo-audio's shipped types don't surface the addListener/removeListener
 // methods that AudioPlayer inherits at runtime from SharedObject/EventEmitter
 // (expo-modules-core re-exports SharedObject as a `typeof globalThis.SharedObject`

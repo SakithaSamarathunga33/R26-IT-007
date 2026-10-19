@@ -1,3 +1,5 @@
+// kidFeedback.ts - short spoken praise lines ("Done!", "Level complete!") for children, via ttsService.
+// Used by result and level-complete screens.
 import { speak, stopSpeaking } from "./ttsService";
 
 /**
@@ -28,6 +30,7 @@ function pick(list: string[], seed?: number): string {
 
 export type FeedbackKind = "done" | "levelDone";
 
+// Phrase list for each feedback kind.
 const LISTS: Record<FeedbackKind, string[]> = {
   done: DONE,
   levelDone: LEVEL_DONE,

@@ -1,3 +1,13 @@
+// BehaviorSummaryScreen
+// Overview of all behaviour-module results: overall risk indicator, average
+// attention/engagement, and a per-activity breakdown grouped by level.
+// Comes from: BehaviorLevelComplete ("View Full Summary" / "See results so far")
+// and BehaviorLevels ("results" button, which can be mid-run).
+// Goes next to: BehaviorLevels (continue remaining levels) or MainTabs (dashboard).
+// Uses: fetchModuleSummary (services/summaryService) reading the "behavior_predictions"
+// Firestore collection, fetchBehaviorLevelProgress (services/behaviorLevelService),
+// markModuleDone (services/sessionService) once every level is finished,
+// riskLevelFromScore (config/riskThresholds), behaviour task/level config, Firebase auth.
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -22,12 +32,17 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "BehaviorSummary">;
 };
 
+// Risk colours: low = green, medium = amber, high = red, requires_review = grey.
+// RISK_COLORS = text/icon colour, RISK_BG = pill background, RISK_BORDER = pill border.
 const RISK_COLORS = { low: "#059669", medium: "#D97706", high: "#EF4444", requires_review: "#64748B" };
 const RISK_BG     = { low: "#ECFDF5", medium: "#FFFBEB", high: "#FFF5F5", requires_review: "#F8FAFC" };
 const RISK_BORDER = { low: "#BBF7D0", medium: "#FDE68A", high: "#FECACA", requires_review: "#E2E8F0" };
 
+// Safely turns any value into a number (0 if it is missing or not a number).
 const num = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
+// Text, icon and gradient colours for the big top card, one entry per risk level
+// (green = low, amber = medium, red = high, grey = needs review).
 const OVERALL_CONFIG = {
   low:             { label: "Low Risk Indicators",   sublabel: "Attention & engagement within typical range.",         icon: "checkmark-circle" as const, gradColors: ["#059669", "#047857"] as [string, string] },
   medium:          { label: "Moderate Indicators",   sublabel: "Some patterns noted. A specialist review may help.",   icon: "alert-circle" as const,    gradColors: ["#F59E0B", "#D97706"] as [string, string] },
@@ -35,6 +50,7 @@ const OVERALL_CONFIG = {
   requires_review: { label: "Review Required",       sublabel: "Some activities had incomplete data.",                 icon: "refresh-circle" as const,   gradColors: ["#94A3B8", "#64748B"] as [string, string] },
 };
 
+// One row in the breakdown list (one finished activity).
 type BreakdownItem = {
   row: SummaryRow;
   typeLabel: string;
@@ -83,6 +99,7 @@ function groupRowsByLevel(rows: SummaryRow[]): LevelGroup[] {
   }));
 }
 
+// Small thin progress bar used in each breakdown row. value is 0 to 1.
 function MiniBar({ value, color }: { value: number; color: string }) {
   return (
     <View style={{ flex: 1, height: 4, backgroundColor: "#E2E8F0", borderRadius: 2, overflow: "hidden" }}>
@@ -91,6 +108,7 @@ function MiniBar({ value, color }: { value: number; color: string }) {
   );
 }
 
+// Main screen: loads saved results, then shows the summary cards.
 export default function BehaviorSummaryScreen({ navigation }: Props) {
   const { t } = useT();
   const markedRef = useRef(false);
@@ -98,6 +116,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
   const [levelProgress, setLevelProgress] = useState<BehaviorLevelProgress>({ completed: [] });
   const [loading, setLoading] = useState(true);
 
+  // On open: load the child's results and level progress once.
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) { setLoading(false); return; }
@@ -123,6 +142,7 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
       .finally(() => setLoading(false));
   }, []);
 
+  // While loading show a spinner; if nothing was found show a short message.
   if (loading || !summary) {
     return (
       <View style={[styles.container, { alignItems: "center", justifyContent: "center" }]}>
@@ -313,7 +333,14 @@ export default function BehaviorSummaryScreen({ navigation }: Props) {
   );
 }
 
+// Colours used below:
+//   Page background: soft blue-white (#F5F7FF)
+//   Top card: gradient that changes with risk level (see OVERALL_CONFIG), white text
+//   Cards: white with pale border (#E8EDF5); partial-run notice is yellow, disclaimer is light teal
+//   Text: dark navy (#1E293B) for titles, slate grey (#64748B / #94A3B8) for secondary text
+//   Buttons: teal gradient (#0891B2 -> #0E7490), or the next level's colours, with white text
 const styles = StyleSheet.create({
+  // --- Page and header ---
   container: { flex: 1, backgroundColor: "#F5F7FF" },
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
@@ -327,6 +354,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20 },
 
+  // --- Overall result card (gradient background, white text, translucent white stat strip) ---
   overallCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
     overflow: "hidden",
@@ -348,6 +376,7 @@ const styles = StyleSheet.create({
   overallStatVal: { fontSize: 20, fontFamily: theme.fonts.extraBold, color: "#fff" },
   overallStatLabel: { fontSize: 10, fontFamily: theme.fonts.medium, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: 0.5 },
 
+  // --- Overall risk score card (white card, grey track, fill colour comes from risk level) ---
   probCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -360,8 +389,10 @@ const styles = StyleSheet.create({
   probFill: { height: 8, borderRadius: 4 },
   probNote: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
 
+  // Small grey uppercase heading
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 },
 
+  // --- "Levels still to go" notice (yellow/amber) ---
   partialCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
@@ -374,6 +405,7 @@ const styles = StyleSheet.create({
   partialTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#92400E", marginBottom: 2 },
   partialSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#B45309", lineHeight: 17 },
 
+  // --- Level group header (badge and chip colours come from each level's config) ---
   levelGroup: { marginBottom: 14 },
   levelGroupHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
   levelGroupBadge: { width: 26, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center" },
@@ -382,6 +414,7 @@ const styles = StyleSheet.create({
   levelGroupChip: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   levelGroupChipText: { fontSize: 10, fontFamily: theme.fonts.semiBold },
 
+  // --- Activity breakdown list (white card; risk pill uses RISK_BG / RISK_BORDER colours) ---
   breakdownCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 16, overflow: "hidden",
@@ -396,6 +429,7 @@ const styles = StyleSheet.create({
   riskPill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   riskPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  // --- Disclaimer note (light teal background, dark teal text) ---
   disclaimerCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#ECFEFF", borderWidth: 1, borderColor: "#CFFAFE",
@@ -403,6 +437,7 @@ const styles = StyleSheet.create({
   },
   disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#0E7490", lineHeight: 18 },
 
+  // --- Bottom buttons (gradient pill set in code, teal glow, white text) ---
   doneBtn: {
     borderRadius: 50,
     shadowColor: "#0891B2", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

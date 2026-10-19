@@ -1,3 +1,4 @@
+# Builds the speech API image. Started by docker-compose.yml (speech_api); runs app.main:app with uvicorn on $PORT (default 8000).
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -6,6 +7,7 @@ ENV PORT=8000
 
 WORKDIR /app
 
+# libsndfile1 lets soundfile read audio; ffmpeg converts phone recordings (m4a/aac/3gp) to WAV.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     ffmpeg \

@@ -1,6 +1,11 @@
+# Runs all four LexiScan backends together (one container each). The mobile app talks to these
+# APIs; multimodal_api fuses the speech, behavioral and handwriting results into one risk score.
+# Each service maps a host port to port 8000 inside the container and mounts its own ml_models/
+# folder, so trained model files can be swapped without rebuilding the image.
 name: lexiscan
 
 services:
+  # Speech/phonological screening API (backend/speech_phonological). Host port 8011.
   speech_api:
     image: lexiscan/speech-api
     container_name: lexiscan-speech-api
@@ -10,6 +15,7 @@ services:
     volumes:
       - ./backend/speech_phonological/ml_models:/app/ml_models
 
+  # Behavioral/attention API (backend/behavioral_attention). Host port 8012. Its Dockerfile lives in api/, so the build context is the parent folder.
   behavioral_api:
     image: lexiscan/behavioral-api
     container_name: lexiscan-behavioral-api
@@ -21,6 +27,7 @@ services:
     volumes:
       - ./backend/behavioral_attention/ml_models:/app/ml_models
 
+  # Handwriting analysis API (backend/handwriting_analysis). Host port 8013.
   handwriting_api:
     image: lexiscan/handwriting-api
     container_name: lexiscan-handwriting-api
@@ -30,6 +37,7 @@ services:
     volumes:
       - ./backend/handwriting_analysis/ml_models:/app/ml_models
 
+  # Multi-modal fusion API (backend/multi_modal_risk). Host port 8014.
   multimodal_api:
     image: lexiscan/multimodal-api
     container_name: lexiscan-multimodal-api

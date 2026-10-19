@@ -1,3 +1,7 @@
+// handwritingTasks.ts - the list of handwriting tasks and levels (trace, copy, dictation, from memory).
+// Used by the Handwriting* screens, summaryService, therapyActivityMap; photos/strokes are sent to the
+// handwriting backend (API_URLS.handwriting). Also holds the mastery rule and the extra-practice (AETA) table.
+// Kinds of handwriting task.
 export type HandwritingTaskType =
   | "letter_copy"
   | "letter_trace"
@@ -10,6 +14,7 @@ export type DifficultyLevel = "easy" | "medium" | "hard";
 /** Level 1 = easy, Level 2 = intermediate, Level 3 = advanced. */
 export type HandwritingLevelId = 1 | 2 | 3;
 
+// One task: what to write (target_text), the on-screen instruction and why it is asked.
 export interface HandwritingTask {
   id: string;
   level: HandwritingLevelId;
@@ -27,6 +32,7 @@ export interface HandwritingTask {
  * away as the levels go up. The summary screen groups predictions by the `level`
  * stored on each doc, so tasks may be reordered within a block safely.
  */
+// Task table. Level 1 = letters, level 2 = capitals and short words, level 3 = long words and memory.
 export const HANDWRITING_TASKS: HandwritingTask[] = [
   // ── Level 1 — Letters: guided tracing, then freehand single letters ────────
   { id: "lt_b",  level: 1, task_type: "letter_trace",      target_text: "b",         difficulty_level: "easy",   instruction: "Trace over the letter  b",                 purpose: "Guided motor control and letter formation." },
@@ -58,6 +64,7 @@ export const HANDWRITING_TASKS: HandwritingTask[] = [
 
 // ── Level metadata ────────────────────────────────────────────────────────────
 
+// Display info for a level card.
 export interface HandwritingLevel {
   id: HandwritingLevelId;
   title: string;
@@ -69,6 +76,8 @@ export interface HandwritingLevel {
   gradColors: [string, string];
 }
 
+// Colours per level card: color = main accent, bg = pale card background, gradColors = gradient for the badge
+// (level 1 green = easy, level 2 amber = medium, level 3 purple = hard).
 export const HANDWRITING_LEVELS: HandwritingLevel[] = [
   {
     id: 1,
@@ -112,6 +121,7 @@ export const HANDWRITING_LEVELS: HandwritingLevel[] = [
  * repeat a capital/3-letter word; L3 school/bad repeat basket/bed). Those two
  * stay in HANDWRITING_TASKS as the supplementary pool and for therapy practice.
  */
+// Table: which tasks count towards the score in each level (the rest are extra practice).
 export const HANDWRITING_SCORED_TASK_IDS: Record<HandwritingLevelId, string[]> = {
   1: ["lt_b", "lt_d", "lc_b", "lc_d", "lc_p"],
   2: ["lc_q", "lc_A", "lc_B", "wc_cat", "sd_cat"],
@@ -130,6 +140,7 @@ export const HANDWRITING_MASTERY_MIN_CORRECT = 4;
  * must never be a scored task the child hasn't played yet (practice effect), so
  * L1 lc_b has none: its only copy alternatives (lc_d, lc_p) are still to come.
  */
+// Table: original task -> extra practice task.
 export const HANDWRITING_SUPPLEMENT_FOR: Record<string, string> = {
   lt_b: "lt_E", lt_d: "lt_A",
   lc_d: "lc_b", lc_p: "lc_d",
@@ -152,6 +163,7 @@ export function handwritingTaskIndicesForLevel(level: HandwritingLevelId): numbe
   }, []);
 }
 
+// How many scored tasks are in a level.
 export function handwritingLevelTaskCount(level: HandwritingLevelId): number {
   return HANDWRITING_SCORED_TASK_IDS[level].length;
 }
@@ -169,10 +181,12 @@ export function handwritingNextIndexInLevel(taskIndex: number): number | null {
   return pos < 0 ? null : indices[pos + 1] ?? null;
 }
 
+// Finds the level info for a level number.
 export function getHandwritingLevel(level: HandwritingLevelId): HandwritingLevel {
   return HANDWRITING_LEVELS.find((l) => l.id === level)!;
 }
 
+// Short names shown to users for each task type.
 export const HANDWRITING_TASK_TYPE_LABELS: Record<HandwritingTaskType, string> = {
   letter_copy:       "Letter Copy",
   letter_trace:      "Letter Trace",
@@ -181,6 +195,7 @@ export const HANDWRITING_TASK_TYPE_LABELS: Record<HandwritingTaskType, string> =
   simple_dictation:  "Dictation",
 };
 
+// Ionicons icon name for each task type.
 export const HANDWRITING_TASK_TYPE_ICONS: Record<HandwritingTaskType, string> = {
   letter_copy:       "text-outline",
   letter_trace:      "pencil-outline",
@@ -189,6 +204,8 @@ export const HANDWRITING_TASK_TYPE_ICONS: Record<HandwritingTaskType, string> = 
   simple_dictation:  "volume-medium-outline",
 };
 
+// Colour trio per task type for chips: color = text/icon, bg = pale fill, border = soft outline
+// (blue copy, purple trace, teal word, amber memory, green dictation).
 export const HANDWRITING_TASK_COLORS: Record<HandwritingTaskType, { color: string; bg: string; border: string }> = {
   letter_copy:       { color: "#2563EB", bg: "#EFF6FF", border: "#DBEAFE" },
   letter_trace:      { color: "#7C3AED", bg: "#F5F3FF", border: "#EDE9FE" },

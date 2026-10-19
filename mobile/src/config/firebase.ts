@@ -1,9 +1,12 @@
+// firebase.ts - connects the app to the Firebase project (login, Firestore database, file storage).
+// `auth`, `db` and `storage` are imported by the auth screens and by services/*Service.ts.
 import { initializeApp, getApps } from "firebase/app";
 import { initializeAuth, indexedDBLocalPersistence, inMemoryPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
 
+// Public project identifiers for the Firebase web SDK.
 const firebaseConfig = {
   apiKey: "AIzaSyAxlouY7WzbkBC-sg45KjaxlR3pWNaHLZI",
   authDomain: "lexiscan-app.firebaseapp.com",
@@ -16,11 +19,14 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
+// Login handling. Web keeps the user signed in via IndexedDB; native uses in-memory (sign-in is not saved).
 export const auth = initializeAuth(app, {
   persistence: Platform.OS === "web" ? indexedDBLocalPersistence : inMemoryPersistence,
 });
 
+// Firestore database (children, sessions, results).
 export const db = getFirestore(app);
+// Cloud storage bucket (e.g. handwriting images).
 export const storage = getStorage(app, "gs://lexiscan-app.firebasestorage.app");
 
 export default app;

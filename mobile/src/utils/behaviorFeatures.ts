@@ -1,4 +1,8 @@
+// behaviorFeatures.ts - turns the raw taps/pauses/hints recorded during a behaviour task into the
+// numeric features the behavioural backend (BEHAVIOR_HOST /predict/behavior) expects.
+// Used by the behaviour task screens in src/screens.
 // All *_ts / pause times are monotonic milliseconds (performance.now()), not wall-clock.
+// Raw things recorded while the child does one task (timestamps, taps, pauses, hints, focus losses).
 export interface BehaviorRawEvents {
   task_start_ts: number;
   task_end_ts: number;
@@ -17,6 +21,7 @@ export interface BehaviorRawEvents {
   inactivity_periods: number;
 }
 
+// The computed features sent to the backend (names match the backend model columns).
 export interface BehaviorFeatures {
   response_latency_sec: number;
   task_duration_sec: number;
@@ -52,15 +57,18 @@ export interface BehaviorFeatures {
   attention_score: number;
 }
 
+// Keeps a number between min and max (default 0 to 1).
 function clamp(v: number, min = 0, max = 1): number {
   return Math.min(Math.max(v, min), max);
 }
 
+// Average of a list; 0 for an empty list.
 function mean(arr: number[]): number {
   if (arr.length === 0) return 0;
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
+// Standard deviation (how spread out the numbers are); 0 if fewer than 2 values.
 function std(arr: number[]): number {
   if (arr.length < 2) return 0;
   const m = mean(arr);
@@ -68,6 +76,8 @@ function std(arr: number[]): number {
   return Math.sqrt(variance);
 }
 
+// Main calculator: converts the raw events + final answer result into all features.
+// Scores (engagement, hesitation, frustration, attention) are simple weighted sums clamped to 0-1.
 export function calculateBehaviorFeatures(
   events: BehaviorRawEvents,
   isCorrect: boolean,
@@ -174,6 +184,7 @@ export function calculateBehaviorFeatures(
   };
 }
 
+// Morning / afternoon / evening label for the current hour (sent along with behaviour data).
 export function getTimeOfDay(): "morning" | "afternoon" | "evening" {
   const h = new Date().getHours();
   if (h < 12) return "morning";

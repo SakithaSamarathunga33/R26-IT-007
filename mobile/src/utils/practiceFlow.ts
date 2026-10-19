@@ -1,3 +1,4 @@
+// practiceFlow.ts - decides what comes after each task in a therapy practice run (see navigation PracticeParams).
 import { PracticeParams } from "../navigation/AppNavigator";
 
 /**
@@ -9,10 +10,12 @@ import { PracticeParams } from "../navigation/AppNavigator";
  * finished and control returns to the therapy plan, which records the session.
  */
 
+// Either go to the next task in the list, or finish the activity.
 export type PracticeNext =
   | { kind: "next-task"; taskIndex: number; practice: PracticeParams }
   | { kind: "activity-done"; activityId: string; response: any };
 
+// Takes the next task from `remaining`; if none are left, reports the activity as done.
 export function practiceNext(practice: PracticeParams): PracticeNext {
   const [head, ...rest] = practice.remaining;
   if (head === undefined) {

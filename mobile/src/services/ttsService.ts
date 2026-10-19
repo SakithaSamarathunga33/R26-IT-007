@@ -1,3 +1,5 @@
+// ttsService.ts - text-to-speech helper (expo-speech) so the app can read words/prompts aloud.
+// Used by the task screens and by kidFeedback.ts.
 import * as Speech from "expo-speech";
 
 /**
@@ -10,11 +12,13 @@ const LANGUAGE = "en-US";
 
 export type SpeakRate = "normal" | "slow";
 
+// Speaking speed: slow = 0.5 for sounding out words, normal = 0.82.
 const RATES: Record<SpeakRate, number> = {
   normal: 0.82,
   slow: 0.5,
 };
 
+// Optional speed, pitch and callbacks for start/done/error.
 export interface SpeakOptions {
   rate?: SpeakRate;
   pitch?: number;
@@ -23,6 +27,7 @@ export interface SpeakOptions {
   onError?: () => void;
 }
 
+// Stops any speech that is playing.
 export function stopSpeaking() {
   try {
     Speech.stop();
@@ -62,6 +67,7 @@ export function stretchWord(word: string): string {
   return word.trim().split("").join(" - ");
 }
 
+// True while the device is speaking.
 export async function isSpeakingNow(): Promise<boolean> {
   try {
     return await Speech.isSpeakingAsync();

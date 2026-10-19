@@ -1,3 +1,4 @@
+# Python packages for the speech API (installed by the Dockerfile). librosa/soundfile = audio features; faster-whisper = speech-to-text; scikit-learn/joblib = load the .pkl model.
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9

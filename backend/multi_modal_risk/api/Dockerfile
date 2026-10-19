@@ -1,3 +1,7 @@
+# Container recipe for the Multi-Modal Fusion API (the service mobile/src/services/fusionService.ts calls).
+# Installs requirements.txt, copies the app code and starts uvicorn on $PORT (default 8000).
+# Note: ml_models is not copied here, so the model files must be added or the *_MODEL_PATH variables set;
+# otherwise the rule-based fallbacks are used.
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1

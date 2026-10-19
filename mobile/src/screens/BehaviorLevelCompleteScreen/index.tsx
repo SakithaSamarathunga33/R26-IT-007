@@ -1,3 +1,15 @@
+// BehaviorLevelCompleteScreen
+// Celebration screen shown when a child finishes every activity in one behaviour level.
+// It fetches the level score, and if the level is "mastered" (or the child has tried
+// enough times) it saves the level as complete so the next level unlocks.
+// Comes from: BehaviorResultScreen (after the last task of a level).
+// Goes next to: BehaviorActivity (start next level, or retry this level),
+// BehaviorSummary (full or partial results), or BehaviorLevels (back to the level list).
+// Uses: fetchLevelScore (services/summaryService, reads "behavior_predictions"),
+// markBehaviorLevelComplete / clearBehaviorLevelPredictions / countBehaviorUnmasteredPass
+// (services/behaviorLevelService), mastery limits (services/levelProgressService),
+// speakFeedback (services/kidFeedback), stopSpeaking (services/ttsService),
+// KidBackground, ConfettiBurst, StatChipRow, Firebase auth.
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -33,6 +45,7 @@ type Props = {
   route: RouteProp<RootStackParamList, "BehaviorLevelComplete">;
 };
 
+// Main screen: gets the level from route params and shows the celebration and next-step buttons.
 export default function BehaviorLevelCompleteScreen({ navigation, route }: Props) {
   const { t } = useT();
   const level = route.params.level;
@@ -77,6 +90,7 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
       .finally(() => setSaving(false));
   }, [level]);
 
+  // Save progress as soon as the screen opens.
   useEffect(() => { saveProgress(); }, [saveProgress]);
 
   // Spoken celebration — the level-complete moment is the main reward, and
@@ -95,8 +109,10 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
     return () => clearTimeout(t);
   }, [level, isFinalLevel, saving, canProceed, levelScore]);
 
+  // Stop any voice that is still playing when the screen closes.
   useEffect(() => () => stopSpeaking(), []);
 
+  // Pop-in animation for the hero card.
   useEffect(() => {
     Animated.spring(popAnim, { toValue: 1, useNativeDriver: true, friction: 5, tension: 60 }).start();
   }, []);
@@ -118,8 +134,10 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
   }, [trophyBounce]);
   const trophyTranslateY = trophyBounce.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
 
+  // Stops the voice, then runs the navigation action.
   const go = (fn: () => void) => { stopSpeaking(); fn(); };
 
+  // "Start Level N" button: goes to the first task of the next level.
   const startNextLevel = async () => {
     if (!nextLevel) return;
     stopSpeaking();
@@ -303,7 +321,14 @@ export default function BehaviorLevelCompleteScreen({ navigation, route }: Props
   );
 }
 
+// Colours used below:
+//   Page background: soft blue-white (#F5F7FF)
+//   Hero card: gradient from the level's own colours (config.gradColors), white text
+//   Cards: white with pale border (#E8EDF5); save-failed card is pale red with red text
+//   Text: dark navy (#1E293B) for titles, slate grey (#64748B / #94A3B8) for secondary text
+//   Buttons: primary = level gradient with white text; secondary = white with grey border and grey text
 const styles = StyleSheet.create({
+  // --- Page and header ---
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
   header: {
@@ -314,6 +339,7 @@ const styles = StyleSheet.create({
 
   content: { flex: 1, paddingHorizontal: 20, paddingTop: 8, alignItems: "center" },
 
+  // --- Celebration hero card (gradient, faint white circles, white text) ---
   heroCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 18, overflow: "hidden",
     shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
@@ -329,6 +355,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 24, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 8, textAlign: "center" },
   heroSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.85)", textAlign: "center", lineHeight: 19 },
 
+  // --- Unlock / practise notice card (white card with a coloured badge) ---
   unlockCard: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -339,6 +366,7 @@ const styles = StyleSheet.create({
   unlockTitle: { fontSize: 14, fontFamily: theme.fonts.bold, color: "#1E293B", marginBottom: 3 },
   unlockSub: { fontSize: 12, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 17 },
 
+  // --- "Progress not saved" retry card (pale red background, red text) ---
   saveFailCard: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#FFF5F5", borderWidth: 1, borderColor: "#FECACA",
@@ -347,6 +375,7 @@ const styles = StyleSheet.create({
   saveFailTitle: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#EF4444", marginBottom: 2 },
   saveFailSub: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#DC2626", lineHeight: 16 },
 
+  // --- Primary button (gradient set in code, teal glow, white text) ---
   primaryBtn: {
     width: "100%", borderRadius: 50, marginBottom: 12,
     shadowColor: "#0891B2", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
@@ -354,6 +383,7 @@ const styles = StyleSheet.create({
   primaryBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18 },
   primaryBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
 
+  // --- Secondary button (white background, light grey border, grey text) ---
   secondaryBtn: {
     width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     paddingVertical: 16, borderRadius: 50,
@@ -362,6 +392,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  // --- "Back to levels" text link (light grey, underlined) ---
   linkBtn: { paddingVertical: 10 },
   linkBtnText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#94A3B8", textDecorationLine: "underline" },
 });

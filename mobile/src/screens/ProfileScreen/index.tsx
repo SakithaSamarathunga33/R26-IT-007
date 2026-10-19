@@ -1,3 +1,9 @@
+// ProfileScreen: shows the parent's account (name, email, child's date of birth, report count),
+// lets them edit their name/date of birth, change the app language, and sign out.
+// Reached from: the "Profile" tab inside "MainTabs" (bottom tab bar in AppNavigator).
+// Goes to: "Welcome" (after Sign Out, the stack is reset).
+// Uses: firebase auth + firestore ("users" document), sessionService.getAssessmentHistory (report count),
+// childProfile.clearChildAgeCache (refresh child's age after DOB change), i18n (useT, LANGUAGES), theme fonts.
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -26,21 +32,27 @@ import { getAssessmentHistory } from "../../services/sessionService";
 import { clearChildAgeCache } from "../../services/childProfile";
 
 import { useT, LANGUAGES } from "../../i18n";
+// Language names shown in the language picker (each in its own language).
 const LANG_NAMES = { EN: "English", SI: "සිංහල", TA: "தமிழ்" } as const;
 
+// Navigation props: used to reset to the Welcome screen on sign out.
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "MainTabs">;
 };
 
+// Main profile screen component.
 export default function ProfileScreen({ navigation }: Props) {
   const { lang, setLang, t } = useT();
+  // The signed-in Firebase user.
   const user = auth.currentUser;
 
+  // Helpers to split the saved display name into first/last name, and to build avatar initials.
   const getFirstName = () => user?.displayName?.split(" ")[0] ?? "";
   const getLastName = () => user?.displayName?.split(" ").slice(1).join(" ") ?? "";
   const getInitials = (name: string) =>
     name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
+  // Screen state: edit pop-up, name/date-of-birth fields, saving flag, and number of saved reports.
   const [editVisible, setEditVisible] = useState(false);
   const [firstName, setFirstName] = useState(getFirstName);
   const [lastName, setLastName] = useState(getLastName);
@@ -51,8 +63,10 @@ export default function ProfileScreen({ navigation }: Props) {
   const [dobInput, setDobInput] = useState("");
   const [reportCount, setReportCount] = useState<number | null>(null);
 
+  // Letters shown inside the round avatar (e.g. "JS").
   const initials = getInitials(displayName);
 
+  // Load the child's date of birth from Firestore once when the screen opens.
   useEffect(() => {
     if (user?.uid) {
       getDoc(doc(db, "users", user.uid))
@@ -63,6 +77,7 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   }, [user?.uid]);
 
+  // Each time the tab comes into view, reload how many reports the user has.
   useFocusEffect(
     useCallback(() => {
       if (user?.uid) {
@@ -73,6 +88,7 @@ export default function ProfileScreen({ navigation }: Props) {
     }, [user?.uid])
   );
 
+  // Turn "2018-03-05" into a friendly "5 Mar 2018" for display.
   const formatDob = (dob: string | null) => {
     if (!dob) return t("Not set");
     const [y, m, d] = dob.split("-");
@@ -80,6 +96,7 @@ export default function ProfileScreen({ navigation }: Props) {
     return `${parseInt(d)} ${t(months[parseInt(m) - 1])} ${y}`;
   };
 
+  // Open the edit pop-up with the current saved values filled in.
   const openEdit = () => {
     setFirstName(getFirstName());
     setLastName(getLastName());
@@ -87,6 +104,7 @@ export default function ProfileScreen({ navigation }: Props) {
     setEditVisible(true);
   };
 
+  // Show a small dialog to pick English / Sinhala / Tamil.
   const chooseLanguage = () => {
     // Exactly three options, which is Android's Alert button limit; tapping outside cancels.
     Alert.alert(
@@ -97,6 +115,7 @@ export default function ProfileScreen({ navigation }: Props) {
     );
   };
 
+  // Check the edit form, then save the new name (Firebase Auth) and date of birth (Firestore).
   const handleSave = async () => {
     const trimFirst = firstName.trim();
     const trimLast = lastName.trim();
@@ -135,6 +154,7 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   };
 
+  // Sign out of Firebase and send the user back to the Welcome screen.
   const handleLogout = async () => {
     await signOut(auth);
     navigation.reset({ index: 0, routes: [{ name: "Welcome" }] });
@@ -286,6 +306,7 @@ export default function ProfileScreen({ navigation }: Props) {
   );
 }
 
+// One small stat box (icon, number, label) in the stats card.
 function StatItem({ value, label, icon, color, bg }: { value: string; label: string; icon: any; color: string; bg: string }) {
   return (
     <View style={styles.statItem}>
@@ -298,6 +319,7 @@ function StatItem({ value, label, icon, color, bg }: { value: string; label: str
   );
 }
 
+// One row in the account/app lists: coloured icon, label and value.
 // Only rows with an action are tappable and show a chevron; the rest are read-only info.
 function SettingsRow({ icon, iconColor, iconBg, label, value, last, onPress }: { icon: any; iconColor: string; iconBg: string; label: string; value: string; last?: boolean; onPress?: () => void }) {
   const Row = onPress ? TouchableOpacity : View;
@@ -316,9 +338,16 @@ function SettingsRow({ icon, iconColor, iconBg, label, value, last, onPress }: {
   );
 }
 
+// Colours used on this screen:
+//   page background #F5F7FF; white (#fff) cards with pale grey borders (#E8EDF5)
+//   main blue #2563EB / #3B72F6 for the avatar card, edit buttons and Save button
+//   dark text #1E293B, grey text #64748B / #94A3B8 for labels and values
+//   icon accents: blue, purple (#7C3AED), green (#059669), amber (#D97706), teal (#0891B2) each with a pale matching background
+//   red (#EF4444, pale #FFF5F5 / #FEE2E2) is used only for the Sign Out button
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  // Header styles (title + edit icon)
   header: {
     paddingTop: 62,
     paddingHorizontal: 22,
@@ -335,6 +364,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
+  // Scrolling content area
   scroll: { paddingHorizontal: 20 },
 
   /* Avatar card */

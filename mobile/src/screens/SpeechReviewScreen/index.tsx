@@ -1,3 +1,11 @@
+/**
+ * SpeechReviewScreen
+ * Step 3 of a speech task: the child listens to their own recording, then submits it for AI analysis (or re-records).
+ * Flow: SpeechRecording -> SpeechReview -> SpeechResult (via navigation.replace after submit); "Re-record" goes back.
+ * Backend: POSTs the audio + task details to the speech API (API_URLS.speech from config/apiConfig).
+ * Firestore: saves the attempt (speech_attempts) and the AI result (speech_predictions) - skipped in practice mode.
+ * Also uses expo-audio for playback, services/childProfile for the child's age, and the KidBackground component.
+ */
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,15 +22,18 @@ import { SPEECH_TASKS, TASK_TYPE_LABELS } from "../../config/speechTasks";
 import { auth, db } from "../../config/firebase";
 import { getChildAge } from "../../services/childProfile";
 
+// Navigation + route (the recording path, time taken, retries, and timing data from the recording step).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechReview">;
   route: RouteProp<RootStackParamList, "SpeechReview">;
 };
 
 import { API_URLS } from "../../config/apiConfig";
+// Speech-analysis backend endpoint; SubmitStep = the stages shown on the submit button.
 const SPEECH_API = API_URLS.speech;
 type SubmitStep = "idle" | "saving" | "analysing" | "done";
 
+// Returns "morning", "afternoon" or "evening" (sent with the recording as extra context).
 function getTimeOfDay(): "morning" | "afternoon" | "evening" {
   const h = new Date().getHours();
   if (h < 12) return "morning";
@@ -30,10 +41,12 @@ function getTimeOfDay(): "morning" | "afternoon" | "evening" {
   return "evening";
 }
 
+// Text shown on the submit button for each stage.
 const STEP_LABELS: Record<SubmitStep, string> = {
   idle: "Submit for Analysis", saving: "Saving to database…", analysing: "Analysing with AI…", done: "Done!",
 };
 
+// Main screen: summary of the recording, playback card, Re-record and Submit buttons.
 export default function SpeechReviewScreen({ navigation, route }: Props) {
   const { taskIndex, elapsed, retryCount, audioUri, practice, promptReplayCount, responseStartMs, responseEndMs } = route.params;
   const task = SPEECH_TASKS[taskIndex];
@@ -47,6 +60,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
 
   useEffect(() => { return () => { mountedRef.current = false; _destroyPlayer(); }; }, []);
 
+  // Stops and frees the audio player so nothing keeps playing.
   const _destroyPlayer = () => {
     const p = playerRef.current;
     if (!p) return;
@@ -54,6 +68,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     try { p.pause(); } catch {} try { p.remove(); } catch {}
   };
 
+  // Plays the child's recording through the loudspeaker; shows an alert if playback fails.
   const handlePlay = async () => {
     if (!audioUri) return;
     _destroyPlayer();
@@ -78,8 +93,10 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     } catch (err: any) { setPlaying(false); Alert.alert("Playback Error", err.message); }
   };
 
+  // Stops playback when the child taps stop.
   const handleStopPlayback = () => { _destroyPlayer(); setPlaying(false); };
 
+  // Saves the task details of this attempt to Firestore and returns the new document id.
   const saveAttemptToFirestore = async (): Promise<string> => {
     const uid = auth.currentUser?.uid ?? "anonymous";
     const docRef = await addDoc(collection(db, "speech_attempts"), {
@@ -95,6 +112,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     return docRef.id;
   };
 
+  // Sends the audio file and task details to the speech backend and returns its JSON result.
   const callApi = async () => {
     const formData = new FormData();
     // Expo's fetch can't send RN-style { uri, name, type } parts; a File (a Blob) carries the name/extension the server checks.
@@ -113,6 +131,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     return JSON.parse(responseText);
   };
 
+  // Saves the AI result (risk, transcript, features) to Firestore, linked to the attempt.
   const savePredictionToFirestore = async (attemptId: string, result: any) => {
     const uid = auth.currentUser?.uid ?? "anonymous";
     await addDoc(collection(db, "speech_predictions"), {
@@ -135,6 +154,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     });
   };
 
+  // Checks the recording, saves + analyses it (practice mode only analyses), then opens the result screen.
   const handleSubmit = async () => {
     if (!audioUri) { Alert.alert("No recording", "Please go back and record first."); return; }
     if (elapsed < 0.5) { Alert.alert("Too short", "Please record for at least 0.5 seconds."); return; }
@@ -162,6 +182,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
     } catch (err: any) { setSubmitStep("idle"); Alert.alert("Submit Failed", err.message); }
   };
 
+  // True while saving / analysing, so buttons are disabled.
   const isSubmitting = submitStep !== "idle" && submitStep !== "done";
 
   return (
@@ -258,6 +279,7 @@ export default function SpeechReviewScreen({ navigation, route }: Props) {
   );
 }
 
+// One row in the summary card: coloured icon, label and value.
 function SummaryRow({ icon, iconColor, iconBg, label, value, last }: { icon: any; iconColor: string; iconBg: string; label: string; value: string; last?: boolean }) {
   return (
     <View style={[styles.summaryRow, last && styles.summaryRowLast]}>
@@ -270,8 +292,11 @@ function SummaryRow({ icon, iconColor, iconBg, label, value, last }: { icon: any
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+  /* Header: white circle back button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -284,6 +309,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20, paddingTop: 8 },
 
+  /* Green hero card (success): green gradient and glow, white text, see-through white circle decoration */
   successCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 20,
     overflow: "hidden", shadowColor: "#059669", shadowOpacity: 0.28, shadowOffset: { width: 0, height: 8 }, shadowRadius: 20, elevation: 10,
@@ -296,6 +322,7 @@ const styles = StyleSheet.create({
   successTitle: { fontSize: 22, fontFamily: theme.fonts.extraBold, color: "#fff", marginBottom: 6 },
   successSub: { fontSize: 13, fontFamily: theme.fonts.regular, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 19 },
 
+  /* Summary card: white card; each row has its own icon colour (blue, purple, orange, teal) */
   summaryCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, marginBottom: 14, overflow: "hidden",
@@ -310,6 +337,7 @@ const styles = StyleSheet.create({
   summaryLabel: { flex: 1, fontSize: 14, fontFamily: theme.fonts.medium, color: "#1E293B" },
   summaryValue: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  /* Playback card: white; bars and play button turn blue/red while playing */
   playCard: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
@@ -324,6 +352,7 @@ const styles = StyleSheet.create({
   playBars: { flexDirection: "row", alignItems: "center", gap: 3 },
   playBar: { width: 4, borderRadius: 2 },
 
+  /* Info notice: light blue background with blue text */
   qualityNotice: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -331,6 +360,7 @@ const styles = StyleSheet.create({
   },
   qualityText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
 
+  /* Re-record button: white pill with grey border and grey text */
   retryBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     paddingVertical: 16, borderRadius: 50,
@@ -339,6 +369,7 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { fontSize: 15, fontFamily: theme.fonts.semiBold, color: "#64748B" },
 
+  /* Submit button: blue gradient pill with white text (greyed out while submitting) */
   submitBtn: {
     borderRadius: 50,
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,

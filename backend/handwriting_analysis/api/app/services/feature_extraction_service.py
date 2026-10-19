@@ -1,3 +1,6 @@
+# Turns a handwriting image into the numeric features the model expects (spacing, slant, strokes, quality scores...).
+# Called by services/predict_service.py; column names/order come from schemas/feature_columns.py.
+# Many values are rough image-based estimates (prototype), not real pen tracking.
 import numpy as np
 import cv2
 import pandas as pd
@@ -5,6 +8,7 @@ import pandas as pd
 from app.schemas.feature_columns import FEATURE_COLUMNS
 from app.utils.task_utils import expected_letter_count, difficulty_to_number, has_reversal_sensitive_letters
 
+# Convert to float, or use the default if missing/invalid.
 def _safe_float(value, default):
     try:
         if value is None:
@@ -13,6 +17,7 @@ def _safe_float(value, default):
     except Exception:
         return default
 
+# Convert to int, or use the default if missing/invalid.
 def _safe_int(value, default):
     try:
         if value is None:
@@ -21,6 +26,7 @@ def _safe_int(value, default):
     except Exception:
         return default
 
+# Box around all the writing: returns x, y, width, height, area.
 def _foreground_bbox(thresh):
     points = cv2.findNonZero(thresh)
     if points is None:
@@ -28,6 +34,7 @@ def _foreground_bbox(thresh):
     x, y, w, h = cv2.boundingRect(points)
     return x, y, w, h, int(w * h)
 
+# Stroke-shape numbers from outlines: stroke count, length, thickness, wobbliness, crowding.
 def _contour_features(thresh):
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -79,6 +86,7 @@ def _contour_features(thresh):
         "crowding_score": crowding_score
     }
 
+# Spacing between letters, size consistency and how far letters sit from a common baseline.
 def _component_spacing_features(thresh):
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(thresh, connectivity=8)
 
@@ -140,6 +148,7 @@ def _component_spacing_features(thresh):
         "baseline_deviation": float(np.clip(baseline_deviation, 0.01, 1.0)),
     }
 
+# Fit a straight line through the writing to get how level it is (alignment) and its tilt (slant angle).
 def _alignment_and_slant(thresh):
     points = cv2.findNonZero(thresh)
     if points is None or len(points) < 10:
@@ -161,6 +170,7 @@ def _alignment_and_slant(thresh):
 
     return alignment_score, float(np.clip(slant_angle, -35, 35))
 
+# Rough 0-1 'does this look like the target' score using ink density and number of letter blobs. Not real shape matching.
 def _shape_similarity_proxy(thresh, target_text):
     # Prototype proxy: clean bounding box, reasonable density, and components close to expected letters.
     x, y, w, h, bbox_area = _foreground_bbox(thresh)
@@ -182,6 +192,7 @@ def _shape_similarity_proxy(thresh, target_text):
     score = 0.45 * density_score + 0.35 * component_match + 0.20 * aspect_score
     return float(np.clip(score, 0.05, 0.99))
 
+# Crude check for possible b/d/p/q reversal using left-right ink imbalance. Returns (flag, count).
 def _reversal_proxy(thresh, target_text):
     if not has_reversal_sensitive_letters(target_text):
         return 0, 0
@@ -203,6 +214,8 @@ def _reversal_proxy(thresh, target_text):
         return 1, 1
     return 0, 0
 
+# Builds every feature (image-derived plus estimated timing/motor values) and returns (one-row DataFrame, dict).
+# The weights in hesitation_score and writing_quality_score are hand-tuned prototype formulas.
 def extract_handwriting_features(
     *,
     image_rgb,

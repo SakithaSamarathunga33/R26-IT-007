@@ -1,3 +1,5 @@
+// ShapeGlyph.tsx - draws a named shape (circle, star, ...) with SVG. Used by the behaviour module's
+// shape-matching task (see config/behaviorTasks.ts) so children compare shapes by sight.
 import React from "react";
 import Svg, { Circle, Ellipse, Rect, Polygon } from "react-native-svg";
 
@@ -18,6 +20,7 @@ export type ShapeName =
   | "Star";
 
 /** A bright, distinct color per shape so kids can tell shapes apart at a glance. */
+// Colour used for each shape (keys are lowercase shape names).
 export const SHAPE_COLORS: Record<string, string> = {
   circle: "#EF4444",
   oval: "#F97316",
@@ -30,6 +33,7 @@ export const SHAPE_COLORS: Record<string, string> = {
   star: "#EAB308",
 };
 
+// Returns the colour for a shape name; purple if the name is unknown.
 export function shapeColor(shape: string): string {
   return SHAPE_COLORS[shape.trim().toLowerCase()] ?? "#7C3AED";
 }
@@ -53,6 +57,7 @@ function regularPolygon(sides: number, size: number, pad: number, startDeg: numb
   }).join(" ");
 }
 
+// Vertices of a star: outer and inner points alternate.
 function starPolygon(points: number, size: number, pad: number): string {
   const outer = size / 2 - pad;
   const inner = outer * 0.42;
@@ -67,6 +72,7 @@ function starPolygon(points: number, size: number, pad: number): string {
   return pts.join(" ");
 }
 
+// Renders the chosen shape at `size`, filled or outline-only; unknown names fall back to a circle.
 export default function ShapeGlyph({ shape, size = 96, color, filled = true }: Props) {
   const s = size;
   const resolvedColor = color ?? shapeColor(shape);

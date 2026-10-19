@@ -1,3 +1,12 @@
+/**
+ * FusionTherapyScreen
+ * Shows the personalised practice (therapy) plan made from the fusion result, tracks how many practice sessions are done,
+ * and lets the child start each activity inside the app.
+ * Flow: FusionRiskSummary / FusionDifficulty / Home -> FusionTherapy -> SpeechActivity, HandwritingTask or BehaviorActivity
+ * (practice mode, which returns here when finished) -> or FusionReport ("View Full Report") / MainTabs.
+ * The plan itself comes from the multi_modal_risk backend response passed in the route; progress is stored with
+ * services/therapySessionService (Firestore). Also uses config/therapyActivityMap, Firebase auth and i18n.
+ */
 import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView, ActivityIndicator, Alert,
@@ -21,23 +30,27 @@ import {
   sessionsFor,
 } from "../../services/therapySessionService";
 
+// Navigation + route (response = fusion result, reportId = which saved report, completedActivityId = practice just finished).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionTherapy">;
   route: RouteProp<RootStackParamList, "FusionTherapy">;
 };
 
+// Plan intensity colours: green = light, orange = moderate, red = intensive (text, background and border).
 const INTENSITY_CONFIG = {
   light:     { label: "Light",     color: "#059669", bg: "#ECFDF5", border: "#BBF7D0" },
   moderate:  { label: "Moderate",  color: "#D97706", bg: "#FFFBEB", border: "#FDE68A" },
   intensive: { label: "Intensive", color: "#EF4444", bg: "#FFF5F5", border: "#FECACA" },
 };
 
+// Colours + icon for each focus area: blue = speech, purple = handwriting, teal = attention/behaviour.
 const DIFFICULTY_COLORS: Record<string, { color: string; bg: string; iconBg: string; icon: keyof typeof Ionicons.glyphMap }> = {
   phonological_processing: { color: "#2563EB", bg: "#EFF6FF", iconBg: "#DBEAFE", icon: "ear-outline" },
   handwriting:             { color: "#7C3AED", bg: "#F5F3FF", iconBg: "#EDE9FE", icon: "pencil-outline" },
   attention_behavior:      { color: "#0891B2", bg: "#ECFEFF", iconBg: "#CFFAFE", icon: "happy-outline" },
 };
 
+// Main screen: plan overview, progress, expandable activity list, secondary support and navigation buttons.
 export default function FusionTherapyScreen({ navigation, route }: Props) {
   const { t } = useT();
   const { response, reportId: reportIdParam, completedActivityId } = route.params;
@@ -94,6 +107,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
     return () => { active = false; };
   }, [completedActivityId, reportIdParam, target]);
 
+  // doneCount = practice sessions finished so far; planComplete = all required sessions are done.
   const doneCount = progress?.completed.length ?? 0;
   const planComplete = !!progress && doneCount >= target;
 
@@ -101,6 +115,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
   const timesDone = (activityId: string) =>
     progress?.completed.filter((id) => id === activityId).length ?? 0;
 
+  // Opens the matching speech / handwriting / behaviour activity in practice mode.
   const startActivity = (activityId: string) => {
     const resolved = resolveTherapyActivity(activityId);
     if (!resolved) return;
@@ -116,6 +131,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
     }
   };
 
+  // Asks for confirmation, then ends the plan so a new screening can be started.
   const handleAbandon = () => {
     Alert.alert(
       t("Start a new screening?"),
@@ -144,6 +160,7 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
     );
   };
 
+  // Header bar, reused by both the "no plan" view and the normal view.
   const header = (
     <View style={styles.header}>
       <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -412,8 +429,11 @@ export default function FusionTherapyScreen({ navigation, route }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+  /* Header: white circle back button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -426,6 +446,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20, paddingTop: 8 },
 
+  /* Plan overview card: blue gradient with blue glow; white text, see-through white stat box and circles */
   planCard: {
     borderRadius: 24, padding: 24, alignItems: "center", marginBottom: 16,
     overflow: "hidden",
@@ -450,6 +471,7 @@ const styles = StyleSheet.create({
   intensityBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   intensityBadgeText: { fontSize: 12, fontFamily: theme.fonts.semiBold, color: "#fff" },
 
+  /* Focus badge: colours come from DIFFICULTY_COLORS; intensity pill uses INTENSITY_CONFIG colours */
   focusBadgeCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
     borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 20,
@@ -460,6 +482,7 @@ const styles = StyleSheet.create({
   intensityPill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   intensityPillText: { fontSize: 11, fontFamily: theme.fonts.semiBold },
 
+  /* Practice progress card: white card, grey track; colours switch to green when the plan is complete */
   progressCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 18, padding: 16, marginBottom: 20,
@@ -473,26 +496,31 @@ const styles = StyleSheet.create({
   progressTrack: { height: 6, backgroundColor: "#E2E8F0", borderRadius: 3, overflow: "hidden" },
   progressFill: { height: 6, borderRadius: 3 },
 
+  /* "Done" chip: green text on pale green */
   doneCountChip: {
     flexDirection: "row", alignItems: "center", gap: 2,
     backgroundColor: "#ECFDF5", borderRadius: 20, paddingHorizontal: 7, paddingVertical: 3,
   },
   doneCountText: { fontSize: 10, fontFamily: theme.fonts.bold, color: "#059669" },
 
+  /* Offline note: light grey box with grey text */
   offlineActivityNote: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "#F8FAFC", borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12,
   },
   offlineActivityText: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#64748B" },
 
+  /* End-plan link: light grey, underlined */
   abandonBtn: { paddingVertical: 14, alignItems: "center" },
   abandonBtnText: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#94A3B8", textDecorationLine: "underline" },
 
+  /* Section label: light grey small caps with a small blue count badge */
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2 },
   sectionBadge: { backgroundColor: "#EFF6FF", borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
   sectionBadgeText: { fontSize: 10, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  /* Activity cards: white; number box and button use the focus area colours */
   activityCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 18, marginBottom: 10, overflow: "hidden",
@@ -516,6 +544,7 @@ const styles = StyleSheet.create({
   },
   startActivityBtnText: { fontSize: 13, fontFamily: theme.fonts.semiBold },
 
+  /* Secondary support card: white, border colour comes from the focus area */
   secondaryCard: {
     flexDirection: "row", alignItems: "flex-start",
     backgroundColor: "#fff", borderWidth: 1.5, borderRadius: 18, padding: 20, marginBottom: 24, gap: 14,
@@ -527,6 +556,7 @@ const styles = StyleSheet.create({
   secondaryActTitle: { fontSize: 14, fontFamily: theme.fonts.semiBold, color: "#1E293B", marginBottom: 8 },
   secondaryActDesc: { fontSize: 13, fontFamily: theme.fonts.regular, color: "#64748B", lineHeight: 20 },
 
+  /* Safety note: pale green background with dark green text */
   safetyCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#ECFDF5", borderWidth: 1, borderColor: "#BBF7D0",
@@ -534,6 +564,7 @@ const styles = StyleSheet.create({
   },
   safetyText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#065F46", lineHeight: 18 },
 
+  /* Full report button: blue gradient pill with white text */
   reportBtn: {
     borderRadius: 50, marginBottom: 12,
     shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
@@ -541,6 +572,7 @@ const styles = StyleSheet.create({
   reportBtnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 18 },
   reportBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
 
+  /* Dashboard button: white pill with grey border and grey text */
   homeBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 16, borderRadius: 50,

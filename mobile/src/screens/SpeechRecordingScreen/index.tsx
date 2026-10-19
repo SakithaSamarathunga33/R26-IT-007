@@ -1,3 +1,11 @@
+/**
+ * SpeechRecordingScreen
+ * Step 2 of a speech task: the child taps the mic and says the word (max 8 seconds, up to 3 retries).
+ * Flow: SpeechListen -> SpeechRecording -> SpeechReview ("Review & Submit").
+ * Uses expo-audio to record a 16 kHz mono WAV, services/ttsService for "Hear it again",
+ * config/speechTasks for the task, and the Toast + KidBackground components.
+ * The audio file is not uploaded here; its path and the timing numbers are passed to SpeechReview.
+ */
 import React, { useState, useRef, useEffect } from "react";
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Animated, Easing, Alert } from "react-native";
 import Toast from "../../components/Toast";
@@ -12,6 +20,7 @@ import KidBackground from "../../components/KidBackground";
 import { SPEECH_TASKS, getLevel, levelTaskCount, positionInLevel } from "../../config/speechTasks";
 import { speak, stopSpeaking } from "../../services/ttsService";
 
+// Recording settings: 16 kHz, mono, 16-bit WAV on iOS (AAC .m4a on Android), with mic level metering on.
 const WAV_RECORDING_OPTIONS: RecordingOptions = {
   extension: ".wav", sampleRate: 16000, numberOfChannels: 1, bitRate: 128000, isMeteringEnabled: true,
   ios: { outputFormat: IOSOutputFormat.LINEARPCM, audioQuality: AudioQuality.HIGH, linearPCMBitDepth: 16 as const, linearPCMIsBigEndian: false, linearPCMIsFloat: false },
@@ -23,19 +32,23 @@ const WAV_RECORDING_OPTIONS: RecordingOptions = {
 const METERING_FLOOR_DB = -60;
 const WAVE_BAR_COUNT = 10;
 
+// Turns a mic level in dB into a 0..1 number for the waveform bars.
 function normalizeMetering(db: number | undefined): number {
   if (db === undefined || !Number.isFinite(db)) return 0;
   return Math.max(0, Math.min(1, (db - METERING_FLOOR_DB) / -METERING_FLOOR_DB));
 }
 
+// Navigation + route (taskIndex, practice flag, and listen-step data like heardCount / promptEndTs).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "SpeechRecording">;
   route: RouteProp<RootStackParamList, "SpeechRecording">;
 };
 
+// Longest allowed recording; RecordState is the three stages of the mic button.
 const MAX_SECONDS = 8;
 type RecordState = "idle" | "recording" | "done";
 
+// Main screen: word card, timer, mic button, waveform and the Retry / Review buttons.
 export default function SpeechRecordingScreen({ navigation, route }: Props) {
   const taskIndex = route.params?.taskIndex ?? 0;
   const practice = route.params?.practice;
@@ -71,6 +84,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
   const recStartRef = useRef(0);
   const recStopRef = useRef(0);
 
+  // Start / stop the pulsing ring around the mic while recording.
   const stopPulse = () => { pulseLoopRef.current?.stop(); pulseAnim.setValue(1); };
   const startPulse = () => {
     pulseLoopRef.current = Animated.loop(Animated.sequence([
@@ -80,6 +94,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
     pulseLoopRef.current.start();
   };
 
+  // Reset everything when a new task opens.
   useEffect(() => { setRecordState("idle"); setRetryCount(0); setAudioUri(null); setWaveLevels(Array(WAVE_BAR_COUNT).fill(0)); setFinalElapsed(null); stopPulse(); }, [taskIndex]);
   useEffect(() => {
     return () => {
@@ -116,6 +131,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
     });
   };
 
+  // Asks for mic permission, opens the mic and starts recording.
   const handleStartRecording = async () => {
     if (busy) return;
     setBusy(true);
@@ -142,6 +158,7 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
     }
   };
 
+  // Stops recording, saves the file path and shows the "done" state.
   const handleStopRecording = async () => {
     if (busy) return;
     setBusy(true);
@@ -162,11 +179,13 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
     }
   };
 
+  // Lets the child record again (max 3 retries), clearing the old take.
   const handleRetry = () => {
     if (retryCount >= 3) { setToast({ visible: true, message: "Maximum 3 retries allowed.", type: "warning" }); return; }
     setRetryCount((c) => c + 1); setAudioUri(null); setWaveLevels(Array(WAVE_BAR_COUNT).fill(0)); setFinalElapsed(null); setRecordState("idle");
   };
 
+  // Timer bar fill (0-100%) and the mic button colours: blue = ready, red = recording, green = done.
   const progressPct = Math.min((elapsed / MAX_SECONDS) * 100, 100);
 
   const micColors: [string, string] =
@@ -301,9 +320,12 @@ export default function SpeechRecordingScreen({ navigation, route }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
 
+  /* Header: white circle back button, dark slate title, blue retry counter badge */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -323,8 +345,10 @@ const styles = StyleSheet.create({
   },
   retryBadgeText: { fontSize: 12, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
 
+  /* Main content area */
   content: { flex: 1, paddingHorizontal: 20, alignItems: "center", paddingTop: 8 },
 
+  /* Word card: white card; grey label, dark word, grey hint */
   wordCard: {
     width: "100%", backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, paddingVertical: 20, paddingHorizontal: 32, alignItems: "center", marginBottom: 24, gap: 4,
@@ -334,6 +358,7 @@ const styles = StyleSheet.create({
   wordText: { fontSize: 36, fontFamily: theme.fonts.extraBold, color: "#1E293B" },
   wordHint: { fontSize: 13, fontFamily: theme.fonts.medium, color: "#64748B" },
 
+  /* "Hear it again" button: white pill with light blue border, blue text (faded when disabled) */
   hearBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
     backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#DBEAFE",
@@ -343,10 +368,12 @@ const styles = StyleSheet.create({
   hearBtnText: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#2563EB" },
   hearBtnDisabled: { opacity: 0.35 },
 
+  /* Timer bar: grey track, fill is blue (red while recording) */
   timerTrack: { width: "100%", height: 6, backgroundColor: "#E2E8F0", borderRadius: 3, overflow: "hidden", marginBottom: 6 },
   timerFill: { height: 6, borderRadius: 3 },
   timerText: { fontSize: 12, fontFamily: theme.fonts.medium, color: "#94A3B8", marginBottom: 32 },
 
+  /* Mic button: blue gradient with blue glow; red pulse ring while recording */
   micArea: { width: 180, height: 180, alignItems: "center", justifyContent: "center", marginBottom: 20 },
   pulseRing: {
     position: "absolute", width: 180, height: 180, borderRadius: 90,
@@ -357,14 +384,18 @@ const styles = StyleSheet.create({
     shadowColor: "#2563EB", shadowOpacity: 0.35, shadowOffset: { width: 0, height: 10 }, shadowRadius: 24, elevation: 12,
   },
 
+  /* Status text: grey */
   statusText: { fontSize: 14, fontFamily: theme.fonts.medium, color: "#64748B", textAlign: "center", marginBottom: 16 },
 
+  /* Waveform bars (blue) */
   waveRow: { flexDirection: "row", alignItems: "center", gap: 4, height: 44 },
   waveBar: { width: 5, borderRadius: 3, opacity: 0.8 },
 
+  /* "Great!" message: green */
   doneMsg: { flexDirection: "row", alignItems: "center", gap: 6 },
   doneMsgText: { fontSize: 13, fontFamily: theme.fonts.semiBold, color: "#059669" },
 
+  /* Bottom buttons: Retry = white with grey border/text; Review & Submit = blue gradient with white text */
   actionRow: { flexDirection: "row", gap: 12, width: "100%" },
   retryBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,

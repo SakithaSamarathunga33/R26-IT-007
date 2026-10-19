@@ -1,3 +1,7 @@
+# Column lists the handwriting model was trained on. Used by services/feature_extraction_service.py
+# to build the one-row table fed to the model, and by routes/predict_routes.py for the /schema endpoint.
+# The order matters: it must match the training data exactly.
+# FEATURE_COLUMNS = all model input columns, in training order.
 FEATURE_COLUMNS = [
     "task_type",
     "target_text",
@@ -42,6 +46,7 @@ FEATURE_COLUMNS = [
     "writing_quality_score"
 ]
 
+# Subset of FEATURE_COLUMNS that are numbers.
 NUMERIC_COLUMNS = [
     "age",
     "environment_noise_level",
@@ -77,6 +82,7 @@ NUMERIC_COLUMNS = [
     "writing_quality_score"
 ]
 
+# Subset of FEATURE_COLUMNS that are text categories.
 CATEGORICAL_COLUMNS = [
     "task_type",
     "target_text",

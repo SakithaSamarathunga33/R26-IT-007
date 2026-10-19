@@ -1,6 +1,9 @@
+# Pydantic shapes for the /predict/speech response. Used by routes/predict_routes.py (response_model).
+# The mobile app (SpeechReviewScreen) and multi_modal_risk read these fields.
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, Dict, Any, List, Literal
 
+# Basic facts about the uploaded audio (format, length, sample rate).
 class ValidationResult(BaseModel):
     valid: bool
     filename: str
@@ -10,6 +13,7 @@ class ValidationResult(BaseModel):
     channels: Optional[int] = None
     message: str
 
+# How trustworthy the recording/result is: reliability level, warnings, durations, loudness.
 class QualityResult(BaseModel):
     prediction_reliability: str
     warnings: List[str]
@@ -19,12 +23,15 @@ class QualityResult(BaseModel):
     pitch_missing: bool = False
     note: str
 
+# The model's answer: 0/1 label, risk probability and risk level (low/medium/high/requires_review).
 class PredictionResult(BaseModel):
     risk_label_binary: int
     risk_probability: float
     risk_level: str
 
+# Full response returned to the app. 'inconclusive' quality_status means the result needs review or a retry.
 class SpeechPredictResponse(BaseModel):
+    # Allows field names starting with 'model_' (pydantic reserves that prefix by default).
     model_config = ConfigDict(protected_namespaces=())
 
     component: Literal["speech_phonological"] = "speech_phonological"

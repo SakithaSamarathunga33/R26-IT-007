@@ -1,12 +1,15 @@
+// ConfettiBurst.tsx - falling confetti for celebration moments (level complete, result screens).
 import React, { useEffect, useRef } from "react";
 import { Animated, Dimensions, Easing, StyleSheet, View } from "react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
+// Confetti colours (orange, pink, purple, blue, green, red) and shapes; PIECE_COUNT = how many pieces fall.
 const COLORS = ["#F59E0B", "#EC4899", "#8B5CF6", "#2563EB", "#059669", "#EF4444"];
 const SHAPES = ["circle", "square"] as const;
 const PIECE_COUNT = 26;
 
+// One confetti piece: start position, look, and animation timing.
 type Piece = {
   x: number;
   color: string;
@@ -18,6 +21,7 @@ type Piece = {
   spin: number;
 };
 
+// Creates PIECE_COUNT pieces with random position, size, colour, speed and spin.
 function buildPieces(): Piece[] {
   return Array.from({ length: PIECE_COUNT }, () => ({
     x: Math.random() * SCREEN_WIDTH,
@@ -31,6 +35,7 @@ function buildPieces(): Piece[] {
   }));
 }
 
+// Animates one piece falling down while drifting sideways, spinning and fading out.
 function ConfettiPiece({ piece }: { piece: Piece }) {
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -83,6 +88,7 @@ export default function ConfettiBurst() {
   );
 }
 
+// Pieces are positioned absolutely at the top and animated downward.
 const styles = StyleSheet.create({
   piece: { position: "absolute", top: 0 },
 });

@@ -1,3 +1,11 @@
+/**
+ * FusionRiskSummaryScreen
+ * Shows the final combined (speech + handwriting + behaviour) dyslexia screening risk: score, level, reliability and per-module bars.
+ * Flow: FusionLoading (after the analysis) or Home / History ("View Last Report") -> FusionRiskSummary
+ * -> FusionDifficulty or FusionTherapy; back to the dashboard (MainTabs) if there was not enough evidence.
+ * All numbers come from the multi_modal_risk backend response passed in the route (made in FusionLoading);
+ * this screen makes no API call. Uses i18n and the KidBackground component.
+ */
 import React from "react";
 import {
   View, Text, StyleSheet, StatusBar, TouchableOpacity, ScrollView,
@@ -11,11 +19,14 @@ import { theme } from "../../theme";
 import KidBackground from "../../components/KidBackground";
 import { useT } from "../../i18n";
 
+// Navigation + route (response = fusion result, saveFailed = true if saving to the profile failed).
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "FusionRiskSummary">;
   route: RouteProp<RootStackParamList, "FusionRiskSummary">;
 };
 
+// Text, icon and colours for each risk level: green = low, orange = medium, red = high, grey = not enough evidence.
+// gradColors = result card gradient, accentColor = bar/number colour, bgColor + borderColor = soft box colours.
 const RISK_CONFIG = {
   low: {
     title: "Low Screening Risk",
@@ -59,8 +70,10 @@ const RISK_CONFIG = {
   },
 };
 
+// Reliability colours: green = high, orange = medium, red = low.
 const RELIABILITY_COLORS = { high: "#059669", medium: "#D97706", low: "#EF4444" };
 
+// Main screen: big result card, warnings, risk bar, module contributions, disclaimer and next-step buttons.
 export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
   const { t } = useT();
   const { response, saveFailed } = route.params;
@@ -76,6 +89,7 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
   const reliability = quality?.fusion_reliability ?? "medium";
   const cs = response.component_statuses ?? {};
 
+  // The three module scores shown as bars (blue = speech, purple = handwriting, teal = behaviour). usable = false shows "-".
   const modules = [
     { label: "Speech",      value: response.fusion_features?.speech_score, color: "#2563EB", usable: cs.speech?.usable !== false },
     { label: "Handwriting", value: response.fusion_features?.handwriting_score, color: "#7C3AED", usable: cs.handwriting?.usable !== false },
@@ -267,8 +281,11 @@ export default function FusionRiskSummaryScreen({ navigation, route }: Props) {
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
+  /* Page background: soft light blue-white */
   container: { flex: 1, backgroundColor: "#F5F7FF" },
+  /* Header: white circle back button, dark slate title */
   header: {
     paddingTop: 58, paddingHorizontal: 20, paddingBottom: 12,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -281,6 +298,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontFamily: theme.fonts.semiBold, color: "#1E293B" },
   content: { paddingHorizontal: 20, paddingTop: 8 },
 
+  /* Result card: gradient colour = risk level (see RISK_CONFIG); white text and see-through white score box */
   resultCard: {
     borderRadius: 24, padding: 28, alignItems: "center", marginBottom: 16,
     overflow: "hidden",
@@ -302,6 +320,7 @@ const styles = StyleSheet.create({
   scoreVal: { fontSize: 18, fontFamily: theme.fonts.extraBold, color: "#fff" },
   scoreLabel: { fontSize: 10, fontFamily: theme.fonts.medium, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 },
 
+  /* Risk score bar: white card, grey track, fill colour = risk level colour */
   probCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 20,
@@ -316,8 +335,10 @@ const styles = StyleSheet.create({
   probNote: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
   thresholdMark: { width: 1, height: 10, backgroundColor: "#94A3B8" },
 
+  /* Section label: light grey small caps */
   sectionLabel: { fontSize: 11, fontFamily: theme.fonts.semiBold, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 },
 
+  /* Module contribution bars: white card, bar colour = module colour */
   modulesCard: {
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#E8EDF5",
     borderRadius: 20, padding: 16, marginBottom: 16,
@@ -333,6 +354,7 @@ const styles = StyleSheet.create({
   weightsRow: { paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9", marginTop: 4 },
   weightsText: { fontSize: 11, fontFamily: theme.fonts.regular, color: "#94A3B8" },
 
+  /* Warning boxes: yellow background with brown text */
   warningCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#FFFBEB", borderWidth: 1, borderColor: "#FDE68A",
@@ -347,6 +369,7 @@ const styles = StyleSheet.create({
   qWarningRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   qWarningText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#92400E" },
 
+  /* Disclaimer: light blue background, blue text (dark blue for the bold part) */
   disclaimerCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
     backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#DBEAFE",
@@ -355,6 +378,7 @@ const styles = StyleSheet.create({
   disclaimerText: { flex: 1, fontSize: 12, fontFamily: theme.fonts.regular, color: "#3B72F6", lineHeight: 18 },
   disclaimerBold: { fontFamily: theme.fonts.semiBold, color: "#1E40AF" },
 
+  /* Main button: blue gradient pill with white text */
   primaryBtn: {
     borderRadius: 50, marginBottom: 12,
     shadowColor: "#2563EB", shadowOpacity: 0.3, shadowOffset: { width: 0, height: 6 }, shadowRadius: 14, elevation: 6,
@@ -362,6 +386,7 @@ const styles = StyleSheet.create({
   btnInner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 18 },
   primaryBtnText: { fontSize: 16, fontFamily: theme.fonts.bold, color: "#fff" },
 
+  /* Secondary button: light blue fill and border with blue text */
   secondaryBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingVertical: 16, borderRadius: 50,

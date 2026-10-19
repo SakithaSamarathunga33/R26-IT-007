@@ -1,3 +1,6 @@
+// levelProgressService.ts - shared logic for "which levels are unlocked" in the speech, handwriting and
+// behaviour modules. Data lives in Firestore (<module>_level_progress per child). The three *LevelService
+// files call these functions with their own config.
 import {
   doc, getDoc, setDoc, serverTimestamp,
   collection, query, where, getDocs, writeBatch,
@@ -29,8 +32,10 @@ export interface LevelModuleConfig {
   logTag: string;
 }
 
+// Default when nothing is saved: no levels completed.
 const EMPTY: LevelProgress = { completed: [] };
 
+// Cleans stored data: keeps only valid level numbers, no duplicates, in order.
 function sanitize(raw: any, levelIds: LevelNumber[]): LevelProgress {
   const completed = Array.isArray(raw?.completed)
     ? (raw.completed.filter((v: any) => levelIds.includes(v)) as LevelNumber[])
@@ -39,6 +44,7 @@ function sanitize(raw: any, levelIds: LevelNumber[]): LevelProgress {
   return { completed: [...new Set(completed)].sort((a, b) => a - b) as LevelNumber[] };
 }
 
+// Reads the child's completed levels; returns "none completed" if the read fails.
 export async function fetchProgress(cfg: LevelModuleConfig, uid: string): Promise<LevelProgress> {
   try {
     const snap = await getDoc(doc(db, cfg.progressCollection, uid));
@@ -123,6 +129,7 @@ export async function clearPredictionsForLevel(
   }
 }
 
+// Sets completed levels back to none (used when a new screening starts).
 export async function resetProgress(cfg: LevelModuleConfig, uid: string) {
   try {
     await setDoc(doc(db, cfg.progressCollection, uid), {

@@ -1,8 +1,11 @@
+# Builds the fusion feature table from the request (used by the XGBoost difficulty model and returned as "fusion_features").
+# Called by services/predict_service.py. Uses helpers from utils/risk_utils.py.
 import pandas as pd
 from typing import Dict, Any
 from app.schemas.feature_columns import FEATURE_COLUMNS
 from app.utils.risk_utils import severity_from_score, status_from_score, module_score
 
+# Reads a nested value like 'features.reversal_risk' from a dict, or returns a default if any part is missing.
 def _safe_get(data: Dict[str, Any], path: str, default=None):
     current = data
     for part in path.split('.'):
@@ -11,6 +14,7 @@ def _safe_get(data: Dict[str, Any], path: str, default=None):
         current = current[part]
     return current
 
+# Converts to a float, or the default if it is empty or not a number.
 def _safe_float(value, default=0.0):
     try:
         if value is None:
@@ -19,6 +23,7 @@ def _safe_float(value, default=0.0):
     except Exception:
         return default
 
+# Converts to an int, or the default if it is empty or not a number.
 def _safe_int(value, default=0):
     try:
         if value is None:
@@ -27,6 +32,8 @@ def _safe_int(value, default=0):
     except Exception:
         return default
 
+# Collects the sub-features from each module and fills defaults for missing child info.
+# Returns (one-row DataFrame in FEATURE_COLUMNS order, dict of the same values). Unusable modules stay None, never 0.
 def build_fusion_features(payload: Dict[str, Any], rule_config: Dict[str, Any]):
     metadata = payload.get('metadata') or {}
     speech = payload.get('speech') or {}
@@ -43,10 +50,12 @@ def build_fusion_features(payload: Dict[str, Any], rule_config: Dict[str, Any]):
     pronunciation_score = _safe_float(_safe_get(speech, 'features.pronunciation_score'), 0.0)
     rhyme_accuracy = _safe_float(_safe_get(speech, 'features.rhyme_accuracy'), 0.0)
 
+    # Handwriting may send a reversal COUNT; a value above 1 is treated as a count and scaled into 0-1 (3 or more reversals = 1).
     reversal_risk = _safe_float(_safe_get(handwriting, 'features.reversal_risk', _safe_get(handwriting, 'features.reversal_count')), 0.0)
     if reversal_risk > 1:
         reversal_risk = min(reversal_risk / 3.0, 1.0)
 
+    # Spacing variance above 1 is treated as pixels and scaled into 0-1 (30 or more = 1).
     spacing_variance = _safe_float(_safe_get(handwriting, 'features.spacing_variance'), 0.0)
     if spacing_variance > 1:
         spacing_variance = min(spacing_variance / 30.0, 1.0)
@@ -59,6 +68,7 @@ def build_fusion_features(payload: Dict[str, Any], rule_config: Dict[str, Any]):
     response_latency = _safe_float(_safe_get(behavior, 'features.response_latency', _safe_get(behavior, 'features.response_latency_sec')), 0.0)
     retry_count = _safe_int(_safe_get(behavior, 'features.retry_count'), 0)
 
+    # Default module weights (speech 40%, handwriting 35%, behaviour 25%); the rule config file can override them.
     speech_weight = float(rule_config.get('speech_weight', 0.40))
     handwriting_weight = float(rule_config.get('handwriting_weight', 0.35))
     behavior_weight = float(rule_config.get('behavior_weight', 0.25))
@@ -98,6 +108,7 @@ def build_fusion_features(payload: Dict[str, Any], rule_config: Dict[str, Any]):
         'handwriting_severity': severity_from_score(handwriting_score),
         'behavior_severity': severity_from_score(behavior_score),
         'attention_status': status_from_score(behavior_score),
+        # Simple yes/no flags: strong letter reversals (>0.60), high phoneme errors (>0.50), low engagement (<0.50).
         'reversal_risk_flag': 1 if reversal_risk > 0.60 else 0,
         'phoneme_risk_flag': 1 if phoneme_error_rate > 0.50 else 0,
         'engagement_risk_flag': 1 if engagement_score < 0.50 else 0,

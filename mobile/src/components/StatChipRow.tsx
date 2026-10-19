@@ -1,8 +1,10 @@
+// StatChipRow.tsx - row of three small stat boxes (label + icon + value). Used on result/summary screens.
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../theme";
 
+// One chip: its text, icon, and colours (color = icon/value, bg = fill, border = outline).
 type Chip = {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -33,6 +35,7 @@ export default function StatChipRow({ chips }: Props) {
   );
 }
 
+// label colour #94A3B8 is a muted grey for the small caption.
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10, width: "100%", marginBottom: 12 },
   chip: {
