@@ -68,7 +68,7 @@
   "intercept": 0.00095473,
   "decision_threshold": 0.5,
   "training": {
-    "dataset": "fusion_training_dataset_synthetic.csv",
+    "dataset": "fusion_training_dataset.csv",
     "dataset_sha256": "a6add57d5416ba0a2c669803de3ea7141969aba02b660eac6daaddbee6aaaa81",
     "rows": 1087,
     "children": 240,

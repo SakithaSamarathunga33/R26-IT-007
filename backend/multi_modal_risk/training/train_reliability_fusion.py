@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT / 'api'))
 from app.services.reliability_features import FEATURE_ORDER, MODULES, build_features  # noqa: E402
 from app.services.fusion_service import effective_weights, load_rule_config  # noqa: E402
 
-DATASET = ROOT / 'datasets' / 'fusion_training_dataset_synthetic.csv'
+DATASET = ROOT / 'datasets' / 'fusion_training_dataset.csv'
 OUT_MODEL = ROOT / 'ml_models' / 'fusion_reliability_lr_v1.json'
 OUT_REPORT = Path(__file__).with_name('REPORT.md')
 
